@@ -1,0 +1,1200 @@
+/* ============================================================
+   SIR JAZPER OS — MONOCHROME DESIGN SYSTEM
+   Version 1.0 · Black & White · Dark + Light Mode
+   Font: Inter (import separately or via Google Fonts)
+   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+   ============================================================ */
+
+
+/* ── 1. TONE SCALES ─────────────────────────────────────────
+   Dark mode  → ink = near-black,  paper = white
+   Light mode → ink = near-white,  paper = black
+   The variables FLIP on [data-theme="light"] so every
+   component that references them automatically inverts.
+   ─────────────────────────────────────────────────────────── */
+
+:root {
+    color-scheme: dark;
+
+    /* Grayscale — 14 stops */
+    --ink: #000000;
+    /* absolute black          */
+    --ink-95: #0D0D0D;
+    /* app background          */
+    --ink-90: #111111;
+    /* deepest surface         */
+    --ink-85: #1A1A1A;
+    /* panel background        */
+    --ink-78: #242424;
+    /* raised card             */
+    --ink-70: #2B2B2B;
+    /* card inner              */
+    --ink-65: #333333;
+    /* dividers                */
+    --ink-60: #3D3D3D;
+    /* border default          */
+    --ink-50: #474747;
+    /* border emphasis         */
+    --ink-45: #555555;
+    /* muted border            */
+    --ink-40: #6E6E6E;
+    /* icon / placeholder      */
+    --ink-30: #7A7A7A;
+    /* tertiary text           */
+    --ink-25: #909090;
+    /* secondary text          */
+    --ink-20: #B8B8B8;
+    /* body text               */
+    --ink-10: #D9D9D9;
+    /* primary text            */
+    --ink-06: #EBEBEB;
+    /* near-white              */
+    --ink-03: #F5F5F5;
+    /* off-white               */
+    --paper: #FFFFFF;
+    /* absolute white — CTAs   */
+
+    /* Semantic aliases (dark mode) */
+    --color-bg: var(--ink-95);
+    --color-surface: var(--ink-85);
+    --color-surface-raised: var(--ink-78);
+    --color-surface-float: var(--ink-70);
+    --color-border: var(--ink-60);
+    --color-border-hi: var(--ink-50);
+    --color-border-lo: var(--ink-65);
+    --color-text-primary: var(--ink-10);
+    --color-text-secondary: var(--ink-25);
+    --color-text-muted: var(--ink-40);
+    --color-text-placeholder: var(--ink-45);
+    --color-icon: var(--ink-40);
+    --color-cta-bg: var(--paper);
+    --color-cta-text: var(--ink);
+    --color-invert-bg: var(--paper);
+    --color-invert-text: var(--ink);
+
+    /* Status — brightness only, no hue */
+    --color-status-live: var(--paper);
+    /* white  = alive     */
+    --color-status-active: var(--ink-06);
+    /* bright = running   */
+    --color-status-settled: var(--ink-20);
+    /* mid    = done      */
+    --color-status-idle: var(--ink-40);
+    /* dim    = inactive  */
+
+    /* Typography */
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+    /* Spacing — 4-pt grid */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 20px;
+    --sp-6: 24px;
+    --sp-7: 28px;
+    --sp-8: 32px;
+    --sp-10: 40px;
+    --sp-12: 48px;
+
+    /* Border radius */
+    --r-xs: 3px;
+    --r-sm: 5px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+    --r-2xl: 24px;
+    --r-full: 9999px;
+
+    /* Border shorthands */
+    --border: 1px solid var(--color-border);
+    --border-hi: 1px solid var(--color-border-hi);
+    --border-lo: 1px solid var(--color-border-lo);
+
+    /* Motion */
+    --ease-snap: all 0.12s ease;
+    --ease-soft: all 0.22s ease;
+    --ease-slow: all 0.4s ease;
+}
+
+
+/* ── 2. LIGHT MODE ──────────────────────────────────────────
+   Applied via <html data-theme="light"> or
+   via OS preference with prefers-color-scheme.
+   Everything inverts elegantly — the UI goes from
+   ink-on-white → white-on-ink.
+   ─────────────────────────────────────────────────────────── */
+
+[data-theme="light"] {
+    color-scheme: light;
+
+    --color-bg: #FFFFFF;
+    --color-surface: #F5F5F5;
+    --color-surface-raised: #EBEBEB;
+    --color-surface-float: #E0E0E0;
+    --color-border: #D9D9D9;
+    --color-border-hi: #B8B8B8;
+    --color-border-lo: #EBEBEB;
+    --color-text-primary: #111111;
+    --color-text-secondary: #3D3D3D;
+    --color-text-muted: #7A7A7A;
+    --color-text-placeholder: #B8B8B8;
+    --color-icon: #7A7A7A;
+    --color-cta-bg: #111111;
+    --color-cta-text: #FFFFFF;
+    --color-invert-bg: #111111;
+    --color-invert-text: #FFFFFF;
+
+    --color-status-live: #000000;
+    --color-status-active: #2B2B2B;
+    --color-status-settled: #6E6E6E;
+    --color-status-idle: #B8B8B8;
+
+    --border: 1px solid var(--color-border);
+    --border-hi: 1px solid var(--color-border-hi);
+    --border-lo: 1px solid var(--color-border-lo);
+}
+
+/* OS-level preference fallback (no data-theme needed) */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+        color-scheme: light;
+
+        --color-bg: #FFFFFF;
+        --color-surface: #F5F5F5;
+        --color-surface-raised: #EBEBEB;
+        --color-surface-float: #E0E0E0;
+        --color-border: #D9D9D9;
+        --color-border-hi: #B8B8B8;
+        --color-border-lo: #EBEBEB;
+        --color-text-primary: #111111;
+        --color-text-secondary: #3D3D3D;
+        --color-text-muted: #7A7A7A;
+        --color-text-placeholder: #B8B8B8;
+        --color-icon: #7A7A7A;
+        --color-cta-bg: #111111;
+        --color-cta-text: #FFFFFF;
+        --color-invert-bg: #111111;
+        --color-invert-text: #FFFFFF;
+
+        --color-status-live: #000000;
+        --color-status-active: #2B2B2B;
+        --color-status-settled: #6E6E6E;
+        --color-status-idle: #B8B8B8;
+
+        --border: 1px solid var(--color-border);
+        --border-hi: 1px solid var(--color-border-hi);
+        --border-lo: 1px solid var(--color-border-lo);
+    }
+}
+
+
+/* ── 3. GLOBAL RESET & BASE ─────────────────────────────── */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    transition: background var(--ease-slow), color var(--ease-slow);
+}
+
+::selection {
+    background: var(--color-text-primary);
+    color: var(--color-bg);
+}
+
+
+/* ── 4. TYPOGRAPHY ──────────────────────────────────────── */
+
+.sj-hero {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    color: var(--color-text-primary);
+}
+
+.sj-hero strong {
+    font-weight: 600;
+}
+
+.sj-heading {
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--color-text-primary);
+}
+
+.sj-subheading {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.sj-body {
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.65;
+    color: var(--color-text-primary);
+}
+
+.sj-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
+.sj-micro {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.sj-mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.sj-metric {
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--color-text-primary);
+    line-height: 1;
+}
+
+.sj-metric sup {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    vertical-align: super;
+}
+
+.sj-accent {
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+
+
+/* ── 5. LAYOUT ──────────────────────────────────────────── */
+
+.sj-app {
+    min-height: 100vh;
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+.sj-sidebar {
+    width: 56px;
+    background: var(--color-surface);
+    border-right: var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--sp-4) 0;
+    gap: var(--sp-1);
+    flex-shrink: 0;
+    transition: background var(--ease-slow), border-color var(--ease-slow);
+}
+
+.sj-topbar {
+    height: 44px;
+    background: var(--color-surface);
+    border-bottom: var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--sp-4);
+    gap: var(--sp-3);
+    flex-shrink: 0;
+    transition: background var(--ease-slow), border-color var(--ease-slow);
+}
+
+.sj-content {
+    flex: 1;
+    display: grid;
+    gap: 1px;
+    background: var(--color-border);
+}
+
+.sj-panel {
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: background var(--ease-slow);
+}
+
+.sj-panel-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: var(--border);
+    flex-shrink: 0;
+}
+
+.sj-panel-body {
+    flex: 1;
+    padding: var(--sp-3) var(--sp-4);
+    overflow-y: auto;
+}
+
+
+/* ── 6. NAVIGATION ──────────────────────────────────────── */
+
+.sj-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-md);
+    border: var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--sp-3);
+    transition: var(--ease-snap);
+}
+
+.sj-nav-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-icon);
+    cursor: pointer;
+    transition: var(--ease-snap);
+    font-size: 17px;
+    border: 1px solid transparent;
+}
+
+.sj-nav-icon:hover {
+    background: var(--color-surface-raised);
+    color: var(--color-text-secondary);
+}
+
+.sj-nav-icon.active {
+    background: var(--color-text-primary);
+    color: var(--color-bg);
+    border-color: transparent;
+}
+
+.sj-nav-divider {
+    width: 28px;
+    height: 1px;
+    background: var(--color-border);
+    margin: var(--sp-2) 0;
+}
+
+.sj-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-full);
+    border: var(--border-hi);
+    background: var(--color-surface-raised);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: var(--ease-snap);
+}
+
+.sj-avatar:hover {
+    border-color: var(--color-text-primary);
+    color: var(--color-text-primary);
+}
+
+
+/* ── 7. BUTTONS ─────────────────────────────────────────── */
+
+.sj-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 7px var(--sp-3);
+    border-radius: var(--r-md);
+    font-size: 12.5px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: var(--ease-snap);
+    white-space: nowrap;
+    line-height: 1;
+}
+
+/* Primary — full invert: the most important action */
+.sj-btn-primary {
+    background: var(--color-cta-bg);
+    color: var(--color-cta-text);
+}
+
+.sj-btn-primary:hover {
+    opacity: 0.88;
+}
+
+.sj-btn-primary:active {
+    transform: scale(0.97);
+}
+
+/* Outline */
+.sj-btn-outline {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: var(--border-hi);
+}
+
+.sj-btn-outline:hover {
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    border-color: var(--color-text-secondary);
+}
+
+/* Ghost */
+.sj-btn-ghost {
+    background: var(--color-surface-raised);
+    color: var(--color-text-muted);
+    border: var(--border);
+}
+
+.sj-btn-ghost:hover {
+    background: var(--color-surface-float);
+    color: var(--color-text-secondary);
+}
+
+/* Icon-only button */
+.sj-btn-icon {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: var(--r-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-cta-bg);
+    color: var(--color-cta-text);
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    transition: var(--ease-snap);
+}
+
+.sj-btn-icon:hover {
+    opacity: 0.85;
+}
+
+
+/* ── 8. INPUTS ──────────────────────────────────────────── */
+
+.sj-input {
+    display: block;
+    width: 100%;
+    height: 36px;
+    background: var(--color-surface);
+    border: var(--border-hi);
+    border-radius: var(--r-md);
+    padding: 0 var(--sp-3);
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    outline: none;
+    transition: var(--ease-snap);
+}
+
+.sj-input::placeholder {
+    color: var(--color-text-placeholder);
+}
+
+.sj-input:focus {
+    border-color: var(--color-text-secondary);
+}
+
+.sj-textarea {
+    display: block;
+    width: 100%;
+    background: var(--color-surface);
+    border: var(--border-hi);
+    border-radius: var(--r-md);
+    padding: var(--sp-2) var(--sp-3);
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    outline: none;
+    resize: vertical;
+    line-height: 1.6;
+    transition: var(--ease-snap);
+}
+
+.sj-textarea::placeholder {
+    color: var(--color-text-placeholder);
+}
+
+.sj-textarea:focus {
+    border-color: var(--color-text-secondary);
+}
+
+/* Command search input (larger, with icon slot) */
+.sj-cmd-input {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    background: var(--color-surface);
+    border: var(--border-hi);
+    border-radius: var(--r-md);
+    padding: var(--sp-2) var(--sp-3);
+    transition: var(--ease-snap);
+}
+
+.sj-cmd-input:focus-within {
+    border-color: var(--color-text-secondary);
+}
+
+.sj-cmd-input input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+}
+
+.sj-cmd-input input::placeholder {
+    color: var(--color-text-placeholder);
+}
+
+
+/* ── 9. CARDS ───────────────────────────────────────────── */
+
+.sj-card {
+    background: var(--color-surface);
+    border: var(--border);
+    border-radius: var(--r-md);
+    padding: var(--sp-3);
+    transition: background var(--ease-slow), border-color var(--ease-snap);
+}
+
+.sj-card:hover {
+    border-color: var(--color-border-hi);
+}
+
+/* Metric card */
+.sj-metric-card {
+    background: var(--color-surface);
+    border: var(--border);
+    border-radius: var(--r-md);
+    padding: var(--sp-3) var(--sp-3);
+}
+
+.sj-metric-card .sj-label {
+    margin-bottom: var(--sp-1);
+    display: block;
+}
+
+/* Metric progress bar */
+.sj-bar {
+    height: 2px;
+    background: var(--color-surface-float);
+    border-radius: var(--r-full);
+    margin-top: var(--sp-2);
+    overflow: hidden;
+}
+
+.sj-bar-fill {
+    height: 100%;
+    border-radius: var(--r-full);
+    background: var(--color-text-primary);
+    transition: width var(--ease-slow);
+}
+
+
+/* ── 10. BADGES & TAGS ──────────────────────────────────── */
+
+.sj-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 2px var(--sp-2);
+    border-radius: var(--r-xs);
+    font-size: 10px;
+    font-weight: 500;
+    background: var(--color-surface-raised);
+    color: var(--color-text-muted);
+    border: var(--border);
+    white-space: nowrap;
+    transition: var(--ease-snap);
+}
+
+.sj-badge-hi {
+    background: var(--color-surface-float);
+    color: var(--color-text-secondary);
+    border-color: var(--color-border-hi);
+}
+
+/* Full invert badge — used for "live", "active" */
+.sj-badge-live {
+    background: var(--color-invert-bg);
+    color: var(--color-invert-text);
+    border-color: transparent;
+}
+
+/* Pill variant */
+.sj-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 4px var(--sp-3);
+    border-radius: var(--r-full);
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--color-surface-raised);
+    color: var(--color-text-secondary);
+    border: var(--border);
+    white-space: nowrap;
+}
+
+/* Keyboard shortcut */
+.sj-kbd {
+    display: inline-block;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    background: var(--color-surface-float);
+    border: var(--border-hi);
+    border-radius: var(--r-xs);
+    padding: 1px var(--sp-1);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+}
+
+
+/* ── 11. STATUS INDICATORS ──────────────────────────────── */
+
+/* Dot — brightness encodes state, no hue */
+.sj-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: var(--r-full);
+    flex-shrink: 0;
+}
+
+.sj-dot-live {
+    background: var(--color-status-live);
+    animation: sj-pulse 2s infinite;
+}
+
+.sj-dot-active {
+    background: var(--color-status-active);
+    animation: sj-blink 1.4s infinite;
+}
+
+.sj-dot-settled {
+    background: var(--color-status-settled);
+}
+
+.sj-dot-idle {
+    background: var(--color-status-idle);
+}
+
+/* Status ring (used in topbar) */
+.sj-status-ring {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--r-full);
+    border: 1.5px solid var(--color-text-primary);
+    position: relative;
+}
+
+.sj-status-ring::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: var(--r-full);
+    background: var(--color-text-primary);
+}
+
+/* Typing indicator dots */
+.sj-typing-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: var(--r-full);
+    background: var(--color-text-secondary);
+    animation: sj-blink 1.4s infinite;
+}
+
+.sj-typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.sj-typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+
+/* ── 12. CHAT COMPONENTS ────────────────────────────────── */
+
+.sj-chat-message {
+    display: flex;
+    gap: var(--sp-2);
+    align-items: flex-start;
+}
+
+.sj-chat-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--r-md);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    margin-top: 1px;
+    border: var(--border);
+}
+
+/* AI avatar — inverted */
+.sj-chat-avatar-ai {
+    background: var(--color-invert-bg);
+    color: var(--color-invert-text);
+    border-color: var(--color-border-hi);
+}
+
+/* User avatar */
+.sj-chat-avatar-user {
+    background: var(--color-surface-raised);
+    color: var(--color-text-secondary);
+}
+
+.sj-chat-bubble {
+    flex: 1;
+    font-size: 12.5px;
+    line-height: 1.65;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-md);
+    background: var(--color-surface);
+    border: var(--border);
+    color: var(--color-text-primary);
+    transition: background var(--ease-slow), border-color var(--ease-slow);
+}
+
+.sj-chat-bubble-user {
+    background: var(--color-surface-raised);
+    color: var(--color-text-secondary);
+}
+
+
+/* ── 13. TASK ROW ───────────────────────────────────────── */
+
+.sj-task-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 7px var(--sp-2);
+    border-radius: var(--r-md);
+    border: var(--border);
+    background: var(--color-surface);
+    transition: var(--ease-snap);
+}
+
+.sj-task-row:hover {
+    border-color: var(--color-border-hi);
+}
+
+.sj-task-row.active {
+    border-color: var(--color-text-secondary);
+}
+
+.sj-task-checkbox {
+    width: 14px;
+    height: 14px;
+    border-radius: var(--r-xs);
+    border: var(--border-hi);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    transition: var(--ease-snap);
+}
+
+.sj-task-checkbox-done {
+    background: var(--color-invert-bg);
+    border-color: var(--color-invert-bg);
+    color: var(--color-invert-text);
+}
+
+.sj-task-label {
+    flex: 1;
+    font-size: 11.5px;
+    color: var(--color-text-muted);
+}
+
+.sj-task-label.active {
+    color: var(--color-text-primary);
+}
+
+
+/* ── 14. FEED / LOG ROW ─────────────────────────────────── */
+
+.sj-feed-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-1) 0;
+    border-bottom: var(--border-lo);
+}
+
+.sj-feed-item:last-child {
+    border-bottom: none;
+}
+
+.sj-feed-label {
+    flex: 1;
+    font-size: 11.5px;
+    color: var(--color-text-secondary);
+}
+
+.sj-feed-time {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ── 15. COMMAND PALETTE ────────────────────────────────── */
+
+.sj-cmd-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 80px;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* Light mode overlay */
+[data-theme="light"] .sj-cmd-overlay {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.sj-cmd-box {
+    width: 520px;
+    max-width: calc(100vw - 32px);
+    background: var(--color-surface);
+    border: var(--border-hi);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    transition: background var(--ease-slow);
+}
+
+.sj-cmd-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 7px var(--sp-4);
+    cursor: pointer;
+    transition: var(--ease-snap);
+}
+
+.sj-cmd-item:hover,
+.sj-cmd-item.selected {
+    background: var(--color-invert-bg);
+    color: var(--color-invert-text);
+}
+
+.sj-cmd-item:hover .sj-cmd-item-label,
+.sj-cmd-item.selected .sj-cmd-item-label {
+    color: var(--color-invert-text);
+}
+
+.sj-cmd-item:hover .sj-cmd-item-icon,
+.sj-cmd-item.selected .sj-cmd-item-icon {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--color-invert-text);
+}
+
+.sj-cmd-item-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--r-md);
+    background: var(--color-surface-raised);
+    border: var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--color-icon);
+    flex-shrink: 0;
+    transition: var(--ease-snap);
+}
+
+.sj-cmd-item-label {
+    flex: 1;
+    font-size: 13px;
+    color: var(--color-text-primary);
+    transition: var(--ease-snap);
+}
+
+.sj-cmd-section-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    padding: var(--sp-2) var(--sp-4) var(--sp-1);
+}
+
+.sj-cmd-footer {
+    display: flex;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-4);
+    border-top: var(--border);
+}
+
+
+/* ── 16. THEME TOGGLE BUTTON ────────────────────────────── */
+
+.sj-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 5px 10px;
+    border-radius: var(--r-full);
+    background: var(--color-surface-raised);
+    border: var(--border-hi);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    color: var(--color-text-secondary);
+    transition: var(--ease-snap);
+}
+
+.sj-theme-toggle:hover {
+    background: var(--color-surface-float);
+    color: var(--color-text-primary);
+}
+
+
+/* ── 17. SCROLLBAR ──────────────────────────────────────── */
+
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border-hi);
+    border-radius: var(--r-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+}
+
+
+/* ── 18. UTILITY CLASSES ────────────────────────────────── */
+
+.sj-divider {
+    height: 1px;
+    background: var(--color-border);
+    width: 100%;
+}
+
+.sj-ml-auto {
+    margin-left: auto;
+}
+
+.sj-flex {
+    display: flex;
+}
+
+.sj-flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.sj-items-center {
+    align-items: center;
+}
+
+.sj-gap-1 {
+    gap: var(--sp-1);
+}
+
+.sj-gap-2 {
+    gap: var(--sp-2);
+}
+
+.sj-gap-3 {
+    gap: var(--sp-3);
+}
+
+.sj-gap-4 {
+    gap: var(--sp-4);
+}
+
+.sj-p-3 {
+    padding: var(--sp-3);
+}
+
+.sj-p-4 {
+    padding: var(--sp-4);
+}
+
+/* Full invert block — e.g. selected row, featured card */
+.sj-invert {
+    background: var(--color-invert-bg);
+    color: var(--color-invert-text);
+}
+
+
+/* ── 19. KEYFRAMES ──────────────────────────────────────── */
+
+@keyframes sj-blink {
+
+    0%,
+    80%,
+    100% {
+        opacity: 0.2;
+    }
+
+    40% {
+        opacity: 1;
+    }
+}
+
+@keyframes sj-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 0 5px rgba(255, 255, 255, 0);
+    }
+}
+
+@keyframes sj-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes sj-scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.sj-fade-in {
+    animation: sj-fade-in 0.2s ease forwards;
+}
+
+.sj-scale-in {
+    animation: sj-scale-in 0.18s ease forwards;
+}
+
+
+/* ── 20. RESPONSIVE ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .sj-sidebar {
+        display: none;
+    }
+
+    .sj-hero {
+        font-size: 24px;
+    }
+
+    .sj-cmd-box {
+        width: calc(100vw - 32px);
+    }
+
+    .sj-content {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .sj-hero {
+        font-size: 20px;
+    }
+
+    .sj-topbar {
+        padding: 0 var(--sp-3);
+    }
+}
+
+
+/* ── USAGE GUIDE ────────────────────────────────────────────
+   Toggle dark/light:
+     document.documentElement.setAttribute('data-theme', 'light')
+     document.documentElement.setAttribute('data-theme', 'dark')
+
+   Example markup:
+     <html data-theme="dark">
+       <body>
+         <nav class="sj-sidebar"> … </nav>
+         <main class="sj-app">
+           <header class="sj-topbar"> … </header>
+           <section class="sj-panel">
+             <div class="sj-panel-header">
+               <span class="sj-label">Activity</span>
+               <span class="sj-badge sj-badge-live sj-ml-auto">Live</span>
+             </div>
+             <div class="sj-panel-body"> … </div>
+           </section>
+         </main>
+       </body>
+     </html>
+   ──────────────────────────────────────────────────────────── */
