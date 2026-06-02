@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Storage
+storage/uploads/
+storage/artifacts/
+storage/sessions/
+
+# Docker volumes (local)
+infra/volumes/
