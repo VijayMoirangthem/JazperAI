@@ -53,7 +53,7 @@ _RULES = [
                                 r"gh[pousr]_[A-Za-z0-9]{30,}|xox[abprs]-[A-Za-z0-9\-]{10,}|AIza[0-9A-Za-z_\-]{35})\b")),
     _Rule("JWT", re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\b")),
     _Rule("BEARER_TOKEN", re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._\-]{16,}")),
-    _Rule("PASSWORD", re.compile(r"(?i)\b(?:pass(?:word|wd|code)?|pwd|secret|token|api[_ -]?key)\s*(?:is|[:=])\s*[^\s,;]{4,}")),
+    _Rule("PASSWORD", re.compile(r"(?i)\b(?:pass(?:word|wd|code)?|pwd|pw|secret|token|api[_ -]?key)\s*(?:is|[:=])\s*[^\s,;]{4,}")),
     _Rule("AADHAAR", re.compile(r"(?<!\d)[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}(?!\d)"), lambda t: _verhoeff(_digits(t))),
     _Rule("PAN", re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")),
     _Rule("CARD", re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)"), lambda t: 13 <= len(_digits(t)) <= 19 and _luhn(_digits(t))),
