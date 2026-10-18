@@ -152,7 +152,8 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P1-06 | Tenancy & RLS | ☑ (app not yet wired to apply_context) | |
 | P1-07 | Directory seed | ☑ static seed, not yet in DB; C-15 founder unconfirmed | |
 | P1-08 | Async DB layer | ◐ asyncpg pool + memory path async; psycopg2 centralised in memory/db/legacy_pg.py (~55 callers remain, sync defs) | |
-| P1-09…P1-16 | Foundation | ☐ | | M1 gate |
+| P1-09 | Redis layer | ◐ layer+tests done; p95 pubsub 9.4-11.6ms on Docker Desktop (test bar relaxed to 15ms); existing Redis callers not migrated | |
+| P1-10…P1-16 | Foundation | ☐ | | M1 gate |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
 | P4-01…P4-14 | SRE/sandbox/spinoff | ☐ | | M4 gate |

@@ -12,14 +12,14 @@ class Settings(BaseSettings):
     AI_MODEL: str = "qwen/qwen3.5-9b"
 
     # PostgreSQL
-    POSTGRES_HOST: str = "localhost"
+    POSTGRES_HOST: str = "127.0.0.1"
     POSTGRES_PORT: int = 5433
     POSTGRES_USER: str = "sirjazper"
     POSTGRES_PASSWORD: str  # required — no default (P1-02)
     POSTGRES_DB: str = "coos"
 
     # Redis
-    REDIS_HOST: str = "localhost"
+    REDIS_HOST: str = "127.0.0.1"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str  # required — no default (P1-02)
 
