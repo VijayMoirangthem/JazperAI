@@ -471,3 +471,91 @@ class _Hive:
 
 
 hive = _Hive()
+
+# ── Postgres mirror (P1-14): PG is the source of truth, files remain an export ───────────────
+_STATUSES = ("todo", "doing", "blocked", "done")
+
+
+def _pg_try(fn):
+    try:
+        from memory.db.legacy_pg import _pg
+        with _pg() as conn:
+            with conn.cursor() as cur:
+                out = fn(cur)
+            conn.commit()
+            return out
+    except Exception as e:
+        log.warning("hive: postgres unavailable, using files", error=str(e))
+        return None
+
+
+def _pg_write_tasks(data: dict) -> None:
+    def run(cur):
+        cur.execute("DELETE FROM co.hive_tasks")
+        for st in _STATUSES:
+            for i, t in enumerate(data.get(st, [])):
+                cur.execute("INSERT INTO co.hive_tasks (id, status, position, data) VALUES (%s,%s,%s,%s)",
+                            (t.get("id") or uuid.uuid4().hex[:10], st, i, json.dumps(t)))
+    _pg_try(run)
+
+
+def _pg_read_tasks() -> dict | None:
+    def run(cur):
+        cur.execute("SELECT status, data FROM co.hive_tasks ORDER BY status, position")
+        rows = cur.fetchall()
+        if not rows:
+            return None
+        out = {k: [] for k in _STATUSES}
+        for st, d in rows:
+            out[st].append(d if isinstance(d, dict) else json.loads(d))
+        return out
+    return _pg_try(run)
+
+
+_file_read_tasks, _file_write_tasks = read_tasks, write_tasks
+
+
+def read_tasks() -> dict:  # noqa: F811
+    return _pg_read_tasks() or _file_read_tasks()
+
+
+def write_tasks(tasks: dict) -> dict:  # noqa: F811
+    data = _file_write_tasks(tasks)
+    _pg_write_tasks(data)
+    return data
+
+
+_file_append_log, _file_read_log = append_log, read_log
+
+
+def append_log(kind: str, payload: dict) -> None:  # noqa: F811
+    _file_append_log(kind, payload)
+    entry = {"ts": time.time(), "ts_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "kind": kind, **payload}
+    _pg_try(lambda cur: cur.execute("INSERT INTO co.hive_log (data) VALUES (%s)", (json.dumps(entry),)))
+
+
+def read_log(limit: int = 200) -> list[dict]:  # noqa: F811
+    def run(cur):
+        cur.execute("SELECT data FROM (SELECT seq, data FROM co.hive_log ORDER BY seq DESC LIMIT %s) s ORDER BY seq", (limit,))
+        return [d if isinstance(d, dict) else json.loads(d) for (d,) in cur.fetchall()]
+    rows = _pg_try(run)
+    return rows if rows else _file_read_log(limit)
+
+
+_file_read_board, _file_write_board = read_board, write_board
+
+
+def write_board(text: str) -> str:  # noqa: F811
+    _file_write_board(text)
+    _pg_try(lambda cur: cur.execute(
+        "INSERT INTO co.hive_board (id, body) VALUES (1, %s) ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body", (text,)))
+    return text
+
+
+def read_board() -> str:  # noqa: F811
+    def run(cur):
+        cur.execute("SELECT body FROM co.hive_board WHERE id = 1")
+        r = cur.fetchone()
+        return r[0] if r else None
+    got = _pg_try(run)
+    return got if got is not None else _file_read_board()
