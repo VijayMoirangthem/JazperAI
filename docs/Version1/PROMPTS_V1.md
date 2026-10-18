@@ -112,23 +112,35 @@ Legend: ☐ todo · ◐ in progress · ☑ done · ⛔ blocked (credential id) �
 ### Approved deletions (Claude may delete ONLY these; user edits this list)
 Mark `[x]` to approve. Unchecked = not approved.
 - [ ] D1 `infra/postgres/init.sql/` (empty dir)
+  - Verification: Verified: empty dir. **Delete: safe.**
 - [ ] D2 `backend/python/uvicorn_*.log`, `backend/python/uploads/`
+  - Verification: Verified: logs are stray; `uploads/agent_avatars` is used by `routes/agents.py:35` (1 item). **Delete logs only; keep `uploads/` or move to `storage/`.**
 - [ ] D3 `frontend/public/{file,globe,next,vercel,window}.svg`
+  - Verification: Verified: no references to any of the 5 SVGs in `frontend/src` or `backend`. **Delete: safe.**
 - [ ] D4 `frontend/tsconfig.tsbuildinfo`
+  - Verification: Verified: not tracked by git. **Delete: safe (regenerated).**
 - [ ] D5 `backend/munder-web/dist/`
+  - Verification: Verified: git-ignored build output. **Delete: safe.**
 - [ ] D6 MinIO service/dependency/paths (after P1-01 usage check)
+  - Verification: Verified: only `core/config.py` settings, `requirements.txt` `minio==7.2.7`, and a fallback comment in `chain_loop.py:397`. No client import found. **Delete: safe** (also re-check `routes/storage.py`/`services/storage.py` in P1-01).
 - [ ] D7 `backend/infra/nginx/`
+  - Verification: Verified: contains only `nginx.conf`; mentioned only in docs/README. **Delete: safe.**
 - [ ] D8 duplicate `duckduckgo-search`/`ddgs`
+  - Verification: Verified: both used in `agent_tools.py:1473-1476` as try-ddgs-then-fallback. **Keep `ddgs`, drop `duckduckgo-search`.**
 - [ ] D9 Three.js stack (at P3-13 only)
+  - Verification: Verified: only 2 importers: `ConversationSphere.tsx`, `CommandCenter3DScene.tsx`. **Defer to P3-13 as planned.**
 - [ ] D10 legacy routers (only after P2 replacements pass)
+  - Verification: Verified: `automation.py chain_loop.py plugins.py webhooks.py workflows.py` still exist. **Defer until P2 replacements pass.**
 - [ ] D11 duplicate legacy docs (after archive to `docs/archive/legacy/`)
+  - Verification: Verified: legacy docs live in `backend/docs/`; `docs/archive/` doesn't exist. **Approve only after archive step.**
 - [ ] D12 root `start.bat` (after `scripts/dev.ps1` works)
+  - Verification: Verified: `start.bat` exists; `scripts/dev.ps1` doesn't exist yet. **Defer until P0-5.**
 
 ### Prompts
 | ID | Title | Status | Commit | Notes |
 |---|---|---|---|---|
-| P0-1 | Snapshot & branch | ☐ | | |
-| P0-2 | Deletion approval gate | ☐ | | |
+| P0-1 | Snapshot & branch | ☑ | 065c560 | |
+| P0-2 | Deletion approval gate | ◐ awaiting ticks | | |
 | P0-3 | Characterization tests | ☐ | | |
 | P0-4 | CI & license/SBOM report | ☐ | | |
 | P0-5 | Tooling bootstrap | ☐ | | |
