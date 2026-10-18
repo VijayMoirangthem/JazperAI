@@ -327,6 +327,9 @@ app.include_router(biz_team_route.router,    prefix="/api/business/team",    tag
 app.include_router(biz_chat_route.router,    prefix="/api/business/chat",    tags=["business-chat"])
 app.include_router(biz_finance_route.router, prefix="/api/business/finance", tags=["business-finance"])
 
+from api.versioning import add_v1_aliases
+add_v1_aliases(app)
+
 # ── Munder Difflin web (COOS copy) ───────────────────────────────────────────
 # Serves the Munder renderer bundle at /munder/index.html in "coos" mode, where
 # it connects back to this same backend (agents/live + /ws + /api/hive/*).

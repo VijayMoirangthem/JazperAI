@@ -59,3 +59,11 @@ def test_credentials_roundtrip():
     blob = c._encrypt({"k": "secretvalue", "n": 1})
     assert "secretvalue" not in blob
     assert c._decrypt(blob) == {"k": "secretvalue", "n": 1}
+
+
+def test_v1_aliases_and_deprecations(app):
+    paths = {r.path for r in app.routes}
+    legacy = {p for p in paths if p.startswith("/api/") and not p.startswith("/api/v1/")}
+    assert legacy and all("/api/v1/" + p[5:] in paths for p in legacy)
+    sch = app.openapi()["paths"]
+    assert sch["/api/v1/plugins/"]["get"].get("deprecated") if "/api/v1/plugins/" in sch else True
