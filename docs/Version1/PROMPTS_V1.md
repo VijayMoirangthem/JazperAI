@@ -140,10 +140,10 @@ Mark `[x]` to approve. Unchecked = not approved.
 | ID | Title | Status | Commit | Notes |
 |---|---|---|---|---|
 | P0-1 | Snapshot & branch | ☑ | 065c560 | |
-| P0-2 | Deletion approval gate | ◐ awaiting ticks | | |
-| P0-3 | Characterization tests | ☐ | | |
-| P0-4 | CI & license/SBOM report | ☐ | | |
-| P0-5 | Tooling bootstrap | ☐ | | |
+| P0-2 | Deletion approval gate | ◐ approved in chat, deletions blocked by permission classifier | ea4704d | rerun deletions |
+| P0-3 | Characterization tests | ☑ | P0-3..5 | |
+| P0-4 | CI & license/SBOM report | ☑ | P0-3..5 | |
+| P0-5 | Tooling bootstrap | ◐ dev.ps1 + gitleaks unverified | P0-3..5 | |
 | P1-01…P1-16 | Foundation | ☐ | | M1 gate |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
