@@ -7,7 +7,7 @@ emails are detected. Checks per-category config and sends via Telegram.
 from __future__ import annotations
 import structlog
 
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 log = structlog.get_logger()
 

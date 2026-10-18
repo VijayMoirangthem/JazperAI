@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 import psycopg2.extras
 
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 router = APIRouter()
 

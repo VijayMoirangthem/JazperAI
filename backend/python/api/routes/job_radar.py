@@ -5,7 +5,7 @@ import psycopg2.extras
 import structlog
 import datetime
 
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 router = APIRouter()
 log = structlog.get_logger()
@@ -69,7 +69,7 @@ async def trigger_scan():
 
 async def _run_radar_scan() -> int:
     """Fetch profile keywords → search jobs → store new matches. Returns count of new hits."""
-    from core.services.memory_service import _pg
+    from memory.db.legacy_pg import _pg
     from api.routes import jobs as jobs_route
 
     # Get profile keywords

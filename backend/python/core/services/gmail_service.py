@@ -18,7 +18,7 @@ import hashlib
 import json
 import re
 import structlog
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 from core.config import settings
 
 log = structlog.get_logger()

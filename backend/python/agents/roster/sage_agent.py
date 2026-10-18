@@ -34,9 +34,7 @@ class SageAgent(BaseAgent):
         # ── Step 1: Fetch relevant memories ──────────────────────────────
         t0 = await self._emit_tool(emit, trace, "memory_search", task, {"query": task})
 
-        core_memories = await loop.run_in_executor(
-            _executor, memory_service.get_core_memories_sync
-        )
+        core_memories = await memory_service.get_core_memories()
 
         long_term = ""
         try:
@@ -44,10 +42,7 @@ class SageAgent(BaseAgent):
             if is_available():
                 embedding = await loop.run_in_executor(_executor, lambda: local_embed(task))
                 if embedding:
-                    relevant = await loop.run_in_executor(
-                        _executor,
-                        lambda: memory_service.search_memories_sync(embedding, top_k=6),
-                    )
+                    relevant = await memory_service.search_memories(embedding, top_k=6)
                     long_term = "\n".join(f"- {m}" for m in relevant) if relevant else ""
         except Exception:
             pass

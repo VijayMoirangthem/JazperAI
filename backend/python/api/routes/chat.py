@@ -900,7 +900,7 @@ def _save_history_sync(
         return
 
     try:
-        from core.services.memory_service import _pg
+        from memory.db.legacy_pg import _pg
         from datetime import datetime, timezone, timedelta
         title = user_msg[:80].replace("\n", " ").strip()
         expires_at = (
@@ -1219,7 +1219,7 @@ async def chat_stream(req: ChatRequest):
             return None
 
     async def _get_core():
-        return await loop.run_in_executor(_executor, memory_service.get_core_memories_sync)
+        return await memory_service.get_core_memories()
 
     async def _get_longterm():
         try:
@@ -1229,9 +1229,7 @@ async def chat_stream(req: ChatRequest):
             embedding = await loop.run_in_executor(_executor, lambda: local_embed(req.message))
             if not embedding:
                 return None
-            relevant = await loop.run_in_executor(
-                _executor, lambda: memory_service.search_memories_sync(embedding, top_k=4),
-            )
+            relevant = await memory_service.search_memories(embedding, top_k=4)
             return "\n".join(f"- {m}" for m in relevant) if relevant else None
         except Exception:
             return None
@@ -2215,9 +2213,7 @@ async def chat_stream(req: ChatRequest):
                     turn = f"User: {req.message}\nAssistant: {assembled[:800]}"
                     emb = await loop.run_in_executor(_executor, lambda: local_embed(turn))
                     if emb:
-                        await loop.run_in_executor(
-                            _executor, lambda: memory_service.store_memory_sync(turn, emb, {"session": req.sessionId}),
-                        )
+                        await memory_service.store_memory(turn, emb, {"session": req.sessionId})
             except Exception:
                 pass
 
@@ -2241,10 +2237,7 @@ async def chat_stream(req: ChatRequest):
                         fact = next((l for l in lines if l.lower().startswith("user")), "NONE")
                         break
                 if fact and fact.upper() != "NONE" and fact.lower().startswith("user"):
-                    await loop.run_in_executor(
-                        _executor,
-                        lambda: memory_service.store_extracted_sync(fact, req.sessionId),
-                    )
+                    await memory_service.store_extracted(fact, req.sessionId)
             except Exception:
                 pass
 

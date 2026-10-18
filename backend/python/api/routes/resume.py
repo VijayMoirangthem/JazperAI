@@ -5,7 +5,7 @@ import structlog
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 router = APIRouter()
 log = structlog.get_logger()

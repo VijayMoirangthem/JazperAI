@@ -388,7 +388,7 @@ class AriaAgent:
     @classmethod
     def _push_audit_notification(cls, ok: bool, summary: str) -> None:
         try:
-            from core.services.memory_service import _pg
+            from memory.db.legacy_pg import _pg
             with _pg() as conn:
                 cur = conn.cursor()
                 cur.execute(

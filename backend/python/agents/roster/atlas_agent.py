@@ -55,7 +55,7 @@ def _get_cover_letters() -> list[dict]:
 def _get_application_stats() -> dict:
     """Return aggregated application stats from the DB."""
     try:
-        from core.services.memory_service import _pg
+        from memory.db.legacy_pg import _pg
         with _pg() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM job_applications")

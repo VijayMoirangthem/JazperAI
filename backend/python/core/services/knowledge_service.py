@@ -7,7 +7,7 @@ and retrieved via vector similarity at chat time.
 from __future__ import annotations
 import re
 import structlog
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 from core.services.embedding_service import embed
 
 log = structlog.get_logger()

@@ -16,7 +16,7 @@ import asyncio
 import structlog
 from datetime import datetime, timezone, timedelta
 from agents.workers.base_worker import BaseWorker
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 log = structlog.get_logger()
 

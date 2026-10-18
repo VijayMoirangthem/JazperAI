@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from core.services import linkedin_service as li
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 router = APIRouter()
 log = structlog.get_logger()

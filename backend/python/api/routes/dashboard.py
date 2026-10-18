@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter
 import structlog
 
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 router = APIRouter()
 log = structlog.get_logger()

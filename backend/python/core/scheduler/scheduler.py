@@ -7,7 +7,7 @@ import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 log = structlog.get_logger()
 
@@ -336,7 +336,7 @@ def _schedule_builtin_jobs() -> None:
     # ── Reminder Fire Check ──────────────────────────────────────────────────
     async def _reminder_check_task():
         try:
-            from core.services.memory_service import _pg
+            from memory.db.legacy_pg import _pg
             from core.services.telegram_service import send_telegram
             with _pg() as conn:
                 with conn.cursor() as cur:

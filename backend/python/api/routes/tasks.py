@@ -5,7 +5,7 @@ from typing import Literal
 import structlog
 import psycopg2.extras
 
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 router = APIRouter()
 log = structlog.get_logger()

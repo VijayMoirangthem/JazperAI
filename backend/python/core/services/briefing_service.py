@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 import structlog
 
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 
 log = structlog.get_logger()
 

@@ -7,7 +7,7 @@ import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from core.services.memory_service import _pg as _pg_raw
+from memory.db.legacy_pg import _pg as _pg_raw
 
 def _pg():
     try:

@@ -8,7 +8,7 @@ from __future__ import annotations
 import time
 import structlog
 from fastapi import APIRouter
-from core.services.memory_service import _pg
+from memory.db.legacy_pg import _pg
 from core.providers.ai_provider import ai_provider
 
 router = APIRouter()
