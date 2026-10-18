@@ -45,58 +45,72 @@ class MemoryService:
     def _vec(embedding: list[float]) -> str:
         return "[" + ",".join(str(x) for x in embedding) + "]"
 
-    async def store_memory(self, content: str, embedding: list[float] | None, metadata: dict | None = None):
-        """Store a conversation turn with its vector embedding."""
-        if embedding is None:
-            return
-        try:
-            await aio.execute(
-                "INSERT INTO semantic_memories (content, embedding, metadata) VALUES ($1, $2::vector, $3)",
-                content, self._vec(embedding), json.dumps(metadata or {}),
+    _TENANT = "create_origins"
+
+    async def _embed_clean(self, content: str) -> tuple[str, list[float] | None, list[str]]:
+        """Sanitize (PII/secrets) BEFORE embedding; embedding runs off-loop."""
+        from core.services.embedding_service import embed_memory
+        from memory.sanitizer import sanitize
+        loop = asyncio.get_running_loop()
+        clean, found = await loop.run_in_executor(None, sanitize, content)
+        return clean, await loop.run_in_executor(None, embed_memory, clean), found
+
+    async def _store_chunk(self, namespace: str, clean: str, vec: list[float] | None, source_ref: str | None = None):
+        async with aio.tx("memory_service", (self._TENANT,)) as c:
+            await c.execute(
+                "INSERT INTO shared.memory_chunks (tenant, namespace, content, pii_redacted, embedding, source_ref) "
+                "VALUES ($1, $2, $3, true, $4::vector, $5) ON CONFLICT DO NOTHING",
+                self._TENANT, namespace, clean, self._vec(vec) if vec else None, source_ref,
             )
+
+    async def store_memory(self, content: str, embedding: list[float] | None = None, metadata: dict | None = None):
+        """Store a conversation turn: sanitized text in semantic_memories (legacy API) + embedded chunk. `embedding` is legacy/ignored."""
+        try:
+            clean, vec, _ = await self._embed_clean(content)
+            await aio.execute(
+                "INSERT INTO semantic_memories (content, metadata) VALUES ($1, $2)", clean, json.dumps(metadata or {}))
+            if vec:
+                await self._store_chunk("conversation", clean, vec)
         except Exception as e:
             log.warning("Failed to store semantic memory", error=str(e))
 
-    async def search_memories(self, embedding: list[float] | None, top_k: int = 4) -> list[str]:
-        """Return top-k semantically relevant memories via cosine similarity."""
-        if embedding is None:
+    async def search_memories(self, query: "str | list[float] | None", top_k: int = 4) -> list[str]:
+        """Top-k relevant memories by cosine similarity over shared.memory_chunks. Pass the query TEXT."""
+        if not isinstance(query, str) or not query.strip():
             return []
-        vec = self._vec(embedding)
-        results: list[str] = []
-        for table, threshold in (("semantic_memories", 0.65), ("extracted_memories", 0.70)):
-            try:
-                rows = await aio.fetch(
-                    f"SELECT content, 1 - (embedding <=> $1::vector) AS sim FROM {table} "
-                    f"WHERE embedding IS NOT NULL ORDER BY embedding <=> $1::vector LIMIT $2",
-                    vec, top_k,
+        from core.services.embedding_service import embed_memory
+        from memory.sanitizer import sanitize
+        loop = asyncio.get_running_loop()
+        clean = (await loop.run_in_executor(None, sanitize, query))[0]
+        vec = await loop.run_in_executor(None, embed_memory, clean)
+        if vec is None:
+            return []
+        try:
+            async with aio.tx("memory_service", (self._TENANT,)) as c:
+                rows = await c.fetch(
+                    "SELECT content, namespace, 1 - (embedding <=> $1::vector) AS sim FROM shared.memory_chunks "
+                    "WHERE embedding IS NOT NULL AND namespace IN ('conversation','extracted') "
+                    "AND (expires_at IS NULL OR expires_at > now()) ORDER BY embedding <=> $1::vector LIMIT $2",
+                    self._vec(vec), top_k,
                 )
-                results += [r["content"] for r in rows if r["sim"] > threshold]
-            except Exception as e:
-                log.warning(f"Failed to search {table}", error=str(e))
-        seen: set[str] = set()
-        unique: list[str] = []
-        for r in results:
-            if r not in seen:
-                seen.add(r)
-                unique.append(r)
-        return unique[:top_k]
+        except Exception as e:
+            log.warning("Failed to search memory chunks", error=str(e))
+            return []
+        out: list[str] = []
+        for r in rows:
+            if r["sim"] > (0.65 if r["namespace"] == "conversation" else 0.70) and r["content"] not in out:
+                out.append(r["content"])
+        return out[:top_k]
 
     # ── Extracted memories (LLM-extracted facts per turn) ─────────────────
 
     async def store_extracted(self, content: str, session_id: str | None = None):
-        """Store an extracted fact. Embed it if the model is available."""
-        from core.services.embedding_service import embed as local_embed
-        embedding = await asyncio.get_running_loop().run_in_executor(None, local_embed, content)
+        """Store an extracted fact (sanitized) in extracted_memories (legacy API) + embedded chunk."""
         try:
-            if embedding is not None:
-                await aio.execute(
-                    "INSERT INTO extracted_memories (content, session_id, embedding) VALUES ($1, $2, $3::vector)",
-                    content, session_id, self._vec(embedding),
-                )
-            else:
-                await aio.execute(
-                    "INSERT INTO extracted_memories (content, session_id) VALUES ($1, $2)", content, session_id,
-                )
+            clean, vec, _ = await self._embed_clean(content)
+            await aio.execute("INSERT INTO extracted_memories (content, session_id) VALUES ($1, $2)", clean, session_id)
+            if vec:
+                await self._store_chunk("extracted", clean, vec)
         except Exception as e:
             log.warning("Failed to store extracted memory", error=str(e))
 

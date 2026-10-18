@@ -45,3 +45,37 @@ def embed(text: str) -> list[float] | None:
 
 def is_available() -> bool:
     return _load() is not None
+
+
+# ── Unified-memory embeddings (D-5): pluggable provider, 1024-dim bge-m3-class ──────────────
+MEMORY_EMBEDDING_DIM = 1024
+_mem_model = None
+_mem_failed = False
+
+
+def _load_memory_model():
+    """Local provider (default). A cloud provider would be selected here via settings.EMBEDDING_PROVIDER (needs C-3)."""
+    global _mem_model, _mem_failed
+    if _mem_model is not None or _mem_failed:
+        return _mem_model
+    try:
+        from sentence_transformers import SentenceTransformer
+        from core.config import settings
+        _mem_model = SentenceTransformer(settings.EMBEDDING_MODEL)
+        log.info("Memory embedding model loaded", model=settings.EMBEDDING_MODEL)
+    except Exception as e:
+        _mem_failed = True
+        log.warning("Memory embedding model unavailable", error=str(e))
+    return _mem_model
+
+
+def embed_memory(text: str) -> list[float] | None:
+    """1024-dim embedding for shared.memory_chunks. Caller must sanitize `text` first. None if unavailable."""
+    m = _load_memory_model()
+    if m is None:
+        return None
+    try:
+        return m.encode(text, normalize_embeddings=True).tolist()
+    except Exception as e:
+        log.warning("Memory embed failed", error=str(e))
+        return None

@@ -42,7 +42,7 @@ class SageAgent(BaseAgent):
             if is_available():
                 embedding = await loop.run_in_executor(_executor, lambda: local_embed(task))
                 if embedding:
-                    relevant = await memory_service.search_memories(embedding, top_k=6)
+                    relevant = await memory_service.search_memories(task, top_k=6)
                     long_term = "\n".join(f"- {m}" for m in relevant) if relevant else ""
         except Exception:
             pass

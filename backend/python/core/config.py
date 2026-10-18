@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     MINIO_ROOT_PASSWORD: str = ""
     MINIO_BUCKET: str = "sirjazper"
 
+    # Embeddings (unified memory, D-5)
+    EMBEDDING_PROVIDER: str = "local"
+    EMBEDDING_MODEL: str = "BAAI/bge-m3"
+
     # Server
     FASTAPI_PORT: int = 8000
     FRONTEND_URL: str = "http://localhost:3001"

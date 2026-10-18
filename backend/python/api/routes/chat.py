@@ -1229,7 +1229,7 @@ async def chat_stream(req: ChatRequest):
             embedding = await loop.run_in_executor(_executor, lambda: local_embed(req.message))
             if not embedding:
                 return None
-            relevant = await memory_service.search_memories(embedding, top_k=4)
+            relevant = await memory_service.search_memories(req.message, top_k=4)
             return "\n".join(f"- {m}" for m in relevant) if relevant else None
         except Exception:
             return None
