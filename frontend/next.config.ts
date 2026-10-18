@@ -1,19 +1,26 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV !== "production";
+
 const nextConfig: NextConfig = {
   headers: async () => [
     {
-      // HTML pages — always revalidate so new JS/CSS chunks are picked up immediately
+      // HTML — always revalidate
       source: "/((?!_next/static|_next/image|favicon.ico).*)",
-      headers: [
-        { key: "Cache-Control", value: "no-cache, must-revalidate" },
-      ],
+      headers: [{ key: "Cache-Control", value: "no-cache, must-revalidate" }],
     },
     {
-      // JS/CSS/fonts — safe to cache forever, Next.js content-hashes these filenames
+      // Static JS/CSS chunks:
+      // - Dev: no-store so Turbopack recompiles are always picked up fresh
+      // - Prod: immutable — Next.js content-hashes every filename so it's safe
       source: "/_next/static/:path*",
       headers: [
-        { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        {
+          key: "Cache-Control",
+          value: isDev
+            ? "no-store"
+            : "public, max-age=31536000, immutable",
+        },
       ],
     },
   ],

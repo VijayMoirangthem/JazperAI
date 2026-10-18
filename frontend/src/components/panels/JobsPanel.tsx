@@ -188,8 +188,12 @@ function JobsTab() {
     setLoading(true);
     try {
       const r = await fetch(`${API}/api/jobs/`);
+      if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
       setJobs(d.jobs ?? []);
+    } catch {
+      // Backend offline — show empty state, don't crash
+      setJobs([]);
     } finally {
       setLoading(false);
     }

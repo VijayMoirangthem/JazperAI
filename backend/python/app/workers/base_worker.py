@@ -19,3 +19,11 @@ class BaseWorker(ABC):
 
     async def on_failure(self, error: Exception, job_run_id: str) -> None:
         log.error("Worker failed", worker=self.name, job_run_id=job_run_id, error=str(error))
+        try:
+            from app.services.error_store import capture_current_exception
+            capture_current_exception(
+                agent=self.name,
+                context={"job_run_id": job_run_id, "error_type": type(error).__name__},
+            )
+        except Exception:
+            pass  # never let error recording crash the worker teardown

@@ -54,6 +54,7 @@ interface JobApplication {
   applied_at: string;
   cover_letter_name: string;
   notes: string;
+  cover_letter?: string;
 }
 
 interface ApplyRun {
@@ -141,9 +142,25 @@ function fmt(d: string) {
 
 function PreferencesTab() {
   const [profile, setProfile] = useState<Partial<JobProfile>>({
-    target_roles: [], work_modes: ["remote"], locations: [], skills: [],
-    blacklist_companies: [], daily_limit: 5, salary_min: 0, salary_max: 0,
-    experience_years: 0, resume_path: "VijayMoirangthem\\VijayMoirangthemResume.pdf",
+    target_roles: [
+      "AI Engineer", "ML Engineer", "Machine Learning Engineer",
+      "LLM Engineer", "Generative AI Engineer", "AI Backend Engineer",
+      "AI/ML Engineer", "Data Engineer", "AI Product Engineer",
+    ],
+    work_modes: ["remote", "hybrid"],
+    locations: ["India", "Remote"],
+    skills: [
+      "Python", "FastAPI", "LLM", "OpenAI API", "Anthropic API",
+      "LangChain", "RAG", "Node.js", "JavaScript", "TypeScript",
+      "PostgreSQL", "MongoDB", "Redis", "Docker", "GCP",
+      "REST API", "Kafka", "React", "Machine Learning", "Vector Databases",
+    ],
+    blacklist_companies: ["TCS", "Infosys", "Wipro", "HCL", "Cognizant", "Tech Mahindra", "Accenture"],
+    daily_limit: 5,
+    salary_min: 1500000,
+    salary_max: 4000000,
+    experience_years: 5,
+    resume_path: "storage/user/vijay/VijayMoirangthemResume.pdf",
     linkedin_email: "vijaymoirangthem9@gmail.com",
     chrome_profile_path: "C:\\Users\\vijay\\AppData\\Local\\Google\\Chrome\\User Data",
     auto_apply_enabled: false,
@@ -290,9 +307,10 @@ function ScreeningTab() {
   const [seeding, setSeeding] = useState(false);
 
   const load = useCallback(async () => {
-    const r = await fetch(`${API}/api/apply/screening`);
-    setAnswers(await r.json());
-    setLoading(false);
+    try {
+      const r = await fetch(`${API}/api/apply/screening`);
+      if (r.ok) setAnswers(await r.json());
+    } catch { /* backend may not be ready */ } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -388,8 +406,10 @@ function CoverLettersTab() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const r = await fetch(`${API}/api/apply/cover-letters`);
-    setLetters(await r.json());
+    try {
+      const r = await fetch(`${API}/api/apply/cover-letters`);
+      if (r.ok) setLetters(await r.json());
+    } catch { /* backend may not be ready */ }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -487,16 +507,27 @@ function RunTab() {
   const [runs, setRuns] = useState<ApplyRun[]>([]);
   const [expandedRun, setExpandedRun] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [clModal, setClModal] = useState<{jobId: string; company: string; title?: string} | null>(null);
+  const [clNotes, setClNotes] = useState("");
+  const [clLoading, setClLoading] = useState(false);
+  const [clResult, setClResult] = useState<string | null>(null);
+  const [clCopied, setClCopied] = useState(false);
+  const [clCoachLoading, setClCoachLoading] = useState(false);
+  const [clSuggestions, setClSuggestions] = useState<string[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
 
   const loadApplications = useCallback(async () => {
-    const r = await fetch(`${API}/api/apply/applications?limit=100`);
-    if (r.ok) setApplications(await r.json());
+    try {
+      const r = await fetch(`${API}/api/apply/applications?limit=100`);
+      if (r.ok) setApplications(await r.json());
+    } catch { /* backend may not be ready */ }
   }, []);
 
   const loadRuns = useCallback(async () => {
-    const r = await fetch(`${API}/api/apply/runs?limit=10`);
-    if (r.ok) setRuns(await r.json());
+    try {
+      const r = await fetch(`${API}/api/apply/runs?limit=10`);
+      if (r.ok) setRuns(await r.json());
+    } catch { /* backend may not be ready */ }
   }, []);
 
   useEffect(() => {
@@ -508,12 +539,13 @@ function RunTab() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [logs]);
 
-  async function startRun() {
+  async function startRun(limit?: number) {
     setRunning(true);
-    setLogs(["Starting job-apply run…"]);
+    setLogs([limit ? `Starting TEST run — 1 job only…` : "Starting full job-apply run…"]);
     setLastResult(null);
     try {
-      const res = await fetch(`${API}/api/apply/run`, { method: "POST" });
+      const url = limit ? `${API}/api/apply/run?limit=${limit}` : `${API}/api/apply/run`;
+      const res = await fetch(url, { method: "POST" });
       const reader = res.body?.getReader();
       if (!reader) return;
       const dec = new TextDecoder();
@@ -553,10 +585,16 @@ function RunTab() {
         {/* Run button */}
         <div style={{ padding: 14, borderBottom: "1px solid var(--color-border)", flexShrink: 0 }}>
           <button className="sj-btn" style={{ width: "100%", justifyContent: "center" }}
-            onClick={startRun} disabled={running}>
+            onClick={() => startRun()} disabled={running}>
             {running
               ? <><Loader2 size={13} className="spin" /> Running… (do not close)</>
               : <><Play size={13} /> Apply Jobs on LinkedIn Now</>}
+          </button>
+          <button
+            className="sj-btn-ghost"
+            style={{ width: "100%", justifyContent: "center", marginTop: 6, fontSize: 12, border: "1px dashed #facc1566", color: "#facc15" }}
+            onClick={() => startRun(1)} disabled={running}>
+            <Award size={12} style={{ marginRight: 4 }} /> Test Run — Apply 1 Job Only
           </button>
           {lastResult && (
             <div style={{ marginTop: 10, padding: "8px 10px", background: "var(--color-surface)", borderRadius: 6, fontSize: 11, display: "flex", gap: 12 }}>
@@ -616,7 +654,7 @@ function RunTab() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr style={{ background: "var(--color-surface)", borderBottom: "1px solid var(--color-border)" }}>
-                  {["Company", "Role", "Location", "Applied", "Status"].map((h) => (
+                  {["Company", "Role", "Location", "Applied", "Status", "Cover Letter"].map((h) => (
                     <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--color-text-dim)", letterSpacing: "0.06em" }}>{h}</th>
                   ))}
                 </tr>
@@ -633,6 +671,33 @@ function RunTab() {
                     <td style={{ padding: "8px 12px", color: "var(--color-text-dim)" }}>{a.location || "—"}</td>
                     <td style={{ padding: "8px 12px", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{fmt(a.applied_at)}</td>
                     <td style={{ padding: "8px 12px" }}><StatusBadge status={a.status} /></td>
+                    <td style={{ padding: "8px 12px" }}>
+                      {a.cover_letter ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#34d399", background: "#34d39922", border: "1px solid #34d39944", borderRadius: 8, padding: "2px 7px" }}>
+                            ✓ Generated
+                          </span>
+                          <button
+                            className="sj-btn-ghost"
+                            style={{ fontSize: 10, padding: "2px 6px" }}
+                            onClick={() => {
+                              setClResult(a.cover_letter || "");
+                              setClNotes("");
+                              setClCopied(false);
+                              setClModal({ jobId: a.id, company: a.company });
+                            }}>
+                            View
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          className="sj-btn"
+                          style={{ fontSize: 10, padding: "2px 8px" }}
+                          onClick={() => { setClModal({ jobId: a.id, company: a.company }); setClResult(null); setClNotes(""); setClCopied(false); }}>
+                          Generate
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -640,6 +705,120 @@ function RunTab() {
           )}
         </div>
       </div>
+
+      {/* Cover Letter Modal */}
+      {clModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "var(--color-bg)", border: "var(--border)", borderRadius: 12, padding: 24, width: "min(560px, 90vw)", maxHeight: "80vh", overflowY: "auto", position: "relative" }}>
+            <button
+              onClick={() => { setClModal(null); setClResult(null); setClNotes(""); setClCopied(false); setClSuggestions([]); }}
+              style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", color: "var(--color-text-dim)" }}>
+              <X size={16} />
+            </button>
+            <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Cover Letter — {clModal.company}</p>
+
+            {!clResult ? (
+              <>
+                <textarea
+                  placeholder="Any specific points to highlight?"
+                  value={clNotes}
+                  onChange={(e) => setClNotes(e.target.value)}
+                  rows={3}
+                  className="sj-input"
+                  style={{ width: "100%", resize: "none", marginBottom: 12, boxSizing: "border-box" }}
+                />
+                <button
+                  className="sj-btn"
+                  disabled={clLoading}
+                  onClick={async () => {
+                    setClLoading(true);
+                    try {
+                      const r = await fetch(`${API}/api/cover-letter/generate`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ job_id: clModal.jobId, notes: clNotes }),
+                      });
+                      if (!r.ok) throw new Error(await r.text());
+                      const data = await r.json();
+                      setClResult(data.cover_letter ?? data.text ?? JSON.stringify(data));
+                    } catch (e) {
+                      setClResult(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
+                    } finally {
+                      setClLoading(false);
+                    }
+                  }}>
+                  {clLoading ? <><Loader2 size={13} className="spin" /> Generating…</> : "Generate"}
+                </button>
+              </>
+            ) : (
+              <>
+                <pre style={{
+                  fontSize: 12, fontFamily: "monospace", maxHeight: 320, overflowY: "auto",
+                  border: "1px solid var(--color-border)", borderRadius: 6, padding: 12,
+                  marginBottom: 12, whiteSpace: "pre-wrap", background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                }}>
+                  {clResult}
+                </pre>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    className="sj-btn-ghost"
+                    onClick={() => { navigator.clipboard.writeText(clResult!); setClCopied(true); setTimeout(() => setClCopied(false), 2000); }}>
+                    {clCopied ? "Copied!" : "Copy"}
+                  </button>
+                  <button
+                    className="sj-btn"
+                    onClick={async () => {
+                      try {
+                        await fetch(`${API}/api/cover-letter/save`, {
+                          method: "POST", headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ job_id: clModal.jobId, cover_letter: clResult }),
+                        });
+                        setClModal(null); setClResult(null); setClNotes(""); setClCopied(false); setClSuggestions([]);
+                        loadApplications();
+                      } catch { /* silent */ }
+                    }}>
+                    Save to Application
+                  </button>
+                  <button
+                    className="sj-btn-ghost"
+                    disabled={clCoachLoading}
+                    style={{ color: "#a78bfa", borderColor: "#a78bfa44" }}
+                    onClick={async () => {
+                      setClCoachLoading(true);
+                      setClSuggestions([]);
+                      try {
+                        const r = await fetch(`${API}/api/cover-letter/review`, {
+                          method: "POST", headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ cover_letter: clResult, job_title: clModal.title || "", company: clModal.company }),
+                        });
+                        const data = await r.json();
+                        setClSuggestions(data.suggestions ?? []);
+                      } catch { /* silent */ }
+                      finally { setClCoachLoading(false); }
+                    }}>
+                    {clCoachLoading ? "Reviewing…" : "🎯 Coach Review"}
+                  </button>
+                  <button className="sj-btn-ghost" onClick={() => { setClResult(null); setClSuggestions([]); }}>
+                    Back
+                  </button>
+                </div>
+
+                {/* Coach suggestions */}
+                {clSuggestions.length > 0 && (
+                  <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 8, background: "color-mix(in srgb, #a78bfa 8%, transparent)", border: "1px solid #a78bfa33" }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#a78bfa", marginBottom: 8 }}>🎯 Coach Feedback</p>
+                    <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}>
+                      {clSuggestions.map((s, i) => (
+                        <li key={i} style={{ fontSize: 12, color: "var(--color-text)", lineHeight: 1.5 }}>{s}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -652,7 +831,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "preferences",  label: "Preferences",     icon: <Settings size={13} /> },
   { id: "screening",    label: "Screening Q&A",   icon: <MessageSquare size={13} /> },
   { id: "coverletters", label: "Cover Letters",   icon: <FileText size={13} /> },
-  { id: "run",          label: "Apply & Track",   icon: <Play size={13} /> },
+  { id: "run",          label: "Run & Track",     icon: <Play size={13} /> },
 ];
 
 export function JobApplyPanel() {

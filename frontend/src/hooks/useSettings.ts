@@ -2,7 +2,29 @@
 
 import { useState, useEffect } from "react";
 
+export interface AgentConfig {
+  enabled: boolean;
+  model: string;             // empty string = use agent default
+  temperature: number;
+  maxTokens: number;
+  systemPromptOverride: string; // empty = use agent default
+  priority: number;          // 1 (highest) – 5 (lowest), controls order when multiple match
+}
+
+export type AgentName = "Scout" | "Hermes" | "Sage" | "Lens" | "Atlas" | "Phantom";
+
+export const AGENT_DEFAULTS: Record<AgentName, AgentConfig> = {
+  Scout:   { enabled: true,  model: "llama-3.1-8b-instant",                    temperature: 0.3, maxTokens: 512,  systemPromptOverride: "", priority: 2 },
+  Hermes:  { enabled: true,  model: "llama-3.1-8b-instant",                    temperature: 0.3, maxTokens: 1024, systemPromptOverride: "", priority: 2 },
+  Sage:    { enabled: true,  model: "llama-3.1-8b-instant",                    temperature: 0.2, maxTokens: 256,  systemPromptOverride: "", priority: 3 },
+  Lens:    { enabled: true,  model: "meta-llama/llama-4-scout-17b-16e-instruct", temperature: 0.2, maxTokens: 512,  systemPromptOverride: "", priority: 1 },
+  Atlas:   { enabled: false, model: "llama-3.1-8b-instant",                    temperature: 0.5, maxTokens: 1024, systemPromptOverride: "", priority: 2 },
+  Phantom: { enabled: false, model: "llama-3.1-8b-instant",                    temperature: 0.2, maxTokens: 512,  systemPromptOverride: "", priority: 3 },
+};
+
 export interface AISettings {
+  // ── Agents ─────────────────────────────────
+  agents: Record<AgentName, AgentConfig>;
   // ── Inference ──────────────────────────────
   systemPrompt: string;
   ttsVoice: string;
@@ -24,6 +46,11 @@ export interface AISettings {
   topPValue: number;
   minP: boolean;
   minPValue: number;
+  // ── Approvals ──────────────────────────────
+  approvals: {
+    autoApproveAll:   boolean;
+    autoApproveTypes: string[];
+  };
   // ── Model / Load ───────────────────────────
   model: string;
   contextLength: number;
@@ -39,6 +66,8 @@ export interface AISettings {
 }
 
 export const DEFAULT_SETTINGS: AISettings = {
+  // Agents
+  agents: { ...AGENT_DEFAULTS },
   // Inference
   systemPrompt: `You are Jazper, a personal AI assistant. Answer like a knowledgeable friend — direct, confident, no fluff.
 
@@ -90,10 +119,15 @@ Jazper: A function that calls itself until it hits a base case. Classic example:
   keepModelInMemory: true,
   tryMmap: false,
   flashAttention: true,
+  // Approvals
+  approvals: {
+    autoApproveAll:   false,
+    autoApproveTypes: [] as string[],
+  },
 };
 
 const KEY = "sj-ai-settings";
-const VERSION = "v6"; // bump this to force-reset old cached settings
+const VERSION = "v8"; // bump this to force-reset old cached settings
 
 export function useSettings() {
   const [settings, setSettings] = useState<AISettings>(DEFAULT_SETTINGS);
@@ -107,7 +141,16 @@ export function useSettings() {
         localStorage.setItem(`${KEY}-version`, VERSION);
       }
       const raw = localStorage.getItem(KEY);
-      if (raw) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(raw) });
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Deep-merge agents so a null/missing key never crashes SettingsPanel
+        setSettings({
+          ...DEFAULT_SETTINGS,
+          ...parsed,
+          agents:    { ...AGENT_DEFAULTS, ...(parsed.agents ?? {}) },
+          approvals: { ...DEFAULT_SETTINGS.approvals, ...(parsed.approvals ?? {}) },
+        });
+      }
     } catch {}
   }, []);
 

@@ -1,0 +1,9 @@
+[
+  {
+    "id": "example",
+    "label": "Example Plugin",
+    "group": "main",
+    "icon": "Puzzle",
+    "description": "Example plugin — edit or replace to add custom panels"
+  }
+]

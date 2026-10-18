@@ -1,11 +1,15 @@
 "use client";
 
-import { Sun, Moon, Command, Cpu } from "lucide-react";
+import { Sun, Moon, Command, Cpu, Building2, LayoutDashboard, MonitorDot } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useState, useEffect, useRef } from "react";
 
 interface TopbarProps {
   title: string;
+  onCommandCenter?: () => void;
+  studioMode?: boolean;
+  onStudioToggle?: () => void;
+  rightSlot?: React.ReactNode;  // injected content rendered before the Studio toggle
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -32,6 +36,8 @@ function fmtK(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
+interface AgentTokenStat { tokens: number; requests: number; }
+
 interface SessionStats {
   totalPrompt: number;
   totalCompletion: number;
@@ -40,18 +46,24 @@ interface SessionStats {
   lastModel: string;
   lastDurationMs: number;
   avgDurationMs: number;
+  perAgent: Record<string, AgentTokenStat>;
 }
 
-export function Topbar({ title }: TopbarProps) {
+const AGENT_EMOJI: Record<string, string> = {
+  Scout: "🔍", Hermes: "📧", Sage: "🧠", Lens: "📷", Atlas: "📋", Phantom: "👻",
+};
+
+export function Topbar({ title, onCommandCenter, studioMode, onStudioToggle, rightSlot }: TopbarProps) {
   const { theme, toggle } = useTheme();
-  const [modelId, setModelId] = useState<string | null>(null);
-  const [online, setOnline] = useState(false);
-  const [stats, setStats] = useState<SessionStats | null>(null);
+  const [modelId,         setModelId]         = useState<string | null>(null);
+  const [online,          setOnline]          = useState(false);
+  const [stats,           setStats]           = useState<SessionStats | null>(null);
+  const [usingLocalFallback, setUsingLocalFallback] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const durations = useRef<number[]>([]);
 
-  // Fetch active model from backend
+  // Fetch active model + provider status from backend
   useEffect(() => {
     async function fetchModel() {
       try {
@@ -66,9 +78,21 @@ export function Topbar({ title }: TopbarProps) {
         setOnline(false);
       }
     }
+    async function fetchProviderStatus() {
+      try {
+        const res = await fetch(`${API}/api/models/provider-status`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setUsingLocalFallback(
+          data.all_primary_exhausted === true && data.local_fallback_available === true
+        );
+      } catch { /* offline */ }
+    }
     fetchModel();
-    const id = setInterval(fetchModel, 15000);
-    return () => clearInterval(id);
+    fetchProviderStatus();
+    const id1 = setInterval(fetchModel, 15000);
+    const id2 = setInterval(fetchProviderStatus, 10000);
+    return () => { clearInterval(id1); clearInterval(id2); };
   }, []);
 
   // Listen for token events emitted by ChatPanel after each response
@@ -78,18 +102,32 @@ export function Topbar({ title }: TopbarProps) {
         model: string;
         duration_ms: number;
         tokens: { prompt: number; completion: number; total: number };
+        agent_traces?: Array<{ agent: string; tokens_total: number; duration_ms: number }>;
       };
       durations.current.push(meta.duration_ms);
       const avg = Math.round(durations.current.reduce((a, b) => a + b, 0) / durations.current.length);
-      setStats(prev => ({
-        totalPrompt:     (prev?.totalPrompt     ?? 0) + meta.tokens.prompt,
-        totalCompletion: (prev?.totalCompletion ?? 0) + meta.tokens.completion,
-        totalTokens:     (prev?.totalTokens     ?? 0) + meta.tokens.total,
-        requests:        (prev?.requests        ?? 0) + 1,
-        lastModel:       meta.model,
-        lastDurationMs:  meta.duration_ms,
-        avgDurationMs:   avg,
-      }));
+
+      setStats(prev => {
+        const prevPerAgent = prev?.perAgent ?? {};
+        const newPerAgent = { ...prevPerAgent };
+        for (const t of meta.agent_traces ?? []) {
+          const existing = newPerAgent[t.agent] ?? { tokens: 0, requests: 0 };
+          newPerAgent[t.agent] = {
+            tokens: existing.tokens + t.tokens_total,
+            requests: existing.requests + 1,
+          };
+        }
+        return {
+          totalPrompt:     (prev?.totalPrompt     ?? 0) + meta.tokens.prompt,
+          totalCompletion: (prev?.totalCompletion ?? 0) + meta.tokens.completion,
+          totalTokens:     (prev?.totalTokens     ?? 0) + meta.tokens.total,
+          requests:        (prev?.requests        ?? 0) + 1,
+          lastModel:       meta.model,
+          lastDurationMs:  meta.duration_ms,
+          avgDurationMs:   avg,
+          perAgent:        newPerAgent,
+        };
+      });
     }
     window.addEventListener("sj:tokens", onTokens);
     return () => window.removeEventListener("sj:tokens", onTokens);
@@ -167,16 +205,51 @@ export function Topbar({ title }: TopbarProps) {
                 </div>
               ))}
 
+              {/* Per-agent breakdown */}
+              {stats?.perAgent && Object.keys(stats.perAgent).length > 0 && (
+                <div style={{ marginTop: "var(--sp-2)", borderTop: "var(--border)", paddingTop: "var(--sp-2)" }}>
+                  <div className="sj-micro" style={{ color: "var(--color-text-muted)", marginBottom: "var(--sp-1)" }}>BY AGENT</div>
+                  {Object.entries(stats.perAgent)
+                    .sort(([, a], [, b]) => b.tokens - a.tokens)
+                    .map(([name, stat]) => (
+                      <div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
+                        <span className="sj-micro" style={{ color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                          {AGENT_EMOJI[name] || "🤖"} {name}
+                          <span style={{ opacity: 0.5 }}>×{stat.requests}</span>
+                        </span>
+                        <span className="sj-mono" style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
+                          {stat.tokens.toLocaleString()}
+                        </span>
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
+
               <p className="sj-micro" style={{ marginTop: "var(--sp-2)", opacity: 0.4 }}>Resets on page refresh</p>
             </div>
           )}
         </div>
 
-        {/* ── Model name ───────────────────────────────────────────── */}
+        {/* ── Model name + fallback badge ──────────────────────────── */}
         {shortModel && (
           <div className="sj-flex sj-items-center sj-gap-1">
             <span className="sj-micro">AI</span>
             <span className="sj-badge sj-badge-hi">{shortModel}</span>
+            {usingLocalFallback && (
+              <span
+                title="All Groq keys rate-limited — responses coming from local LM Studio model"
+                style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: "0.04em",
+                  padding: "1px 5px", borderRadius: 4,
+                  background: "rgba(245,158,11,0.15)",
+                  border: "1px solid rgba(245,158,11,0.35)",
+                  color: "#f59e0b",
+                }}
+              >
+                LOCAL
+              </span>
+            )}
           </div>
         )}
 
@@ -185,6 +258,38 @@ export function Topbar({ title }: TopbarProps) {
           <span className={`sj-dot ${online ? "sj-dot-settled" : "sj-dot-off"}`} />
           <span className="sj-micro">{online ? "Online" : "Offline"}</span>
         </div>
+
+        {rightSlot}
+
+        {onStudioToggle && (
+          <button
+            className="sj-theme-toggle"
+            onClick={onStudioToggle}
+            aria-label="Toggle Studio Mode"
+            title="Studio Mode (Ctrl+Shift+S)"
+            style={{
+              display: "flex", alignItems: "center", gap: 4,
+              background: studioMode ? "rgba(99,102,241,0.15)" : undefined,
+              color: studioMode ? "#818cf8" : undefined,
+              border: studioMode ? "1px solid rgba(99,102,241,0.3)" : undefined,
+            }}
+          >
+            {studioMode ? <LayoutDashboard size={11}/> : <MonitorDot size={11}/>}
+            {studioMode ? "Normal" : "Studio"}
+          </button>
+        )}
+
+        {onCommandCenter && (
+          <button
+            className="sj-theme-toggle"
+            onClick={onCommandCenter}
+            aria-label="Command Center"
+            style={{ display: "flex", alignItems: "center", gap: 4 }}
+          >
+            <Building2 size={11} />
+            HQ
+          </button>
+        )}
 
         <button className="sj-theme-toggle" onClick={toggle} aria-label="Toggle theme">
           {theme === "dark" ? <Sun size={11} /> : <Moon size={11} />}

@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Settings, RotateCcw, Save, RefreshCw,
-  ChevronDown, ChevronRight, Info, Play, Loader,
+  ChevronDown, ChevronRight, Info, Play, Loader, Send, CheckCircle, XCircle,
 } from "lucide-react";
-import { useSettings, AISettings, DEFAULT_SETTINGS } from "@/hooks/useSettings";
+import { useSettings, AISettings, DEFAULT_SETTINGS, AgentName, AgentConfig, AGENT_DEFAULTS } from "@/hooks/useSettings";
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 
@@ -228,7 +228,7 @@ function VoiceSelector({ value, onChange }: { value: string; onChange: (v: strin
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
-type Tab = "inference" | "load" | "about";
+type Tab = "inference" | "approvals" | "agents" | "load" | "telegram" | "data" | "about";
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -236,13 +236,29 @@ export function SettingsPanel() {
   const { settings, save, reset, saved } = useSettings();
   const [d, setD] = useState<AISettings>(settings);       // draft
   const [tab, setTab] = useState<Tab>("inference");
+
+  // Phase 9E — Telegram
+  const [tgStatus, setTgStatus] = useState<{configured:boolean;enabled:boolean;has_token:boolean;has_chat_id:boolean}|null>(null);
+  const [tgToken, setTgToken]   = useState("");
+  const [tgChatId, setTgChatId] = useState("");
+  const [tgSaving, setTgSaving] = useState(false);
+  const [tgTesting, setTgTesting] = useState(false);
+  const [tgMsg, setTgMsg]       = useState("");
   const [models, setModels] = useState<{ id: string }[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [stopInput, setStopInput] = useState("");
   const [reloading, setReloading] = useState(false);
   const [reloadMsg, setReloadMsg] = useState("");
+  const [alertCfg, setAlertCfg] = useState<Record<string, boolean>>({});
 
   useEffect(() => { setD(settings); }, [settings]);
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/alert-config")
+      .then(r => r.json())
+      .then(setAlertCfg)
+      .catch(() => {});
+  }, []);
 
   function p(patch: Partial<AISettings>) { setD(prev => ({ ...prev, ...patch })); }
 
@@ -330,7 +346,7 @@ export function SettingsPanel() {
 
       {/* Tabs */}
       <div style={{ padding: "var(--sp-2) var(--sp-4)", borderBottom: "var(--border)", display: "flex", gap: 2, background: "var(--color-surface)", flexShrink: 0 }}>
-        {(["inference", "load", "about"] as Tab[]).map(t => (
+        {(["inference", "approvals", "agents", "load", "telegram", "data", "about"] as Tab[]).map(t => (
           <button key={t} style={TAB_STYLE(tab === t)} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
@@ -566,6 +582,392 @@ export function SettingsPanel() {
             </p>
           </div>
         </>}
+
+        {/* ══ APPROVALS TAB ══════════════════════════════════════════════════ */}
+        {tab === "approvals" && <>
+          <div style={{ padding: "var(--sp-4) 0", display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+
+            <Section title="Auto-Approve">
+              {/* Global kill-switch */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 12.5, color: "var(--color-text-primary)" }}>Auto-approve everything</div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>
+                    Agents act without asking. Useful once you trust the system.
+                  </div>
+                </div>
+                <Toggle
+                  value={d.approvals?.autoApproveAll ?? false}
+                  onChange={v => p({ approvals: { ...d.approvals, autoApproveAll: v } })}
+                />
+              </div>
+
+              {/* Per-action-type list */}
+              <div>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 8 }}>
+                  Always allowed (without asking):
+                </div>
+                {(d.approvals?.autoApproveTypes ?? []).length === 0 ? (
+                  <p style={{ fontSize: 11, color: "var(--color-text-muted)", margin: 0 }}>
+                    None. Use the Approve overlay to add actions here.
+                  </p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {(d.approvals?.autoApproveTypes ?? []).map((t: string) => (
+                      <div key={t} style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        background: "var(--color-surface-raised)",
+                        border: "var(--border-hi)", borderRadius: 4,
+                        padding: "3px 8px", fontSize: 11,
+                      }}>
+                        <span>{t}</span>
+                        <button
+                          onClick={() => p({
+                            approvals: {
+                              ...d.approvals,
+                              autoApproveTypes: (d.approvals?.autoApproveTypes ?? []).filter((x: string) => x !== t),
+                            }
+                          })}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 0, display: "flex" }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Section>
+
+          </div>
+        </>}
+
+        {/* ══ AGENTS TAB ═════════════════════════════════════════════════════ */}
+        {tab === "agents" && <>
+          <div style={{ padding: "var(--sp-4) 0", display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+
+            <p className="sj-micro" style={{ color: "var(--color-text-muted)", marginBottom: "var(--sp-1)" }}>
+              Configure each specialist agent individually. Disabled agents are never called.
+              Model overrides use your Groq API key — leave blank to use the agent default.
+            </p>
+
+            {(Object.keys(d.agents ?? AGENT_DEFAULTS) as AgentName[]).map(name => {
+              const cfg: AgentConfig = d.agents[name];
+              const def = AGENT_DEFAULTS[name];
+              const AGENT_EMOJI: Record<AgentName, string> = { Scout: "🔍", Hermes: "📧", Sage: "🧠", Lens: "📷", Atlas: "📋", Phantom: "👻" };
+              const AGENT_DESC: Record<AgentName, string> = {
+                Scout:   "Web search & live information",
+                Hermes:  "Gmail — read, send, reply, manage",
+                Sage:    "Memory — recall & store user facts",
+                Lens:    "Vision — image & camera analysis",
+                Atlas:   "Jobs — search, apply, track (coming)",
+                Phantom: "Browser — scraping & automation (coming)",
+              };
+
+              return (
+                <div key={name} className="sj-card" style={{
+                  opacity: cfg.enabled ? 1 : 0.5,
+                  transition: "var(--ease-soft)",
+                }}>
+                  {/* Agent header row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", marginBottom: "var(--sp-3)" }}>
+                    <span style={{ fontSize: 18 }}>{AGENT_EMOJI[name]}</span>
+                    <div style={{ flex: 1 }}>
+                      <div className="sj-label">{name}</div>
+                      <div className="sj-micro" style={{ color: "var(--color-text-muted)" }}>{AGENT_DESC[name]}</div>
+                    </div>
+                    <Toggle
+                      value={cfg.enabled}
+                      onChange={v => p({ agents: { ...d.agents, [name]: { ...cfg, enabled: v } } })}
+                    />
+                  </div>
+
+                  {cfg.enabled && <>
+                    {/* Model */}
+                    <Row label="Model" hint={`Default: ${def.model}`}>
+                      <input
+                        className="sj-input"
+                        value={cfg.model}
+                        onChange={e => p({ agents: { ...d.agents, [name]: { ...cfg, model: e.target.value } } })}
+                        placeholder={def.model}
+                        style={{ flex: 1, fontSize: 11 }}
+                      />
+                    </Row>
+
+                    {/* Temperature */}
+                    <Row label={`Temperature  ${cfg.temperature.toFixed(2)}`}>
+                      <div style={{ flex: 1 }}>
+                        <Slider
+                          value={cfg.temperature} min={0} max={2} step={0.05}
+                          onChange={v => p({ agents: { ...d.agents, [name]: { ...cfg, temperature: v } } })}
+                        />
+                      </div>
+                    </Row>
+
+                    {/* Max tokens */}
+                    <Row label="Max Tokens">
+                      <NumberInput
+                        value={cfg.maxTokens} min={64} max={4096} step={64}
+                        onChange={v => p({ agents: { ...d.agents, [name]: { ...cfg, maxTokens: v } } })}
+                      />
+                    </Row>
+
+                    {/* Priority */}
+                    <Row label={`Priority  ${cfg.priority}`} hint="1 = highest, called first when multiple agents match">
+                      <div style={{ flex: 1 }}>
+                        <Slider
+                          value={cfg.priority} min={1} max={5} step={1}
+                          onChange={v => p({ agents: { ...d.agents, [name]: { ...cfg, priority: v } } })}
+                        />
+                      </div>
+                    </Row>
+
+                    {/* System prompt override */}
+                    <Row label="System Prompt Override" hint="Leave blank to use built-in agent prompt">
+                      <textarea
+                        className="sj-textarea"
+                        value={cfg.systemPromptOverride}
+                        onChange={e => p({ agents: { ...d.agents, [name]: { ...cfg, systemPromptOverride: e.target.value } } })}
+                        placeholder="Optional override..."
+                        rows={2}
+                        style={{ flex: 1, fontSize: 11, minHeight: 48 }}
+                      />
+                    </Row>
+
+                    {/* Reset to defaults */}
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--sp-1)" }}>
+                      <button
+                        className="sj-btn"
+                        onClick={() => p({ agents: { ...d.agents, [name]: { ...def } } })}
+                        style={{ fontSize: 10 }}
+                      >
+                        Reset {name} defaults
+                      </button>
+                    </div>
+                  </>}
+                </div>
+              );
+            })}
+
+            <p className="sj-micro" style={{ color: "var(--color-text-muted)", marginTop: "var(--sp-2)" }}>
+              Groq free tier: llama-3.1-8b-instant — 500k tok/day · llama-3.3-70b-versatile — 100k tok/day · llama-4-scout-17b — 500k tok/day
+            </p>
+          </div>
+        </>}
+
+        {/* ══ TELEGRAM TAB ═══════════════════════════════════════════════════ */}
+        {tab === "telegram" && (() => {
+          const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          if (!tgStatus) {
+            fetch(`${API_BASE}/api/telegram/status`).then(r => r.json()).then(setTgStatus).catch(() => {});
+          }
+          async function saveTg() {
+            setTgSaving(true); setTgMsg("");
+            try {
+              await fetch(`${API_BASE}/api/telegram/configure`, {
+                method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({ bot_token: tgToken, chat_id: tgChatId, enabled: true }),
+              });
+              setTgMsg("Saved"); setTgStatus(null);
+            } finally { setTgSaving(false); }
+          }
+          async function testTg() {
+            setTgTesting(true); setTgMsg("");
+            try {
+              const res = await fetch(`${API_BASE}/api/telegram/test`, { method:"POST" });
+              const data = await res.json();
+              setTgMsg(data.ok ? "Test message sent!" : `Error: ${data.detail}`);
+            } finally { setTgTesting(false); }
+          }
+          async function clearTg() {
+            await fetch(`${API_BASE}/api/telegram/configure`, { method:"DELETE" });
+            setTgToken(""); setTgChatId(""); setTgStatus(null); setTgMsg("Cleared");
+          }
+          return (
+            <div style={{ padding:"var(--sp-4) 0", display:"flex", flexDirection:"column", gap:"var(--sp-4)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:"var(--sp-2)", marginBottom:"var(--sp-2)" }}>
+                <Send size={14} style={{ color:"#60a5fa" }}/>
+                <span style={{ fontSize:14, fontWeight:600, color:"var(--color-text-primary)" }}>Telegram Push Notifications</span>
+              </div>
+
+              {tgStatus && (
+                <div style={{ display:"flex", alignItems:"center", gap:"var(--sp-2)", padding:"var(--sp-2) var(--sp-3)",
+                  borderRadius:"var(--r-sm)", background:`color-mix(in srgb, ${tgStatus.configured&&tgStatus.enabled?"#22c55e":"#6b7280"} 10%, transparent)`,
+                  border:`1px solid color-mix(in srgb, ${tgStatus.configured&&tgStatus.enabled?"#22c55e":"#6b7280"} 25%, transparent)` }}>
+                  {tgStatus.configured && tgStatus.enabled
+                    ? <CheckCircle size={13} style={{ color:"#22c55e" }}/>
+                    : <XCircle size={13} style={{ color:"#6b7280" }}/>}
+                  <span style={{ fontSize:12 }}>
+                    {tgStatus.configured && tgStatus.enabled ? "Connected & active" : tgStatus.configured ? "Configured but disabled" : "Not configured"}
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <label style={{ fontSize:11, color:"var(--color-text-muted)", display:"block", marginBottom:4 }}>
+                  Bot Token <span style={{ color:"#64748b" }}>(from @BotFather)</span>
+                </label>
+                <input type="password" value={tgToken} onChange={e => setTgToken(e.target.value)}
+                  placeholder="1234567890:ABC..."
+                  style={{ width:"100%", background:"var(--color-surface-raised)", border:"var(--border-hi)",
+                    borderRadius:"var(--r-sm)", padding:"var(--sp-2) var(--sp-3)", color:"var(--color-text-primary)",
+                    fontSize:12, boxSizing:"border-box" as const }}/>
+              </div>
+
+              <div>
+                <label style={{ fontSize:11, color:"var(--color-text-muted)", display:"block", marginBottom:4 }}>
+                  Chat ID <span style={{ color:"#64748b" }}>(from @userinfobot — your personal chat ID)</span>
+                </label>
+                <input value={tgChatId} onChange={e => setTgChatId(e.target.value)}
+                  placeholder="123456789"
+                  style={{ width:"100%", background:"var(--color-surface-raised)", border:"var(--border-hi)",
+                    borderRadius:"var(--r-sm)", padding:"var(--sp-2) var(--sp-3)", color:"var(--color-text-primary)",
+                    fontSize:12, boxSizing:"border-box" as const }}/>
+              </div>
+
+              <div style={{ fontSize:11, color:"var(--color-text-muted)", background:"var(--color-surface-raised)",
+                borderRadius:"var(--r-sm)", padding:"var(--sp-3)", border:"var(--border-lo)" }}>
+                <strong style={{ color:"var(--color-text-secondary)" }}>Setup:</strong>{" "}
+                1. Message @BotFather → /newbot → copy the token above.{" "}
+                2. Send a message to your bot, then message @userinfobot to get your Chat ID.{" "}
+                3. Save & test below.
+              </div>
+
+              {tgMsg && (
+                <div style={{ fontSize:12, padding:"var(--sp-2) var(--sp-3)", borderRadius:"var(--r-sm)",
+                  background:`color-mix(in srgb, ${tgMsg.includes("Error")?"#ef4444":"#22c55e"} 10%, transparent)`,
+                  color: tgMsg.includes("Error") ? "#f87171" : "#4ade80", border:"var(--border-lo)" }}>
+                  {tgMsg}
+                </div>
+              )}
+
+              <div style={{ display:"flex", gap:"var(--sp-2)" }}>
+                <button onClick={saveTg} disabled={tgSaving || !tgToken || !tgChatId}
+                  style={{ background:"var(--color-accent)", border:"none", borderRadius:"var(--r-sm)",
+                    padding:"var(--sp-2) var(--sp-4)", cursor:"pointer", fontSize:12, color:"#fff",
+                    display:"flex", alignItems:"center", gap:4, opacity: (!tgToken||!tgChatId) ? 0.5 : 1 }}>
+                  <Save size={11}/> {tgSaving ? "Saving…" : "Save"}
+                </button>
+                <button onClick={testTg} disabled={tgTesting || !tgStatus?.configured}
+                  style={{ background:"none", border:"var(--border-hi)", borderRadius:"var(--r-sm)",
+                    padding:"var(--sp-2) var(--sp-4)", cursor:"pointer", fontSize:12,
+                    color:"var(--color-text-secondary)", display:"flex", alignItems:"center", gap:4,
+                    opacity: !tgStatus?.configured ? 0.4 : 1 }}>
+                  <Play size={11}/> {tgTesting ? "Sending…" : "Test"}
+                </button>
+                <button onClick={clearTg}
+                  style={{ background:"none", border:"var(--border-hi)", borderRadius:"var(--r-sm)",
+                    padding:"var(--sp-2) var(--sp-4)", cursor:"pointer", fontSize:12,
+                    color:"#ef4444", marginLeft:"auto" }}>
+                  Clear
+                </button>
+              </div>
+
+              {/* ── Alert Settings ── */}
+              <Section title="Alert Settings" defaultOpen={false}>
+                <div style={{ display:"flex", flexDirection:"column", gap:"var(--sp-3)" }}>
+                  {([
+                    ["recruiter_email",  "Recruiter Emails"],
+                    ["interview_invite", "Interview Invites"],
+                    ["job_rejection",    "Job Rejections"],
+                    ["offer_letter",     "Job Offers"],
+                    ["action_required",  "Action Required"],
+                    ["important_email",  "Important Emails"],
+                  ] as [string, string][]).map(([field, label]) => (
+                    <div key={field} style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <span style={{ fontSize:12.5, color:"var(--color-text-primary)" }}>{label}</span>
+                      <Toggle
+                        value={!!alertCfg[field]}
+                        onChange={v => {
+                          setAlertCfg(prev => ({ ...prev, [field]: v }));
+                          fetch("http://localhost:8000/api/alert-config", {
+                            method:"POST",
+                            headers:{"Content-Type":"application/json"},
+                            body: JSON.stringify({ [field]: v }),
+                          }).catch(() => {});
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:0 }}>
+                    Requires Telegram to be configured above.
+                  </p>
+                </div>
+              </Section>
+            </div>
+          );
+        })()}
+
+        {/* ══ DATA TAB ═══════════════════════════════════════════════════════ */}
+        {tab === "data" && (() => {
+          async function handleExport() {
+            try {
+              const res = await fetch("http://localhost:8000/api/export");
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              const today = new Date().toISOString().slice(0, 10);
+              a.href = url;
+              a.download = `sirjazper-export-${today}.json`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            } catch (e) {
+              alert(e instanceof Error ? e.message : "Export failed");
+            }
+          }
+
+          return (
+            <div style={{ padding: "var(--sp-4) 0", display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+              <Section title="Export & Backup">
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+                  <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>
+                    Download all your data as a single JSON file — tasks, contacts, job applications, knowledge base,
+                    habits, and notifications. Use this for backups or to migrate to another system.
+                  </p>
+                  <div className="sj-card" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {[
+                      ["Tasks", "All tasks with status, priority, and due dates"],
+                      ["Contacts", "CRM entries with company, email, and notes"],
+                      ["Applications", "Job applications with cover letters"],
+                      ["Knowledge", "Saved articles and notes"],
+                      ["Habits", "Habit definitions and completion history (last 365 days)"],
+                      ["Notifications", "Last 500 agent notifications"],
+                    ].map(([label, desc]) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", padding: "2px 0" }}>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text)", width: 100, flexShrink: 0 }}>{label}</span>
+                        <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleExport}
+                    style={{
+                      background: "var(--color-accent)", border: "none", borderRadius: "var(--r-sm)",
+                      padding: "10px 20px", fontSize: 13, color: "#fff", cursor: "pointer",
+                      fontWeight: 500, display: "flex", alignItems: "center", gap: "var(--sp-2)",
+                      justifyContent: "center",
+                    }}
+                  >
+                    ⬇ Export All Data (JSON)
+                  </button>
+                  <p style={{ fontSize: 11, color: "var(--color-text-muted)", margin: 0, textAlign: "center" }}>
+                    File will download as <code style={{ fontFamily: "var(--font-mono)" }}>sirjazper-export-YYYY-MM-DD.json</code>
+                  </p>
+                </div>
+              </Section>
+
+              <Section title="Data Summary" defaultOpen={false}>
+                <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>
+                  Visit the Dashboard, Tasks, Contacts, and other panels to see live counts.
+                  The export includes everything visible across all panels.
+                </p>
+              </Section>
+            </div>
+          );
+        })()}
 
         {/* ══ ABOUT TAB ══════════════════════════════════════════════════════ */}
         {tab === "about" && <>

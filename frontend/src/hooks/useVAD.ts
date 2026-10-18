@@ -7,8 +7,8 @@ const SPEECH_START_RATIO  = 3.5;   // must be Nx above noise floor to start
 const SPEECH_STOP_RATIO   = 2.0;   // can drop to Nx above noise floor before stopping
 const NOISE_SMOOTH        = 0.02;  // EMA coefficient for noise floor (slow adaptation)
 const INITIAL_NOISE       = 0.008; // starting noise floor estimate
-const SILENCE_MS          = 700;
-const MIN_SPEECH_MS       = 300;
+const SILENCE_MS          = 450;  // tighter — feels more natural in conversation
+const MIN_SPEECH_MS       = 250;
 
 interface VADOptions {
   enabled: boolean;
@@ -100,7 +100,9 @@ export function useVAD({ enabled, paused, onSpeechEnd, onSpeechStart }: VADOptio
     if (s.active) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       const ctx = new AudioContext({ sampleRate: 16000 });
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;

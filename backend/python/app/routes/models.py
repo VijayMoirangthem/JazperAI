@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.providers.ai_provider import ai_provider
+from app.providers.ai_provider import ai_provider, get_fallback_status
 from app.core.config import settings
 import httpx
 
@@ -26,6 +26,12 @@ class LoadModelRequest(BaseModel):
 async def list_models():
     models = await ai_provider.get_models()
     return {"models": models}
+
+
+@router.get("/provider-status")
+async def provider_status():
+    """Returns rate-limit state and local fallback availability for the Topbar indicator."""
+    return get_fallback_status()
 
 
 @router.post("/load")

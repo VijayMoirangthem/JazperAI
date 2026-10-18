@@ -1,0 +1,25 @@
+{"ts": 1787243406.3123255, "ts_iso": "2026-08-20T16:30:06Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787243426.414756, "ts_iso": "2026-08-20T16:30:26Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787243426.434474, "ts_iso": "2026-08-20T16:30:26Z", "kind": "message", "from": "jazper", "to": "scout", "act": "query", "subject": "hello"}
+{"ts": 1787243426.4903877, "ts_iso": "2026-08-20T16:30:26Z", "kind": "task", "id": "823ae3dccb", "title": "test task", "assignee": "scout", "action": "created"}
+{"ts": 1787243426.5106828, "ts_iso": "2026-08-20T16:30:26Z", "kind": "task", "id": "823ae3dccb", "action": "moved", "to": "doing"}
+{"ts": 1787249799.6174524, "ts_iso": "2026-08-20T18:16:39Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787250099.042322, "ts_iso": "2026-08-20T18:21:39Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787252641.4588583, "ts_iso": "2026-08-20T19:04:01Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787254936.9560573, "ts_iso": "2026-08-20T19:42:16Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787258924.981971, "ts_iso": "2026-08-20T20:48:44Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787259253.0362618, "ts_iso": "2026-08-20T20:54:13Z", "kind": "message", "from": "human", "to": "darwin", "act": "query", "subject": "direct test"}
+{"ts": 1787259395.1508107, "ts_iso": "2026-08-20T20:56:35Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787259455.154666, "ts_iso": "2026-08-20T20:57:35Z", "kind": "message", "from": "human", "to": "darwin", "act": "query", "subject": "coos bridge test"}
+{"ts": 1787281103.1900468, "ts_iso": "2026-08-21T02:58:23Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787316587.8835876, "ts_iso": "2026-08-21T12:49:47Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787431974.7806928, "ts_iso": "2026-08-22T20:52:54Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787432910.6110952, "ts_iso": "2026-08-22T21:08:30Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787454926.7139623, "ts_iso": "2026-08-23T03:15:26Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787454931.9837039, "ts_iso": "2026-08-23T03:15:31Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787459816.875576, "ts_iso": "2026-08-23T04:36:56Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787462320.3725002, "ts_iso": "2026-08-23T05:18:40Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787464392.086352, "ts_iso": "2026-08-23T05:53:12Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787472436.3500352, "ts_iso": "2026-08-23T08:07:16Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787472440.316774, "ts_iso": "2026-08-23T08:07:20Z", "kind": "hive", "event": "initialized"}
+{"ts": 1787472595.423384, "ts_iso": "2026-08-23T08:09:55Z", "kind": "hive", "event": "initialized"}

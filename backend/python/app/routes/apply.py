@@ -4,12 +4,14 @@ Job-apply routes — profile, screening answers, cover letters, applications, ru
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
+import psycopg2.extras
 import structlog
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services import linkedin_service as li
+from app.services.memory_service import _pg
 
 router = APIRouter()
 log = structlog.get_logger()
@@ -105,6 +107,99 @@ async def delete_cover_letter(letter_id: int):
     return {"ok": True}
 
 
+# ── Funnel analytics ─────────────────────────────────────────────────────────
+
+_STATUS_ORDER = ["applied", "viewed", "response", "interview", "offer", "rejected"]
+
+
+@router.get("/funnel")
+async def get_funnel():
+    """Application funnel grouped by status with conversion rates."""
+    with _pg() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT status, COUNT(*) FROM job_applications GROUP BY status"
+            )
+            rows = cur.fetchall()
+            # avg days from applied_at to now for apps that progressed past 'applied'
+            cur.execute("""
+                SELECT AVG(
+                    EXTRACT(EPOCH FROM (NOW() - applied_at)) / 86400.0
+                )
+                FROM job_applications
+                WHERE status IN ('response', 'interview', 'offer', 'rejected')
+                  AND applied_at IS NOT NULL
+            """)
+            avg_row = cur.fetchone()
+
+    counts: dict[str, int] = {r[0]: int(r[1]) for r in rows}
+    total = sum(counts.values())
+
+    stages = [
+        {"status": s, "count": counts.get(s, 0),
+         "pct": round(counts.get(s, 0) / total * 100, 1) if total else 0.0}
+        for s in _STATUS_ORDER
+    ]
+    # include any status not in the fixed order
+    for s, c in counts.items():
+        if s not in _STATUS_ORDER:
+            stages.append({"status": s, "count": c,
+                           "pct": round(c / total * 100, 1) if total else 0.0})
+
+    applied   = counts.get("applied", 0)
+    response  = counts.get("response", 0)
+    interview = counts.get("interview", 0)
+    offer     = counts.get("offer", 0)
+
+    conversion = {
+        "applied_to_response":   round(response  / applied   * 100, 1) if applied   else 0.0,
+        "response_to_interview": round(interview / response  * 100, 1) if response  else 0.0,
+        "interview_to_offer":    round(offer     / interview * 100, 1) if interview else 0.0,
+    }
+
+    avg_days = round(float(avg_row[0]), 1) if avg_row and avg_row[0] is not None else None
+
+    return {"total": total, "stages": stages, "conversion": conversion,
+            "avg_days_to_response": avg_days}
+
+
+@router.get("/salary")
+async def get_salary():
+    """Salary range data from job applications."""
+    try:
+        with _pg() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT company, title, salary_min, salary_max
+                    FROM job_applications
+                    WHERE salary_min IS NOT NULL
+                    ORDER BY applied_at DESC
+                """)
+                entries = [dict(r) for r in cur.fetchall()]
+                cur.execute("""
+                    SELECT AVG(salary_min) AS avg_min, AVG(salary_max) AS avg_max
+                    FROM job_applications
+                    WHERE salary_min IS NOT NULL
+                """)
+                agg = dict(cur.fetchone())
+    except Exception as exc:
+        msg = str(exc).lower()
+        if "column" in msg and "salary" in msg:
+            return {"entries": [], "avg_min": None, "avg_max": None,
+                    "note": "no salary data yet"}
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    if not entries:
+        return {"entries": [], "avg_min": None, "avg_max": None,
+                "note": "no salary data yet"}
+
+    return {
+        "entries": entries,
+        "avg_min": float(agg["avg_min"]) if agg.get("avg_min") is not None else None,
+        "avg_max": float(agg["avg_max"]) if agg.get("avg_max") is not None else None,
+    }
+
+
 # ── Applications ──────────────────────────────────────────────────────────────
 
 @router.get("/applications")
@@ -131,16 +226,18 @@ async def list_runs(limit: int = 20):
 
 
 @router.post("/run")
-async def trigger_run():
-    """Start a job-apply run and stream live log lines back to the client."""
+async def trigger_run(limit: int | None = None):
+    """Start a job-apply run and stream live log lines back to the client.
+    Pass ?limit=1 for a single-job test run."""
     log_lines: list[str] = []
 
     async def _stream():
         loop = asyncio.get_event_loop()
-        yield "data: Starting LinkedIn job-apply run…\n\n"
+        label = f"limit={limit}" if limit else "full run"
+        yield f"data: Starting LinkedIn job-apply run ({label})…\n\n"
 
         # Run in thread so Playwright (sync) doesn't block the event loop
-        future = loop.run_in_executor(_executor, lambda: li.run_job_apply(log_lines))
+        future = loop.run_in_executor(_executor, lambda: li.run_job_apply(log_lines, limit=limit))
 
         # Stream log lines as they appear while waiting for completion
         last_sent = 0

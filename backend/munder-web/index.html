@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <title>Munder Difflin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+      #cth-splash {
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px;
+        background: #FFF8E7; color: #1A1320;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      }
+      #cth-splash .mk {
+        display: grid; place-items: center; width: 56px; height: 56px;
+        background: #6E1423; color: #F4F1EA; border: 4px solid #4A0D17;
+        font-family: "Press Start 2P", monospace; font-size: 16px; letter-spacing: -2px;
+        box-shadow: 4px 4px 0 rgba(26,19,32,0.25);
+      }
+      #cth-splash .title { font-family: "Press Start 2P", monospace; font-size: 13px; }
+      #cth-splash .hint { font-size: 15px; color: #6B5878; }
+    </style>
+    <script>
+    // ─────────────────────────────────────────────────────────────────────────
+    // window.cth — browser shim for the Electron preload bridge.
+    //
+    // The Munder renderer is 100% browser-safe; the ONLY Electron dependency is
+    // `window.cth.*`. This shim boots the app in its built-in DEMO mode: a
+    // seeded Office cast roster animates the floor (mock loop) and every real
+    // harness API returns a safe no-op. Live agent spawning / terminals cannot
+    // run in a browser (node-pty + local CLIs) — those calls return `ok:false`.
+    // ─────────────────────────────────────────────────────────────────────────
+    (function () {
+      "use strict";
+
+      var MODE = (new URLSearchParams(window.location.search).get('mode')) || 'coos';
+
+      var ACCENTS = ["coral", "mint", "sky", "lemon", "lilac", "peach"];
+      var CHARACTERS = [
+        ["michael",  "Michael",  "lemon",  "World's best boss"],
+        ["jim",      "Jim",      "sky",    "Salesman, prankster"],
+        ["pam",      "Pam",      "peach",  "Receptionist, artist"],
+        ["dwight",   "Dwight",   "lemon",  "Assistant (to the) Regional Manager"],
+        ["kevin",    "Kevin",    "mint",   "Accounting"],
+        ["angela",   "Angela",   "lilac",  "Head of accounting"],
+        ["oscar",    "Oscar",    "sky",    "Accountant"],
+        ["stanley",  "Stanley",  "coral",  "Sales, crossword"],
+        ["phyllis",  "Phyllis",  "lilac",  "Sales"],
+        ["andy",     "Andy",     "mint",   "Cornell, a cappella"],
+        ["kelly",    "Kelly",    "peach",  "Customer service"],
+        ["ryan",     "Ryan",     "sky",    "The temp"],
+        ["toby",     "Toby",     "coral",  "Human resources"],
+        ["creed",    "Creed",    "mint",   "Quality assurance"],
+        ["meredith", "Meredith", "coral",  "Supplier relations"]
+      ];
+
+      function baseAgent(id, name, character, accent, description, isGod) {
+        return {
+          id: id, name: name, character: character, accent: accent,
+          description: description, project: "hive", tmuxTarget: "",
+          cwd: "", status: "idle", action: "on the floor", progress: 0,
+          currentStation: "desk", ptyId: undefined,
+          command: "", provider: "claude", model: undefined,
+          isGod: !!isGod, recentTextTs: Date.now()
+        };
+      }
+
+      var ROSTER = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        agents: CHARACTERS.map(function (c, i) {
+          return baseAgent(c[0], c[1], c[0], c[2], c[3], i === 0);
+        }),
+        archived: [],
+        restorable: [],
+        queues: {},
+        selectedId: "michael"
+      };
+
+      // COOS mode seeds an EMPTY roster: the COOS bridge (src/coos/bridge.ts)
+      // populates it live from /api/agents/live and keeps it in sync over the
+      // backend WebSocket.
+      var COOS_EMPTY_ROSTER = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        agents: [],
+        archived: [],
+        restorable: [],
+        queues: {},
+        selectedId: null
+      };
+
+      var CONFIG = {
+        onboardingComplete: true,
+        audience: "technical",
+        harnessHome: null,
+        recentHives: [],
+        registeredRepos: [],
+        autoMode: true,
+        defaultCommand: "claude --model claude-sonnet-4-6",
+        defaultModel: "claude-sonnet-4-6",
+        godProvider: "claude",
+        godModel: "claude-opus-4-8",
+        mcpDefaults: {},
+        semanticMemory: false,
+        embeddingModel: "minilm",
+        missions: [],
+        notifications: false,
+        autoUpdate: false,
+        telemetryEnabled: false,
+        slackEnabled: false,
+        freeflowEnabled: false,
+        realtimeIdleDisconnectMs: 180000,
+        costCapUsd: 0,
+        circuitBreaker: {},
+        tvShowOffices: false,
+        officeTheme: "office",
+        webhookTriggers: [],
+        orgTrigger: null,
+        contextTrigger: null,
+        triggersMigratedV1: true,
+        strongKeepalive: false
+      };
+
+function resolve(v) { return function () { return Promise.resolve(v); }; }
+      function reject() { return function () { return Promise.resolve({ ok: false, error: "web demo: live harness unavailable" }); }; }
+      function noop() { return Promise.resolve(undefined); }
+      function unsub() { return function () {}; }
+
+      // ── COOS-mode helpers ──────────────────────────────────────────────────
+      // The Munder renderer calls these window.cth methods to talk to the hive.
+      // In coos mode they proxy to the COOS backend (same origin — the page is
+      // served FROM the backend at /munder/index.html).
+      function apiGet(path) {
+        return fetch(path).then(function (r) {
+          return r.ok ? r.json() : Promise.resolve({ ok: false, error: "HTTP " + r.status });
+        });
+      }
+      function apiPost(path, body) {
+        return fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body || {})
+        }).then(function (r) {
+          return r.ok ? r.json() : Promise.resolve({ ok: false, error: "HTTP " + r.status });
+        });
+      }
+      function coosTo(to) {
+        return (to === "god" || to === "michael") ? "jazper" : to;
+      }
+      function coosHiveSend(payload) {
+        var to = coosTo(payload && payload.to);
+        return apiPost("/api/hive/send", {
+          to: to,
+          subject: (payload && payload.subject) || "message",
+          body: (payload && payload.body) || "",
+          act: (payload && payload.act) || "request",
+          in_reply_to: (payload && payload.in_reply_to) || null
+        }).then(function (msg) {
+          if (!msg || msg.ok === false) return { ok: false, error: (msg && msg.error) || "send failed" };
+          return Object.assign({ ok: true }, msg);
+        });
+      }
+      function coosPriority(p) {
+        if (typeof p === "number") return p <= 1 ? "high" : p >= 4 ? "low" : "medium";
+        return p || "medium";
+      }
+      function coosHiveTasks() {
+        return apiGet("/api/hive/tasks").then(function (data) {
+          var cols = data && typeof data === "object" ? data : {};
+          var out = [];
+          ["todo", "doing", "blocked", "done"].forEach(function (st) {
+            (cols[st] || []).forEach(function (t) {
+              out.push(Object.assign({}, t, { status: st }));
+            });
+          });
+          return out;
+        });
+      }
+      var hiveMessageListeners = [];
+      window.__cthHiveMessageListeners = hiveMessageListeners;
+
+      var concrete = {
+        // ── boot-critical ──
+        getConfig: resolve(CONFIG),
+        rosterReadSync: function () { return ROSTER; },
+        listPtys: resolve([]),
+        listWorkers: resolve([]),
+        realtimeHasOpenAiKey: resolve(false),
+        drainPendingHires: resolve([]),
+        appInfo: resolve({ version: "0.4.4", name: "Munder Difflin", platform: "web-demo" }),
+        heroPayload: resolve(null),
+
+        // ── events (subscribe → unsubscribe) ──
+        onCloseRequested: unsub,
+        onClosingTime: unsub,
+        onHireImport: unsub,
+        onHireError: unsub,
+        onUpdateStatus: unsub,
+        onTelemetryEvent: unsub,
+        onPtyData: unsub,
+        onPtyExit: unsub,
+        onPtyRelaunch: unsub,
+        onHiveAgentArchived: unsub,
+        onHiveAgentSpawned: unsub,
+        onHiveContextUpdate: unsub,
+        onHiveEnqueue: unsub,
+        onHiveHookEvent: unsub,
+        onHiveMessage: unsub,
+        onHiveTerminalHandoff: unsub,
+        onMissionsUpdated: unsub,
+        onRealtimeCompletion: unsub,
+        onRealtimeEnqueue: unsub,
+        onRealtimeFloorDelta: unsub,
+        onPowerResume: unsub,
+        onBreakerState: unsub,
+        onAutoCompact: unsub,
+        onSlackMessage: unsub,
+
+        // ── spawning / terminals: refuse, never fabricate ──
+        spawnPty: reject,
+        writePty: reject,
+        killPty: noop,
+        resizePty: noop,
+        redrawPty: noop,
+        attachFiles: noop,
+        stopWorker: noop,
+
+        // ── hive data reads → empty ──
+        hiveInbox: resolve([]),
+        hiveTasks: resolve([]),
+        hiveBoard: resolve(""),
+        hiveLog: resolve(""),
+        hiveMemory: resolve(""),
+        hiveMessages: resolve([]),
+        hiveRegistry: resolve({}),
+        hiveSend: reject,
+        hiveAddTask: reject,
+        hiveDeleteTask: reject,
+        hivePatchTask: reject,
+        hiveAgentDirectory: resolve(""),
+        agentContext: resolve({}),
+
+        // ── git ──
+        gitIsRepo: resolve(false),
+        gitStatus: resolve({ workingTreeChanges: 0 }),
+        gitBranch: resolve("main"),
+        gitBranches: resolve([]),
+        gitLog: resolve([]),
+        gitLogGraph: resolve([]),
+        gitMainRepo: resolve(null),
+        gitAheadBehind: resolve({ ahead: 0, behind: 0 }),
+        gitCompareRefs: resolve([]),
+        gitDiff: resolve(""),
+        gitShowFile: resolve(""),
+        gitCommitFiles: reject,
+        gitCheckout: reject,
+        githubIssues: resolve([]),
+
+        // ── config / missions / webhooks / notifications ──
+        updateConfig: noop,
+        getContextTrigger: resolve(null),
+        getOrgTrigger: resolve(null),
+        listWebhooks: resolve([]),
+        saveWebhooks: resolve([]),
+        deleteWebhook: resolve([]),
+        generateWebhookSecret: resolve(""),
+        setContextTrigger: noop,
+        setOrgTrigger: noop,
+        listMissions: resolve([]),
+        saveMissions: noop,
+        setNotifications: noop,
+        setLoginItem: noop,
+        resetAll: noop,
+        changeHome: noop,
+        historyAdd: noop,
+        ensureHarnessHome: resolve(null),
+        chooseFolder: resolve(null),
+        openExternal: noop,
+        copyToClipboard: noop,
+        readClipboard: resolve(""),
+        readClipboardSync: function () { return ""; },
+        saveClipboardImage: noop,
+
+        // ── filesystem ──
+        readFile: resolve(""),
+        readBinary: resolve(null),
+        writeFile: resolve({ ok: true }),
+        statAbs: resolve(null),
+        listDir: resolve([]),
+        pathForFile: resolve(""),
+        resolveSessionCwd: resolve(null),
+        openTerminalAt: noop,
+
+        // ── skills / memory / kg / search / telemetry ──
+        skillsCatalog: resolve([]),
+        skillsLocal: resolve([]),
+        skillsInstall: resolve({ ok: false }),
+        skillsUninstall: resolve({ ok: false }),
+        skillsReveal: resolve(""),
+        toolsStatus: resolve({}),
+        memoryStatus: resolve({}),
+        searchMemory: resolve([]),
+        textSearch: resolve([]),
+        kgStatus: resolve({}),
+        kgAddFiles: resolve({}),
+        telemetrySnapshot: resolve({}),
+        telemetrySpans: resolve([]),
+
+        // ── providers ──
+        providerKeyHas: resolve(false),
+        providerKeySet: noop,
+        providerKeyClear: noop,
+
+        // ── realtime / voice (Free Flow) ──
+        freeflowSetConfig: noop,
+        freeflowTranscribe: resolve(null),
+        realtimeAction: noop,
+        realtimeActionConfirm: noop,
+        realtimeDrainCompletions: resolve([]),
+        realtimeMintToken: resolve(null),
+        realtimeSetSessionLive: noop,
+        realtimeWaitFor: resolve(null),
+
+        // ── remote control ──
+        controlAutoDelivery: noop,
+        controlHalt: noop,
+        controlPause: noop,
+        controlResume: noop,
+        controlSnapshot: resolve({}),
+        controlSteer: noop,
+
+        // ── updates / slack ──
+        updateCheckNow: noop,
+        updateCurrent: resolve(null),
+        updateDownload: noop,
+        updateRestartAndInstall: noop,
+        updateOpenRelease: noop,
+        slackSetConfig: noop,
+        slackStart: noop,
+        slackStop: noop,
+        slackStatus: resolve({ running: false }),
+        slackReply: reject,
+
+        // ── closing ──
+        cancelClose: noop,
+        cancelClosingTime: noop,
+        confirmClose: noop,
+        startClosingTime: resolve({ ok: false, error: "web demo" }),
+
+        // ── hire import ──
+        importHireFile: resolve(null)
+      };
+
+      // ── COOS mode overrides ────────────────────────────────────────────────
+      // Live data plane: the roster is empty (the bridge seeds it), hive data
+      // reads/writes proxy to the COOS backend, and onHiveMessage registers the
+      // envelope listeners the WS plane drives.
+      if (MODE === "coos") {
+        concrete.rosterReadSync = function () { return COOS_EMPTY_ROSTER; };
+        concrete.listPtys = resolve([]);
+        concrete.listWorkers = resolve([]);
+
+        concrete.hiveSend = coosHiveSend;
+        concrete.hiveTasks = coosHiveTasks;
+        concrete.hiveAddTask = function (card) {
+          return apiPost("/api/hive/tasks", {
+            title: (card && card.title) || "untitled",
+            assignee: (card && card.assignee) || "",
+            priority: coosPriority(card && card.priority),
+            deps: (card && card.deps) || []
+          }).then(function (t) { return Object.assign({ ok: true }, t || {}); });
+        };
+        concrete.hivePatchTask = function (id, patch) {
+          if (patch && patch.status) {
+            return apiPost("/api/hive/tasks/" + encodeURIComponent(id) + "/move", { status: patch.status })
+              .then(function (t) { return Object.assign({ ok: true }, t || {}); });
+          }
+          return Promise.resolve({ ok: true });
+        };
+        concrete.hiveDeleteTask = resolve({ ok: true });
+        concrete.hiveBoard = function () {
+          return apiGet("/api/hive/board").then(function (d) {
+            return (d && d.board) || "";
+          });
+        };
+        concrete.hiveLog = function () {
+          return apiGet("/api/hive/activity?limit=120").then(function (d) {
+            var acts = (d && d.activities) || [];
+            if (!acts.length) return "no hive activity yet.";
+            return acts.map(function (a) {
+              var t = a.text || a.title || a.action || "";
+              var who = a.agent_id || a.from || "";
+              var when = a.ts ? new Date(a.ts * 1000).toLocaleTimeString() : "";
+              return "[" + (a.kind || "info") + "] " + (who ? who + ": " : "") + t + (when ? "  (" + when + ")" : "");
+            }).join("\n");
+          });
+        };
+        concrete.hiveInbox = function (codename) {
+          return apiGet("/api/hive/agents/" + encodeURIComponent(codename) + "/inbox").then(function (d) {
+            var msgs = (d && d.messages) || [];
+            return msgs.map(function (m) {
+              return Object.assign({}, m, {
+                created_at: m.ts_iso || (m.ts ? new Date(m.ts * 1000).toISOString() : undefined),
+                read: !!m.read
+              });
+            });
+          });
+        };
+        concrete.hiveMessages = function () {
+          return apiGet("/api/hive/state").then(function (d) {
+            return (d && d.log) || [];
+          });
+        };
+        concrete.hiveRegistry = function () {
+          return apiGet("/api/hive/state").then(function (d) {
+            return d || {};
+          });
+        };
+
+        concrete.onHiveMessage = function (cb) {
+          if (typeof cb === "function") hiveMessageListeners.push(cb);
+          return function () {
+            var i = hiveMessageListeners.indexOf(cb);
+            if (i >= 0) hiveMessageListeners.splice(i, 1);
+          };
+        };
+
+        // Command steering from the agent detail panel routes straight to the
+        // agent's COOS inbox (the chain loop picks it up).
+        concrete.controlSteer = function (agentId, text) {
+          return coosHiveSend({ to: coosTo(agentId), act: "request", subject: "steer", body: String(text || "") });
+        };
+        concrete.spawnPty = function () {
+          return Promise.resolve({ ok: false, error: "coos: live spawning disabled (agents are COOS-managed)" });
+        };
+        concrete.writePty = reject;
+
+        // Boot straight into the office: no hive picker in COOS mode.
+        try { window.localStorage.setItem("cth.skipHivePickerOnce", "1"); } catch (e) { /* ignore */ }
+      }
+
+      var handler = {
+        get: function (target, prop) {
+          if (typeof prop === "string" && Object.prototype.hasOwnProperty.call(target, prop)) {
+            return target[prop];
+          }
+          if (typeof prop === "string") {
+            if (/^on[A-Z]/.test(prop)) return unsub;
+            if (/Sync$/.test(prop)) return function () { return null; };
+            if (/^(get|list|read|drain|fetch|stat)/.test(prop)) return resolve([]);
+            if (/^(has|is|can)/.test(prop)) return resolve(false);
+            return noop;
+          }
+          return undefined;
+        }
+      };
+
+      window.cth = new Proxy(concrete, handler);
+
+      // Skip the launch-time hive picker: with no real harness home there is
+      // nothing to pick — boot straight into the office in demo mode.
+      try { window.localStorage.setItem("cth.skipHivePickerOnce", "1"); } catch (e) { /* ignore */ }
+    })();
+    </script>
+  </head>
+  <body>
+    <div id="root">
+      <div id="cth-splash">
+        <div class="mk">MD</div>
+        <div class="title">MUNDER DIFFLIN</div>
+        <div class="hint">booting the hive…</div>
+      </div>
+    </div>
+    <script type="module" src="/src/renderer/src/main.tsx"></script>
+  </body>
+</html>

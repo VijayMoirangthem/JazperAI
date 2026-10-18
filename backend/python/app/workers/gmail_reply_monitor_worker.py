@@ -175,11 +175,29 @@ class GmailReplyMonitorWorker(BaseWorker):
                         "response":  ("info", f"Response from {company}"),
                     }
                     ntype, notif_title = notif_map.get(new_status, ("info", company))
+                    _notif_body = f"{title}\n{subject[:120]}"
                     await asyncio.get_event_loop().run_in_executor(
                         None,
-                        lambda t=notif_title, b=f"{title}\n{subject[:120]}", nt=ntype:
+                        lambda t=notif_title, b=_notif_body, nt=ntype:
                             _create_notification(t, b, nt),
                     )
+                    # Phase 10B — Telegram instant alert
+                    try:
+                        from app.services.alert_service import try_send_alert
+                        asyncio.create_task(try_send_alert(new_status, notif_title, _notif_body))
+                    except Exception:
+                        pass
+                    # Phase 11A — Automation rules
+                    try:
+                        from app.services.automation_service import fire_event
+                        asyncio.create_task(fire_event("job_status_changed", {
+                            "new_status": new_status,
+                            "company": company,
+                            "title": title,
+                            "domain": domain,
+                        }))
+                    except Exception:
+                        pass
 
                     log.info(
                         "Job application status updated",

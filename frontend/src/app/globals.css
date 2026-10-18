@@ -75,6 +75,12 @@
   --ease-soft: all 0.22s ease;
   --ease-slow: all 0.4s ease;
 
+  /* ── Panel shorthand aliases (used by floating panels, command center) ── */
+  --color-text:        #c8d0e8;   /* crisp light blue-white — main readable text */
+  --color-text-dim:    #6b7a9a;   /* muted blue-gray — secondary / labels */
+  --color-accent:      #6366f1;   /* default indigo accent for unthemed contexts */
+  --color-card-inner:  rgba(255,255,255,0.045); /* inner cards inside dark floating panels */
+
   /* Shadcn bridge — dark defaults */
   --background:        var(--ink-95);
   --foreground:        var(--ink-10);
@@ -403,6 +409,10 @@ body {
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 }
+@keyframes sj-flyout-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 
 /* ── RESPONSIVE ── */
 
@@ -415,4 +425,13 @@ body {
 @media (max-width: 480px) {
   .sj-hero { font-size: 20px; }
   .sj-topbar { padding: 0 var(--sp-3); }
+}
+
+/* ── IDE — resizable panel handles ── */
+.sj-resize-handle {
+  transition: background 0.12s ease;
+}
+.sj-resize-handle:hover,
+.sj-resize-handle[data-resize-handle-active] {
+  background: #6366f1 !important;
 }

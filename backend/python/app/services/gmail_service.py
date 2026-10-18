@@ -27,6 +27,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/userinfo.email",
 ]
 
@@ -100,8 +101,7 @@ def _as_dict(val) -> dict:
 
 
 def save_token(email: str, token_data: dict) -> None:
-    conn = _pg()
-    try:
+    with _pg() as conn:
         cur = conn.cursor()
         cur.execute(
             """
@@ -115,25 +115,19 @@ def save_token(email: str, token_data: dict) -> None:
         conn.commit()
         cur.close()
         log.info("Gmail token saved", email=email)
-    finally:
-        conn.close()
 
 
 def load_token(email: str) -> dict | None:
-    conn = _pg()
-    try:
+    with _pg() as conn:
         cur = conn.cursor()
         cur.execute("SELECT token_data FROM gmail_tokens WHERE email = %s", (email,))
         row = cur.fetchone()
         cur.close()
         return _as_dict(row[0]) if row else None
-    finally:
-        conn.close()
 
 
 def load_any_token() -> tuple[str, dict] | tuple[None, None]:
-    conn = _pg()
-    try:
+    with _pg() as conn:
         cur = conn.cursor()
         cur.execute("SELECT email, token_data FROM gmail_tokens LIMIT 1")
         row = cur.fetchone()
@@ -141,42 +135,34 @@ def load_any_token() -> tuple[str, dict] | tuple[None, None]:
         if not row:
             return None, None
         return row[0], _as_dict(row[1])
-    finally:
-        conn.close()
 
 
 def list_connected_accounts() -> list[dict]:
-    conn = _pg()
-    try:
+    with _pg() as conn:
         cur = conn.cursor()
         cur.execute("SELECT email, updated_at FROM gmail_tokens ORDER BY updated_at DESC")
         rows = cur.fetchall()
         cur.close()
         return [{"email": r[0], "connected_at": r[1].isoformat() if r[1] else None} for r in rows]
-    finally:
-        conn.close()
 
 
 def delete_token(email: str) -> bool:
-    conn = _pg()
-    try:
+    with _pg() as conn:
         cur = conn.cursor()
         cur.execute("DELETE FROM gmail_tokens WHERE email = %s RETURNING email", (email,))
         deleted = cur.fetchone() is not None
         conn.commit()
         cur.close()
-        # Clear all cached data for this account
-        try:
-            r = _redis()
-            keys = r.keys(f"gmail:*:{email}:*") + r.keys(f"gmail:profile:{email}")
-            if keys:
-                r.delete(*keys)
-            r.close()
-        except Exception:
-            pass
-        return deleted
-    finally:
-        conn.close()
+    # Clear all cached data for this account
+    try:
+        r = _redis()
+        keys = r.keys(f"gmail:*:{email}:*") + r.keys(f"gmail:profile:{email}")
+        if keys:
+            r.delete(*keys)
+        r.close()
+    except Exception:
+        pass
+    return deleted
 
 
 # ── Google credentials object ─────────────────────────────────────────────────

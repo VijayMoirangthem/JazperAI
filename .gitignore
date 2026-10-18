@@ -1,8 +1,12 @@
+# Browser profiles (local only — contain session cookies)
+storage/browser-profiles/
+
 # Dependencies
 node_modules/
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Build outputs
 .next/
@@ -10,23 +14,29 @@ dist/
 build/
 out/
 
-# Environment
-.env
-.env.local
-.env.*.local
+# Environment (per-layer — see backend/docs/ENV.md)
+backend/infra/.env
+backend/python/.env
+frontend/.env.local
 
 # Logs
 *.log
 logs/
+storage/logs/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Storage
+# Storage (runtime)
 storage/uploads/
 storage/artifacts/
 storage/sessions/
+storage/user/
 
 # Docker volumes (local)
-infra/volumes/
+backend/infra/volumes/
+
+# IDE / agent artifacts
+.claude/worktrees/
+storage/archive/munder/hive/

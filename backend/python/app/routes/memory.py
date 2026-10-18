@@ -28,6 +28,31 @@ class SearchRequest(BaseModel):
     top_k: int = 5
 
 
+class TopicCreate(BaseModel):
+    topic: str
+    query: str | None = None
+
+
+# ── Scout topic monitoring ────────────────────────────────────────────────────
+
+@router.get("/topics")
+def list_watched_topics():
+    from app.workers.scout_monitor_worker import list_topics
+    return {"topics": list_topics()}
+
+
+@router.post("/topics")
+def add_watched_topic(body: TopicCreate):
+    from app.workers.scout_monitor_worker import add_topic
+    return add_topic(body.topic, body.query)
+
+
+@router.delete("/topics/{topic}")
+def remove_watched_topic(topic: str):
+    from app.workers.scout_monitor_worker import remove_topic
+    return remove_topic(topic)
+
+
 # ── Core memories ─────────────────────────────────────────────────────────────
 
 @router.get("/core")
@@ -155,6 +180,43 @@ def clear_everything():
             cur.execute("DELETE FROM memories")
             cur.execute("DELETE FROM chat_sessions")  # cascades to chat_messages
         conn.commit()
+
+
+# ── Sage memory viewer ───────────────────────────────────────────────────────
+
+@router.get("/sage")
+def get_sage_memory(limit: int = 50):
+    """Return Sage-consolidated memory entries from knowledge_items."""
+    with _pg() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, title, content, source_type AS source, created_at, tags
+                FROM knowledge_items
+                WHERE source_type = 'sage_consolidation'
+                   OR 'sage' = ANY(tags)
+                   OR source_type ILIKE '%%sage%%'
+                ORDER BY created_at DESC
+                LIMIT %s
+            """, (limit,))
+            rows = cur.fetchall()
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM knowledge_items
+                WHERE source_type = 'sage_consolidation'
+                   OR 'sage' = ANY(tags)
+                   OR source_type ILIKE '%%sage%%'
+            """)
+            total = cur.fetchone()["count"]
+
+    entries = []
+    for r in rows:
+        row = dict(r)
+        row["id"] = str(row["id"])
+        if row.get("created_at"):
+            row["created_at"] = row["created_at"].isoformat()
+        entries.append(row)
+
+    return {"entries": entries, "total": total}
 
 
 # ── Semantic search ───────────────────────────────────────────────────────────

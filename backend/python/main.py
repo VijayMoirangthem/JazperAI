@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+import asyncio
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 import structlog
 import structlog.dev
@@ -13,6 +16,71 @@ from app.routes import jobs as jobs_route
 from app.routes import google as google_route
 from app.routes import apply as apply_route
 from app.routes import profile as profile_route
+from app.routes import agents as agents_route
+from app.routes import db_changes as db_changes_route
+from app.routes import company_dashboard as company_route
+from app.routes import phases as phases_route
+from app.routes import roadmap as roadmap_route
+from app.routes import approvals as approvals_route
+from app.routes import plans as plans_route
+from app.routes import workflows as workflows_route
+from app.routes import it_department as it_route
+from app.routes import voice_profile as voice_profile_route
+from app.routes import storage as storage_route
+from app.routes import ide as ide_route
+from app.routes import control_tower as control_tower_route
+from app.routes import voyager as voyager_route
+from app.routes import service_registry as service_registry_route
+from app.routes import timeline as timeline_route
+from app.routes import stream as stream_route
+from app.routes import agent_chat as agent_chat_route
+from app.routes.agent_chat import dept_router as dept_chat_router
+from app.routes import evolution as evolution_route
+from app.routes import calendar as calendar_route
+from app.routes import plugins as plugins_route
+from app.routes import shared_memory as shared_memory_route
+from app.routes import webhooks as webhooks_route
+from app.routes import model_costs as model_costs_route
+from app.routes import telegram as telegram_route
+from app.routes import briefings as briefings_route
+from app.routes import alert_config as alert_config_route
+from app.routes import resume as resume_route
+from app.routes import suggestions as suggestions_route
+from app.routes import automation as automation_route
+from app.routes import knowledge as knowledge_route
+from app.routes import cover_letter as cover_letter_route
+from app.routes import contacts as contacts_route
+from app.routes import planner as planner_route
+from app.routes import habits as habits_route
+from app.routes import search as search_route
+from app.routes import compose as compose_route
+from app.routes import stats as stats_route
+from app.routes import onboarding as onboarding_route
+from app.routes import activity as activity_route
+from app.routes import export_data as export_data_route
+from app.routes import hermes_drafts as hermes_drafts_route
+from app.routes import job_radar as job_radar_route
+from app.routes import voice_journal as voice_journal_route
+from app.routes import templates as templates_route
+from app.routes import email_analytics as email_analytics_route
+from app.routes import reminders as reminders_route
+from app.routes.interview_prep import router as interview_prep_route
+from app.routes.focus import router as focus_route
+from app.routes.goals import router as goals_router
+from app.routes.digest import router as digest_router
+from app.routes.triage import router as triage_router
+from app.routes.mood import router as mood_router
+from app.routes.task_priority import router as task_priority_router
+from app.routes.followup import router as followup_router
+from app.routes.reading_list import router as reading_list_router
+from app.routes.sprints import router as sprints_router
+from app.routes.offer_eval import router as offer_eval_router
+from app.routes.portfolio import router as portfolio_router
+from app.routes.salary_coach import router as salary_coach_router
+from app.routes.standup import router as standup_router
+from app.routes import hive as hive_route
+from app.routes import org as org_route
+from app.business.routes import clients as biz_clients_route, chat as biz_chat_route, projects as biz_projects_route, team as biz_team_route, finance as biz_finance_route
 from app.core.config import settings
 
 # ── In-memory log ring buffer (last 500 entries) ─────────────────────────────
@@ -58,252 +126,65 @@ structlog.configure(
 log = structlog.get_logger()
 
 
-def _ensure_tables():
-    import psycopg2
-    from app.core.config import settings as s
+
+async def _auto_repair_loop():
+    """Background task: watch the log buffer for error-level events and trigger Darwin."""
+    import queue as _q
+    from app.services.error_store import error_store
+    from app.agents.darwin_agent import DarwinAgent
+
+    q: _q.Queue = _q.Queue(maxsize=500)
+    log_subscribers.append(q)
+    log.info("IT auto-repair loop started")
+
     try:
-        conn = psycopg2.connect(
-            host=s.POSTGRES_HOST, port=s.POSTGRES_PORT,
-            user=s.POSTGRES_USER, password=s.POSTGRES_PASSWORD, dbname=s.POSTGRES_DB,
-        )
-        cur = conn.cursor()
-        cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
-        cur.execute('CREATE EXTENSION IF NOT EXISTS vector;')
-        conn.commit()
+        while True:
+            await asyncio.sleep(0.5)
+            while not q.empty():
+                try:
+                    entry = q.get_nowait()
+                except _q.Empty:
+                    break
+                if entry.get("level") not in ("error", "critical"):
+                    continue
+                msg = entry.get("message", "")
+                extra = entry.get("extra", {})
+                err_str = extra.get("error", msg)
+                tb_str  = extra.get("traceback", "")
 
-        # ── Existing tables ───────────────────────────────────────────────────
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS core_memories (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                content TEXT NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            CREATE TABLE IF NOT EXISTS extracted_memories (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                content TEXT NOT NULL,
-                session_id TEXT,
-                embedding VECTOR(384),
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            CREATE TABLE IF NOT EXISTS semantic_memories (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                content TEXT NOT NULL,
-                embedding VECTOR(384),
-                metadata JSONB DEFAULT '{}',
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            CREATE INDEX IF NOT EXISTS idx_semantic_emb
-                ON semantic_memories USING ivfflat (embedding vector_cosine_ops)
-                WITH (lists = 50);
-            CREATE INDEX IF NOT EXISTS idx_extracted_emb
-                ON extracted_memories USING ivfflat (embedding vector_cosine_ops)
-                WITH (lists = 50);
-            CREATE TABLE IF NOT EXISTS chat_sessions (
-                id UUID PRIMARY KEY,
-                title TEXT NOT NULL DEFAULT 'New Chat',
-                expires_at TIMESTAMPTZ DEFAULT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ DEFAULT NULL;
-            CREATE TABLE IF NOT EXISTS chat_messages (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                session_id UUID REFERENCES chat_sessions(id) ON DELETE CASCADE,
-                role TEXT NOT NULL,
-                content TEXT NOT NULL,
-                meta JSONB DEFAULT '{}',
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
-        """)
-        conn.commit()
+                # Skip noisy non-actionable errors
+                if any(skip in msg.lower() for skip in (
+                    "rate-limit", "connection refused", "could not connect",
+                    "agent error recorded",  # avoid re-recording our own records
+                )):
+                    continue
 
-        # ── Cron / worker tables ──────────────────────────────────────────────
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS cron_jobs (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                name TEXT NOT NULL,
-                worker_type TEXT NOT NULL,
-                schedule TEXT NOT NULL,
-                enabled BOOLEAN DEFAULT TRUE,
-                config JSONB DEFAULT '{}',
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS job_runs (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                cron_job_id UUID REFERENCES cron_jobs(id) ON DELETE CASCADE,
-                status TEXT NOT NULL DEFAULT 'pending',
-                started_at TIMESTAMPTZ DEFAULT NOW(),
-                finished_at TIMESTAMPTZ,
-                result JSONB DEFAULT '{}',
-                log TEXT DEFAULT ''
-            );
-            CREATE INDEX IF NOT EXISTS idx_job_runs_cron_job ON job_runs(cron_job_id);
-            CREATE INDEX IF NOT EXISTS idx_job_runs_started ON job_runs(started_at DESC);
-
-            CREATE TABLE IF NOT EXISTS credentials (
-                portal TEXT PRIMARY KEY,
-                token_data JSONB NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS user_profile (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                full_name TEXT DEFAULT '',
-                email TEXT DEFAULT '',
-                phone TEXT DEFAULT '',
-                resume_text TEXT DEFAULT '',
-                skills TEXT[] DEFAULT '{}',
-                preferences JSONB DEFAULT '{}',
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS gmail_tokens (
-                email TEXT PRIMARY KEY,
-                token_data JSONB NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS notifications (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                title TEXT NOT NULL,
-                body TEXT DEFAULT '',
-                type TEXT NOT NULL DEFAULT 'info',
-                read BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                job_run_id UUID REFERENCES job_runs(id) ON DELETE SET NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
-
-            CREATE TABLE IF NOT EXISTS tasks (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                title TEXT NOT NULL,
-                notes TEXT DEFAULT '',
-                priority TEXT NOT NULL DEFAULT 'medium',
-                status TEXT NOT NULL DEFAULT 'pending',
-                due_at TIMESTAMPTZ DEFAULT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-            CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
-        """)
-        conn.commit()
-
-        # ── Job-apply tables ──────────────────────────────────────────────────
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS job_apply_profile (
-                id SERIAL PRIMARY KEY,
-                target_roles TEXT[] DEFAULT '{}',
-                work_modes TEXT[] DEFAULT '{remote}',
-                locations TEXT[] DEFAULT '{}',
-                salary_min INTEGER DEFAULT 0,
-                salary_max INTEGER DEFAULT 0,
-                experience_years INTEGER DEFAULT 0,
-                skills TEXT[] DEFAULT '{}',
-                blacklist_companies TEXT[] DEFAULT '{}',
-                resume_path TEXT DEFAULT '',
-                daily_limit INTEGER DEFAULT 5,
-                auto_apply_enabled BOOLEAN DEFAULT FALSE,
-                auto_apply_hour INTEGER DEFAULT 9,
-                linkedin_email TEXT DEFAULT '',
-                chrome_profile_path TEXT DEFAULT '',
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS job_screening_answers (
-                id SERIAL PRIMARY KEY,
-                question TEXT NOT NULL,
-                answer TEXT NOT NULL,
-                category TEXT DEFAULT 'general',
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS job_cover_letters (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                content TEXT NOT NULL,
-                is_default BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS job_applications (
-                id TEXT PRIMARY KEY,
-                company TEXT NOT NULL,
-                title TEXT NOT NULL,
-                url TEXT,
-                location TEXT,
-                work_mode TEXT,
-                status TEXT DEFAULT 'applied',
-                applied_at TIMESTAMPTZ DEFAULT NOW(),
-                cover_letter_name TEXT,
-                easy_apply BOOLEAN DEFAULT TRUE,
-                notes TEXT DEFAULT '',
-                email_thread_id TEXT,
-                run_id INTEGER
-            );
-            CREATE INDEX IF NOT EXISTS idx_job_apps_status ON job_applications(status);
-            CREATE INDEX IF NOT EXISTS idx_job_apps_applied ON job_applications(applied_at DESC);
-
-            CREATE TABLE IF NOT EXISTS job_apply_runs (
-                id SERIAL PRIMARY KEY,
-                started_at TIMESTAMPTZ DEFAULT NOW(),
-                completed_at TIMESTAMPTZ,
-                jobs_found INTEGER DEFAULT 0,
-                jobs_applied INTEGER DEFAULT 0,
-                jobs_skipped INTEGER DEFAULT 0,
-                status TEXT DEFAULT 'running',
-                error_msg TEXT DEFAULT '',
-                run_log TEXT DEFAULT ''
-            );
-        """)
-        conn.commit()
-
-        # ── Semantic memory migrations (safe to re-run) ──────────────────
-        for col_sql in [
-            "ALTER TABLE extracted_memories ADD COLUMN IF NOT EXISTS embedding VECTOR(384)",
-        ]:
-            try:
-                cur.execute(col_sql)
-                conn.commit()
-            except Exception:
-                conn.rollback()
-
-        # ── user_profile column migrations (safe to re-run) ───────────────
-        for col_sql in [
-            "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS location TEXT DEFAULT ''",
-            "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS current_role TEXT DEFAULT ''",
-            "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS experience_years TEXT DEFAULT ''",
-            "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS availability TEXT DEFAULT ''",
-            "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS work_type TEXT DEFAULT ''",
-            "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS salary_expectation TEXT DEFAULT ''",
-            "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS sections JSONB DEFAULT '{}'",
-            "INSERT INTO user_profile (id) VALUES (uuid_generate_v4()) ON CONFLICT DO NOTHING",
-        ]:
-            try:
-                cur.execute(col_sql)
-                conn.commit()
-            except Exception:
-                conn.rollback()
-
-        cur.close()
-        conn.close()
-        log.info("All tables ready")
-    except Exception as e:
-        log.warning("Could not ensure tables", error=str(e))
+                recorded = await error_store.record(
+                    agent=extra.get("agent", "System"),
+                    error=err_str[:500],
+                    traceback_str=tb_str[:3000],
+                    context={"log_entry": entry},
+                )
+                log.info("IT: dispatching Darwin for auto-repair", error_id=recorded.error_id)
+                asyncio.create_task(DarwinAgent.handle_repair(recorded.error_id))
+    finally:
+        try:
+            log_subscribers.remove(q)
+        except ValueError:
+            pass
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("Sir Jazper OS starting", model=settings.AI_MODEL, env=settings.ENV)
-    _ensure_tables()
+    from app.db.init import ensure_tables
+    ensure_tables()
+
+    from app.business.db import ensure_business_tables
+    ensure_business_tables()
+
+    from app.services.storage import storage as _storage
+    _storage.ensure_bucket()
 
     from app.scheduler.scheduler import start_scheduler, stop_scheduler
     from app.services.linkedin_service import seed_default_screening_answers
@@ -313,14 +194,43 @@ async def lifespan(app: FastAPI):
         pass
     start_scheduler()
 
+    # Hive layer: seed agent workspaces + fleet log
+    try:
+        from app.services.hive_service import hive as _hive
+        _hive.init()
+        log.info("Hive layer initialized", root=str(_hive.root()))
+    except Exception as hive_exc:
+        log.warning("Hive init failed (non-fatal)", error=str(hive_exc))
+
+    # Start IT Department auto-repair background loop
+    asyncio.create_task(_auto_repair_loop(), name="it-auto-repair")
+
+    # Phase 7D: start filesystem watcher (daemon thread, auto-triggers npm/pip install)
+    from app.system.file_watcher import start as fw_start
+    try:
+        fw_start(asyncio.get_event_loop())
+    except Exception as fw_exc:
+        log.warning("FileWatcher: failed to start (non-fatal)", error=str(fw_exc))
+
     yield
 
     stop_scheduler()
     log.info("Sir Jazper OS shutting down")
 
 
-app = FastAPI(title="Sir Jazper OS", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="CREATE ORIGINS OS", version="1.0.0", lifespan=lifespan)
 
+
+class NoCacheMunderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/munder"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
+
+app.add_middleware(NoCacheMunderMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.FRONTEND_URL],
@@ -345,3 +255,87 @@ app.include_router(apply_route.router,     prefix="/api/apply",         tags=["a
 app.include_router(profile_route.router,   prefix="/api/profile",       tags=["profile"])
 app.include_router(dashboard_route.router,      prefix="/api/dashboard",      tags=["dashboard"])
 app.include_router(notifications_route.router, prefix="/api/notifications",  tags=["notifications"])
+app.include_router(agents_route.router,        prefix="/api/agents",         tags=["agents"])
+app.include_router(org_route.router,           prefix="/api/org",            tags=["org"])
+app.include_router(phases_route.router,        prefix="/api/phases",         tags=["phases"])
+app.include_router(roadmap_route.router,       prefix="/api/roadmap",        tags=["roadmap"])
+app.include_router(approvals_route.router,     prefix="/api/approvals",      tags=["approvals"])
+app.include_router(plans_route.router,         prefix="/api/plans",          tags=["plans"])
+app.include_router(workflows_route.router,     prefix="/api/workflows",      tags=["workflows"])
+app.include_router(it_route.router,            prefix="/api/it",             tags=["it-department"])
+app.include_router(voice_profile_route.router, prefix="/api/voice-profile",  tags=["voice-profile"])
+app.include_router(storage_route.router,       prefix="/api/storage",        tags=["storage"])
+app.include_router(ide_route.router,           prefix="/api/ide",            tags=["ide"])
+app.include_router(control_tower_route.router, prefix="/api/control-tower",  tags=["control-tower"])
+app.include_router(voyager_route.router,          prefix="/api/voyager",          tags=["voyager"])
+app.include_router(service_registry_route.router, prefix="/api/services",         tags=["service-registry"])
+app.include_router(timeline_route.router,         prefix="/api/timeline",         tags=["timeline"])
+app.include_router(stream_route.router,           prefix="/api/stream",           tags=["stream"])
+app.include_router(agent_chat_route.router,       prefix="/api/direct/agent",     tags=["agent-direct-chat"])
+app.include_router(dept_chat_router,              prefix="/api/direct/dept",      tags=["dept-direct-chat"])
+app.include_router(db_changes_route.router)
+app.include_router(company_route.router)
+app.include_router(evolution_route.router)
+app.include_router(calendar_route.router,       prefix="/api/calendar",       tags=["calendar"])
+app.include_router(plugins_route.router,        prefix="/api/plugins",        tags=["plugins"])
+app.include_router(shared_memory_route.router,  prefix="/api/shared-memory",  tags=["shared-memory"])
+app.include_router(webhooks_route.router,       prefix="/api/webhooks",       tags=["webhooks"])
+app.include_router(model_costs_route.router,    prefix="/api/model-costs",    tags=["model-costs"])
+app.include_router(telegram_route.router,       prefix="/api/telegram",       tags=["telegram"])
+app.include_router(briefings_route.router,      prefix="/api/briefings",      tags=["briefings"])
+app.include_router(alert_config_route.router,   prefix="/api/alert-config",   tags=["alert-config"])
+app.include_router(resume_route.router,         prefix="/api/resume",         tags=["resume"])
+app.include_router(suggestions_route.router,    prefix="/api/suggestions",    tags=["suggestions"])
+app.include_router(automation_route.router,     prefix="/api/automation",     tags=["automation"])
+app.include_router(knowledge_route.router,      prefix="/api/knowledge",      tags=["knowledge"])
+app.include_router(cover_letter_route.router,   prefix="/api/cover-letter",   tags=["cover-letter"])
+app.include_router(contacts_route.router,       prefix="/api/contacts",       tags=["contacts"])
+app.include_router(planner_route.router,        prefix="/api/planner",        tags=["planner"])
+app.include_router(habits_route.router,         prefix="/api/habits",         tags=["habits"])
+app.include_router(search_route.router,         prefix="/api/search",         tags=["search"])
+app.include_router(compose_route.router,        prefix="/api/compose",        tags=["compose"])
+app.include_router(stats_route.router,          prefix="/api/stats",          tags=["stats"])
+app.include_router(onboarding_route.router,     prefix="/api/onboarding",     tags=["onboarding"])
+app.include_router(activity_route.router,       prefix="/api/activity",       tags=["activity"])
+app.include_router(export_data_route.router,    prefix="/api/export",         tags=["export"])
+app.include_router(hermes_drafts_route.router,  prefix="/api/hermes",          tags=["hermes"])
+app.include_router(job_radar_route.router,      prefix="/api/jobs/radar",      tags=["job_radar"])
+app.include_router(voice_journal_route.router,   prefix="/api/voice-journal",    tags=["voice_journal"])
+app.include_router(templates_route.router,        prefix="/api/templates",         tags=["templates"])
+app.include_router(email_analytics_route.router,  prefix="/api/email-analytics",   tags=["email_analytics"])
+app.include_router(reminders_route.router,        prefix="/api/reminders",         tags=["reminders"])
+app.include_router(interview_prep_route,          prefix="/api/interview-prep",    tags=["interview-prep"])
+app.include_router(focus_route,                   prefix="/api/focus",             tags=["focus"])
+app.include_router(goals_router,                  prefix="/api/goals",             tags=["goals"])
+app.include_router(digest_router,                 prefix="/api/digest",            tags=["digest"])
+app.include_router(triage_router,                 prefix="/api/triage",            tags=["triage"])
+app.include_router(mood_router,                   prefix="/api/mood",              tags=["mood"])
+app.include_router(task_priority_router,          prefix="/api/task-priority",     tags=["task-priority"])
+app.include_router(followup_router,               prefix="/api/followup",          tags=["followup"])
+app.include_router(reading_list_router,           prefix="/api/reading-list",      tags=["reading-list"])
+app.include_router(sprints_router,                prefix="/api/sprints",           tags=["sprints"])
+app.include_router(offer_eval_router,             prefix="/api/offer-eval",        tags=["offer-eval"])
+app.include_router(portfolio_router,              prefix="/api/portfolio",         tags=["portfolio"])
+app.include_router(salary_coach_router,           prefix="/api/salary-coach",      tags=["salary-coach"])
+app.include_router(standup_router,                prefix="/api/standup",           tags=["standup"])
+app.include_router(hive_route.router,             prefix="/api/hive",              tags=["hive"])
+
+# ── Business Platform (COOS) — separate track ──
+app.include_router(biz_clients_route.router, prefix="/api/business/clients", tags=["business-clients"])
+app.include_router(biz_projects_route.router, prefix="/api/business/projects", tags=["business-projects"])
+app.include_router(biz_team_route.router,    prefix="/api/business/team",    tags=["business-team"])
+app.include_router(biz_chat_route.router,    prefix="/api/business/chat",    tags=["business-chat"])
+app.include_router(biz_finance_route.router, prefix="/api/business/finance", tags=["business-finance"])
+
+# ── Munder Difflin web (COOS copy) ───────────────────────────────────────────
+# Serves the Munder renderer bundle at /munder/index.html in "coos" mode, where
+# it connects back to this same backend (agents/live + /ws + /api/hive/*).
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+_MUNDER_DIST = Path(__file__).resolve().parent.parent / "munder-web" / "dist"
+if _MUNDER_DIST.exists():
+    app.mount("/munder", StaticFiles(directory=str(_MUNDER_DIST), html=True), name="munder")
+else:
+    log.warning("munder-web dist not found", path=str(_MUNDER_DIST))
+

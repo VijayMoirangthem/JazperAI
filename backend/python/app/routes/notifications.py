@@ -19,6 +19,7 @@ def _row(r: dict) -> dict:
         "read":       r["read"],
         "created_at": r["created_at"].isoformat() if r["created_at"] else None,
         "job_run_id": str(r["job_run_id"]) if r["job_run_id"] else None,
+        "metadata":   r.get("metadata") or {},
     }
 
 

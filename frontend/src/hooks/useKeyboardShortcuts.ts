@@ -2,9 +2,7 @@
 
 import { useEffect } from "react";
 
-type View = "dashboard" | "chat" | "history" | "tasks" | "memory" | "logs" | "browser" | "settings" | "jobs" | "gmail" | "jobapply" | "notifications";
-
-const KEY_MAP: Record<string, View> = {
+const NUM_MAP: Record<string, string> = {
   "1": "dashboard",
   "2": "chat",
   "3": "tasks",
@@ -15,16 +13,31 @@ const KEY_MAP: Record<string, View> = {
   ",": "settings",
 };
 
-export function useKeyboardShortcuts(onNavigate: (v: View) => void) {
+// Ctrl/Cmd + key shortcuts
+const CTRL_MAP: Record<string, string> = {
+  "k": "search",
+  "n": "compose",
+};
+
+export function useKeyboardShortcuts(onNavigate: (v: string) => void) {
   useEffect(() => {
     function handler(e: KeyboardEvent) {
-      // Ignore when typing in input/textarea/contenteditable
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
-      // Ignore when modifier keys (except g-prefix) are held
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const isEditable = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
 
-      const mapped = KEY_MAP[e.key];
+      // Ctrl/Cmd shortcuts work from anywhere
+      if (e.ctrlKey || e.metaKey) {
+        const mapped = CTRL_MAP[e.key.toLowerCase()];
+        if (mapped) {
+          e.preventDefault();
+          onNavigate(mapped);
+        }
+        return;
+      }
+
+      // Number shortcuts only when not typing
+      if (isEditable || e.altKey) return;
+      const mapped = NUM_MAP[e.key];
       if (mapped) {
         e.preventDefault();
         onNavigate(mapped);

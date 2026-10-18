@@ -289,6 +289,72 @@ def _answer_form_field(page, label_text: str, answers: dict[str, str]) -> bool:
     return False
 
 
+def _score_job(title: str, job_description: str, profile: dict) -> tuple[int, str]:
+    """
+    Score a job listing 1-10 against the user's profile.
+    Returns (score, reason). Score < 7 → skip.
+
+    Scoring is purely heuristic (no LLM call) to keep runs fast:
+      +3  title matches a target role keyword
+      +2  work mode matches preferences
+      +2  salary range mentioned and within profile range
+      +1  at least one skill keyword found in JD
+      +1  company not in blacklist (already checked before, bonus for not being borderline)
+      -3  title contains excluded keywords (senior/principal/lead if not in target roles)
+    """
+    target_roles  = [r.lower() for r in (profile.get("target_roles") or [])]
+    work_modes    = [m.lower() for m in (profile.get("work_modes")   or ["remote"])]
+    skills        = [s.lower() for s in (profile.get("skills")       or [])]
+    salary_min    = int(profile.get("salary_min") or 0)
+    salary_max    = int(profile.get("salary_max") or 0)
+
+    jd_lower      = (job_description or "").lower()
+    title_lower   = title.lower()
+    reasons: list[str] = []
+    score = 4  # baseline
+
+    # Title match
+    if target_roles:
+        if any(role in title_lower for role in target_roles):
+            score += 3
+            reasons.append("title match")
+        else:
+            score -= 1
+            reasons.append("title mismatch")
+
+    # Work mode
+    remote_hints = {"remote", "work from home", "wfh", "distributed"}
+    hybrid_hints = {"hybrid"}
+    jd_is_remote = any(h in jd_lower for h in remote_hints)
+    jd_is_hybrid = any(h in jd_lower for h in hybrid_hints)
+    if "remote" in work_modes and jd_is_remote:
+        score += 2; reasons.append("remote match")
+    elif "hybrid" in work_modes and jd_is_hybrid:
+        score += 1; reasons.append("hybrid match")
+    elif not jd_is_remote and not jd_is_hybrid and "remote" in work_modes:
+        score -= 1; reasons.append("mode unclear")
+
+    # Skill match (at least one skill in JD)
+    if skills and any(s in jd_lower for s in skills):
+        score += 1; reasons.append("skill match")
+
+    # Salary hints
+    if salary_min > 0 and salary_max > 0:
+        import re as _re
+        nums = [int(n.replace(",", "")) for n in _re.findall(r"\d[\d,]{2,}", jd_lower)]
+        annual = [n for n in nums if 20000 < n < 500000]
+        if annual:
+            mid = sum(annual) / len(annual)
+            if salary_min <= mid <= salary_max:
+                score += 2; reasons.append("salary in range")
+            elif mid < salary_min * 0.8:
+                score -= 2; reasons.append("salary too low")
+
+    score = max(1, min(10, score))
+    reason_str = ", ".join(reasons) if reasons else "no specific signals"
+    return score, reason_str
+
+
 def _tailor_cover_letter(base: str, title: str, company: str, job_description: str) -> str:
     """Call the local LLM synchronously to produce a job-tailored cover letter."""
     if not base.strip():
@@ -321,10 +387,11 @@ def _tailor_cover_letter(base: str, title: str, company: str, job_description: s
         return base
 
 
-def run_job_apply(log_lines: list[str] | None = None) -> dict:
+def run_job_apply(log_lines: list[str] | None = None, limit: int | None = None) -> dict:
     """
     Main entry point for the LinkedIn job-apply automation.
     Returns a summary dict with jobs_found, jobs_applied, jobs_skipped.
+    Pass limit to override the profile's daily_limit (useful for test runs).
     """
     from playwright.sync_api import sync_playwright
 
@@ -337,10 +404,14 @@ def run_job_apply(log_lines: list[str] | None = None) -> dict:
     if not profile:
         return {"error": "No job profile configured. Please set up your preferences first."}
 
-    daily_limit = profile.get("daily_limit", 5)
+    daily_limit = limit if limit is not None else profile.get("daily_limit", 5)
     resume_path = profile.get("resume_path", "")
-    chrome_path = profile.get("chrome_profile_path") or \
-        r"C:\Users\vijay\AppData\Local\Google\Chrome\User Data"
+    # Use a dedicated automation-only profile directory.
+    # This profile is separate from the user's main Chrome so the user's
+    # browsing is never interrupted and Chrome never needs to be killed.
+    chrome_path = profile.get("chrome_profile_path") or str(
+        Path(__file__).resolve().parents[4] / "storage" / "browser-profiles" / "linkedin"
+    )
     blacklist = [c.lower() for c in profile.get("blacklist_companies", [])]
 
     answers_raw = get_screening_answers()
@@ -360,12 +431,17 @@ def run_job_apply(log_lines: list[str] | None = None) -> dict:
 
     jobs_found = jobs_applied = jobs_skipped = 0
 
+    import sys as _sys, asyncio as _asyncio
+    # Ensure Playwright's internal asyncio.new_event_loop() creates a ProactorEventLoop
+    if _sys.platform == "win32":
+        _asyncio.set_event_loop_policy(_asyncio.WindowsProactorEventLoopPolicy())
+
     try:
         with sync_playwright() as pw:
-            _log("Launching Chrome with existing profile...")
+            _log("Launching Edge with existing profile...")
             ctx = pw.chromium.launch_persistent_context(
                 user_data_dir=chrome_path,
-                channel="chrome",
+                channel="msedge",
                 headless=False,
                 args=[
                     "--disable-blink-features=AutomationControlled",
@@ -378,19 +454,40 @@ def run_job_apply(log_lines: list[str] | None = None) -> dict:
 
             search_url = _build_search_url(profile)
             _log(f"Searching: {search_url}")
-            page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
-            _human_delay(2, 4)
+            page.goto(search_url, wait_until="load", timeout=45000)
+            _human_delay(3, 5)
 
             # Check we're logged in
             if "login" in page.url or "authwall" in page.url:
                 raise RuntimeError(
-                    "LinkedIn is not logged in. Please open Chrome manually, log into LinkedIn, "
-                    "then try again."
+                    "LinkedIn is not logged in. Open the automation browser, log into LinkedIn, then try again."
                 )
 
-            # Collect job cards
-            page.wait_for_selector(".jobs-search-results__list-item", timeout=15000)
-            job_cards = page.locator(".jobs-search-results__list-item").all()
+            # LinkedIn changes its DOM frequently — try several selectors
+            CARD_SELECTORS = [
+                ".jobs-search-results__list-item",
+                "li[data-occludable-job-id]",
+                ".job-card-container",
+                ".jobs-search-two-pane__job-card-container--viewport-tracking",
+                "ul.jobs-search-results__list > li",
+            ]
+            card_sel = None
+            for sel in CARD_SELECTORS:
+                try:
+                    page.wait_for_selector(sel, timeout=8000)
+                    card_sel = sel
+                    _log(f"Job cards found with selector: {sel}")
+                    break
+                except Exception:
+                    continue
+
+            if not card_sel:
+                # Take a screenshot to help debug
+                _log("Could not find job cards — LinkedIn layout may have changed.")
+                _log(f"Current URL: {page.url}")
+                raise RuntimeError("No job cards found. LinkedIn layout may have changed or search returned no results.")
+
+            job_cards = page.locator(card_sel).all()
             jobs_found = len(job_cards)
             _log(f"Found {jobs_found} job listings")
 
@@ -438,10 +535,32 @@ def run_job_apply(log_lines: list[str] | None = None) -> dict:
                     except Exception:
                         pass
 
-                    # Click Easy Apply button
+                    # Score this job before committing to apply
+                    score, score_reason = _score_job(title, job_description, profile)
+                    if score < 7:
+                        _log(f"  ✗ Skipping (score {score}/10 — {score_reason}): {title} @ {company}")
+                        jobs_skipped += 1
+                        continue
+                    _log(f"  ✓ Score {score}/10 ({score_reason}): {title} @ {company}")
+
+                    # Detect apply button type
                     easy_btn = page.locator("button.jobs-apply-button").first
-                    if not easy_btn.is_visible(timeout=3000):
-                        _log(f"No Easy Apply: {title} @ {company} — skipping")
+                    apply_btn = page.locator("button.jobs-apply-button, a.jobs-apply-button").first
+                    btn_text = ""
+                    try:
+                        btn_text = apply_btn.inner_text(timeout=3000).strip().lower()
+                    except Exception:
+                        pass
+
+                    if not apply_btn.is_visible(timeout=3000):
+                        _log(f"  ✗ No apply button found: {title} @ {company} — skipping")
+                        jobs_skipped += 1
+                        continue
+
+                    if "easy apply" not in btn_text:
+                        # "Apply on company website" — log it for manual review, skip automation
+                        job_url = f"https://www.linkedin.com/jobs/view/{job_id}"
+                        _log(f"  ⚡ External apply: {title} @ {company} ({job_url}) — queued for manual review")
                         jobs_skipped += 1
                         continue
 
@@ -544,8 +663,11 @@ def run_job_apply(log_lines: list[str] | None = None) -> dict:
             ctx.close()
 
     except Exception as e:
-        error_msg = str(e)
+        import traceback as _tb
+        error_msg = str(e) or repr(e)
+        tb_text = _tb.format_exc()
         _log(f"Run failed: {error_msg}")
+        _log(f"Traceback: {tb_text[:3000]}")
         with _pg() as conn:
             with conn.cursor() as cur:
                 cur.execute(

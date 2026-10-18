@@ -7,14 +7,16 @@ class Settings(BaseSettings):
     # AI Provider
     AI_BASE_URL: str = "http://localhost:1234/v1"
     AI_API_KEY: str = "lm-studio"
+    AI_API_KEY2: str = ""
+    AI_API_KEY3: str = ""
     AI_MODEL: str = "qwen/qwen3.5-9b"
 
     # PostgreSQL
     POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "123456"
-    POSTGRES_DB: str = "SirJazper"
+    POSTGRES_PORT: int = 5433
+    POSTGRES_USER: str = "sirjazper"
+    POSTGRES_PASSWORD: str = "changeme"
+    POSTGRES_DB: str = "coos"
 
     # Redis
     REDIS_HOST: str = "localhost"
@@ -30,12 +32,21 @@ class Settings(BaseSettings):
 
     # Server
     FASTAPI_PORT: int = 8000
-    FRONTEND_URL: str = "http://localhost:3000"
+    FRONTEND_URL: str = "http://localhost:3001"
 
     # Google OAuth + Gmail
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/google/oauth/callback"
+
+    # Local model fallback (LM Studio) — used when all Groq keys are rate-limited
+    LOCAL_FALLBACK_URL:     str  = "http://localhost:1234/v1"
+    LOCAL_FALLBACK_MODEL:   str  = "lmstudio-community/qwen2.5-3b-instruct"
+    LOCAL_FALLBACK_ENABLED: bool = True
+
+    # Claude / Anthropic (used by Oracle + IT Dept for reasoning/code tasks)
+    CLAUDE_API_KEY: str = ""
+    CLAUDE_MODEL: str = "claude-sonnet-4-6"
 
     # Search
     TAVILY_API_KEY: str = ""

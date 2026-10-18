@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, MessageSquare, Copy, Check, SquarePen, Globe, Mic, MicOff, Volume2, VolumeX, Radio, Zap, Paperclip, Camera, X, Clock, Ghost, Save, Play, Square, Brain } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Send, MessageSquare, Copy, Check, SquarePen, Globe, Mic, MicOff, Volume2, VolumeX, Radio, Zap, Paperclip, Camera, X, Clock, Ghost, Save, Play, Square, Brain, ChevronDown, ChevronRight, Search, Mail, Database, Eye, Cpu } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
 import { useSession } from "@/hooks/useSession";
 import { useVAD } from "@/hooks/useVAD";
@@ -37,7 +37,37 @@ async function blobToWav(blob: Blob): Promise<Blob> {
 type Role = "user" | "assistant";
 
 interface TokenUsage { prompt: number; completion: number; total: number; }
-interface MessageMeta { model: string; duration_ms: number; tokens: TokenUsage; }
+
+interface AgentToolCall { tool: string; input: Record<string, unknown>; output_preview: string; duration_ms: number; }
+interface AgentTraceData {
+  agent: string;
+  task: string;
+  model: string;
+  tool_calls: AgentToolCall[];
+  tokens_total: number;
+  duration_ms: number;
+  success: boolean;
+  error?: string;
+}
+interface MessageMeta { model: string; duration_ms: number; tokens: TokenUsage; agent_traces?: AgentTraceData[]; }
+
+interface ActiveAgent { name: string; emoji: string; task: string; }
+
+interface ChainStep {
+  step: number;
+  status: "thinking" | "running" | "done" | "error" | "approved" | "cancelled" | "timeout";
+  label?: string;
+  result?: string;
+}
+
+interface PendingApproval {
+  step: number;
+  tool: string;
+  description: string;
+  preview?: string;
+  args: Record<string, unknown>;
+  aiId: string;
+}
 
 interface Message {
   id: string;
@@ -46,9 +76,24 @@ interface Message {
   timestamp: number;
   meta?: MessageMeta;
   streaming?: boolean;
-  image?: string; // data URI for display in bubble
-  thinking?: string; // chain-of-thought reasoning (hidden by default)
+  image?: string;
+  thinking?: string;
+  planCreated?: { plan_id: string; title: string; agent: string };
+  darwinTriggered?: { mode: "repair" | "create"; error_id?: string; description?: string };
+  chainPlan?: { steps: string[] };
+  chainSteps?: ChainStep[];
+  chainError?: string;
 }
+
+// ── Agent emoji map ───────────────────────────────────────────────────────────
+const AGENT_EMOJI: Record<string, string> = {
+  Scout: "🔍", Hermes: "📧", Sage: "🧠", Lens: "📷", Atlas: "📋", Phantom: "👻",
+};
+const AGENT_ICON: Record<string, React.ReactNode> = {
+  Scout: <Search size={9} />, Hermes: <Mail size={9} />,
+  Sage: <Database size={9} />, Lens: <Eye size={9} />,
+  Atlas: <Cpu size={9} />, Phantom: <Globe size={9} />,
+};
 
 function fmt(ms: number) { return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`; }
 function fmtTime(ts: number) {
@@ -81,6 +126,332 @@ function Tooltip({ meta, timestamp }: { meta: MessageMeta; timestamp: number }) 
           <span className="sj-mono" style={{ fontSize: 11, color: hi ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: hi ? 500 : 400 }}>{value}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function AgentTraceBadges({ traces }: { traces: AgentTraceData[] }) {
+  const [open, setOpen] = useState(false);
+  if (!traces.length) return null;
+
+  return (
+    <div style={{ marginTop: "var(--sp-2)" }}>
+      {/* Agent badges row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+        {traces.map(t => (
+          <span key={t.agent} style={{
+            display: "inline-flex", alignItems: "center", gap: 3,
+            fontSize: 10, padding: "2px 6px", borderRadius: "var(--r-xs)",
+            background: t.success
+              ? "color-mix(in srgb, var(--color-accent) 10%, transparent)"
+              : "color-mix(in srgb, #ef4444 10%, transparent)",
+            border: `1px solid ${t.success ? "color-mix(in srgb, var(--color-accent) 25%, transparent)" : "color-mix(in srgb, #ef4444 25%, transparent)"}`,
+            color: t.success ? "var(--color-accent)" : "#ef4444",
+          }}>
+            {AGENT_EMOJI[t.agent] || "🤖"} {t.agent}
+            <span style={{ opacity: 0.6 }}>·</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9 }}>
+              {t.duration_ms < 1000 ? `${t.duration_ms}ms` : `${(t.duration_ms/1000).toFixed(1)}s`}
+            </span>
+          </span>
+        ))}
+        <button onClick={() => setOpen(v => !v)} style={{
+          background: "none", border: "none", cursor: "pointer", padding: "1px 4px",
+          color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 2, fontSize: 10,
+          borderRadius: "var(--r-xs)",
+        }}>
+          {open ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
+          {open ? "Hide trace" : "Trace"}
+        </button>
+      </div>
+
+      {/* Trace drawer */}
+      {open && (
+        <div style={{
+          marginTop: "var(--sp-2)", borderRadius: "var(--r-md)",
+          border: "var(--border-hi)", overflow: "hidden",
+          background: "var(--color-surface)",
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: "var(--sp-2) var(--sp-3)", borderBottom: "var(--border)",
+            display: "flex", alignItems: "center", gap: "var(--sp-2)",
+            background: "var(--color-surface-raised)",
+          }}>
+            <span className="sj-label" style={{ fontSize: 10 }}>AGENT TRACE</span>
+            <span className="sj-micro" style={{ color: "var(--color-text-muted)" }}>
+              {traces.length} agent{traces.length > 1 ? "s" : ""} ·{" "}
+              {traces.reduce((s, t) => s + t.tokens_total, 0).toLocaleString()} tokens
+            </span>
+          </div>
+
+          {traces.map((t, ti) => (
+            <div key={ti} style={{ borderBottom: ti < traces.length - 1 ? "var(--border)" : "none" }}>
+              {/* Agent header */}
+              <div style={{
+                padding: "var(--sp-2) var(--sp-3)",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: "color-mix(in srgb, var(--color-accent) 4%, transparent)",
+              }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 500, color: "var(--color-text-primary)" }}>
+                  {AGENT_EMOJI[t.agent] || "🤖"} {t.agent}
+                  <span className="sj-micro" style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>
+                    {t.model.split("/").pop()}
+                  </span>
+                </span>
+                <span className="sj-mono" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
+                  {t.duration_ms < 1000 ? `${t.duration_ms}ms` : `${(t.duration_ms/1000).toFixed(1)}s`}
+                  {" · "}{t.tokens_total} tok
+                </span>
+              </div>
+
+              {/* Task */}
+              <div style={{ padding: "var(--sp-2) var(--sp-3)", borderBottom: t.tool_calls.length ? "var(--border-lo)" : "none" }}>
+                <div className="sj-micro" style={{ color: "var(--color-text-muted)", marginBottom: 2 }}>TASK</div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic" }}>{t.task}</div>
+              </div>
+
+              {/* Tool calls */}
+              {t.tool_calls.map((tc, tci) => (
+                <div key={tci} style={{
+                  padding: "var(--sp-2) var(--sp-3)",
+                  borderBottom: tci < t.tool_calls.length - 1 ? "var(--border-lo)" : "none",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10,
+                      padding: "1px 6px", borderRadius: "var(--r-xs)",
+                      background: "color-mix(in srgb, var(--color-text-muted) 10%, transparent)",
+                      color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)",
+                    }}>
+                      {tc.tool}
+                    </span>
+                    <span className="sj-mono" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>
+                      {tc.duration_ms}ms
+                    </span>
+                  </div>
+                  {tc.output_preview && (
+                    <div style={{
+                      fontSize: 10, color: "var(--color-text-muted)", fontFamily: "var(--font-mono)",
+                      background: "var(--color-surface-raised)", borderRadius: "var(--r-xs)",
+                      padding: "4px 6px", maxHeight: 80, overflow: "hidden",
+                      whiteSpace: "pre-wrap", wordBreak: "break-word",
+                    }}>
+                      {tc.output_preview}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Error */}
+              {t.error && (
+                <div style={{ padding: "var(--sp-2) var(--sp-3)", color: "#ef4444", fontSize: 11 }}>
+                  ⚠ {t.error}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const STEP_ICONS: Record<string, string> = {
+  thinking: "⋯", running: "⟳", done: "✓", error: "✕",
+  approved: "✓", cancelled: "—", timeout: "⏱",
+};
+const STEP_COLORS: Record<string, string> = {
+  thinking: "var(--color-text-muted)",
+  running:  "var(--color-accent)",
+  done:     "#22c55e",
+  error:    "#ef4444",
+  approved: "#22c55e",
+  cancelled:"var(--color-text-muted)",
+  timeout:  "#f97316",
+};
+
+function ChainPlanCard({ steps, chainSteps, chainError }: { steps: string[]; chainSteps?: ChainStep[]; chainError?: string }) {
+  const [open, setOpen] = useState(true);
+  const stepMap = useMemo(() => {
+    const m: Record<number, ChainStep> = {};
+    (chainSteps || []).forEach(s => { m[s.step] = s; });
+    return m;
+  }, [chainSteps]);
+
+  return (
+    <div style={{
+      marginTop: "var(--sp-2)", borderRadius: "var(--r-md)",
+      border: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+      background: "color-mix(in srgb, var(--color-accent) 4%, transparent)",
+      overflow: "hidden",
+    }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: "100%", background: "none", border: "none", cursor: "pointer",
+          padding: "var(--sp-2) var(--sp-3)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          color: "var(--color-text-primary)",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600 }}>
+          <Zap size={11} style={{ color: "var(--color-accent)" }} />
+          Agentic Chain
+        </span>
+        {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+      </button>
+
+      {open && (
+        <div style={{ borderTop: "1px solid color-mix(in srgb, var(--color-accent) 15%, transparent)" }}>
+          {steps.map((stepText, i) => {
+            const n = i + 1;
+            const cs = stepMap[n];
+            const status = cs?.status || (chainError ? "error" : "thinking");
+            const color = STEP_COLORS[status] || "var(--color-text-muted)";
+            const icon = STEP_ICONS[status] || "·";
+            return (
+              <div key={i} style={{
+                padding: "5px var(--sp-3)",
+                display: "flex", alignItems: "flex-start", gap: 8,
+                borderBottom: i < steps.length - 1
+                  ? "1px solid color-mix(in srgb, var(--color-accent) 8%, transparent)"
+                  : "none",
+              }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color,
+                  minWidth: 14, textAlign: "center", marginTop: 1,
+                  fontFamily: "var(--font-mono)",
+                }}>
+                  {icon}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
+                    {stepText}
+                  </div>
+                  {cs?.label && cs.status !== "thinking" && (
+                    <div style={{
+                      fontSize: 10, color: "var(--color-text-muted)",
+                      fontFamily: "var(--font-mono)", marginTop: 1,
+                    }}>
+                      {cs.label}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {chainError && (
+            <div style={{
+              padding: "6px var(--sp-3)",
+              borderTop: "1px solid color-mix(in srgb, #ef4444 20%, transparent)",
+              background: "color-mix(in srgb, #ef4444 6%, transparent)",
+              display: "flex", alignItems: "center", gap: 6,
+              fontSize: 10, color: "#ef4444",
+              fontFamily: "var(--font-mono)",
+            }}>
+              <span>✕</span>
+              <span>{chainError}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ApprovalModal({ approval, sessionId, onDone }: {
+  approval: PendingApproval;
+  sessionId: string | null;
+  onDone: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  async function decide(action: "approve" | "cancel") {
+    setLoading(true);
+    try {
+      await fetch(`${api}/api/chat/approve/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+    } catch { /* ignore — chain loop will timeout */ }
+    setLoading(false);
+    onDone();
+  }
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(0,0,0,0.6)", display: "flex",
+      alignItems: "center", justifyContent: "center",
+    }}>
+      <div style={{
+        background: "var(--color-surface-raised)",
+        border: "var(--border-hi)",
+        borderRadius: "var(--r-lg)", padding: "var(--sp-5)",
+        maxWidth: 480, width: "90%",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+        animation: "sj-fade-in 0.15s ease forwards",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "var(--sp-3)" }}>
+          <span style={{ fontSize: 18 }}>⚠️</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
+            Approval Required
+          </span>
+        </div>
+        <div style={{
+          fontSize: 11, color: "var(--color-text-muted)",
+          marginBottom: "var(--sp-2)", fontFamily: "var(--font-mono)",
+          padding: "3px 8px", background: "var(--color-surface)",
+          borderRadius: "var(--r-xs)", display: "inline-block",
+        }}>
+          {approval.tool}
+        </div>
+        <div style={{
+          fontSize: 12, color: "var(--color-text-secondary)",
+          marginBottom: "var(--sp-3)", whiteSpace: "pre-wrap", lineHeight: 1.5,
+        }}>
+          {approval.description}
+        </div>
+        {approval.preview && (
+          <div style={{
+            fontSize: 11, color: "var(--color-text-muted)",
+            background: "var(--color-surface)", borderRadius: "var(--r-md)",
+            padding: "var(--sp-2) var(--sp-3)", marginBottom: "var(--sp-3)",
+            maxHeight: 120, overflow: "auto", fontFamily: "var(--font-mono)",
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+            borderLeft: "2px solid var(--color-accent)",
+          }}>
+            {approval.preview}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: "var(--sp-2)", justifyContent: "flex-end" }}>
+          <button
+            onClick={() => decide("cancel")}
+            disabled={loading}
+            style={{
+              padding: "6px 16px", borderRadius: "var(--r-md)", cursor: "pointer",
+              border: "var(--border-hi)", background: "var(--color-surface)",
+              color: "var(--color-text-secondary)", fontSize: 12, fontWeight: 500,
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => decide("approve")}
+            disabled={loading}
+            style={{
+              padding: "6px 16px", borderRadius: "var(--r-md)", cursor: "pointer",
+              border: "none", background: "var(--color-accent)",
+              color: "#000", fontSize: 12, fontWeight: 600,
+            }}
+          >
+            {loading ? "…" : "Approve"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -173,6 +544,46 @@ function AIMessage({ msg, ttsVoice, hadImage }: { msg: Message; ttsVoice: string
           )}
         </div>
 
+        {!msg.streaming && msg.meta?.agent_traces && msg.meta.agent_traces.length > 0 && (
+          <AgentTraceBadges traces={msg.meta.agent_traces} />
+        )}
+
+        {msg.chainPlan && (
+          <ChainPlanCard steps={msg.chainPlan.steps} chainSteps={msg.chainSteps} chainError={msg.chainError} />
+        )}
+
+        {msg.planCreated && (
+          <button
+            onClick={() => { window.location.hash = "plans"; }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              background: "color-mix(in srgb, #22c55e 10%, transparent)",
+              border: "1px solid color-mix(in srgb, #22c55e 25%, transparent)",
+              borderRadius: 20, padding: "3px 11px", marginTop: "var(--sp-2)",
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
+              color: "#22c55e", cursor: "pointer",
+            }}
+          >
+            📋 Plan created: {msg.planCreated.title} — View Plans
+          </button>
+        )}
+
+        {msg.darwinTriggered && (
+          <button
+            onClick={() => { window.location.hash = "it_dept"; }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              background: "color-mix(in srgb, #f97316 10%, transparent)",
+              border: "1px solid color-mix(in srgb, #f97316 25%, transparent)",
+              borderRadius: 20, padding: "3px 11px", marginTop: "var(--sp-2)",
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
+              color: "#f97316", cursor: "pointer",
+            }}
+          >
+            🔧 Darwin {msg.darwinTriggered.mode === "repair" ? "diagnosing error" : "writing spec"} — View IT Dept
+          </button>
+        )}
+
         {!msg.streaming && (
           <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", marginTop: "var(--sp-1)", paddingLeft: "var(--sp-1)" }}>
             {hadImage && (
@@ -216,11 +627,65 @@ export interface LoadedSession {
 }
 
 interface ChatPanelProps {
-  sessionToLoad?: LoadedSession | null;
-  onSessionLoaded?: () => void;
+  sessionToLoad?:    LoadedSession | null;
+  onSessionLoaded?:  () => void;
+  globalVoiceActive?: boolean;  // when true, suppress local wake word (global layer handles it)
 }
 
-export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {}) {
+function _endOfDay(d: Date): string {
+  d.setHours(23, 59, 0, 0);
+  return d.toISOString();
+}
+
+function parseTaskNLP(raw: string): { title: string; priority: "low" | "medium" | "high"; due_at: string | null } {
+  let title = raw;
+  let priority: "low" | "medium" | "high" = "medium";
+  let due_at: string | null = null;
+
+  if (title.includes("!high")) { priority = "high"; title = title.replace("!high", ""); }
+  else if (title.includes("!low")) { priority = "low"; title = title.replace("!low", ""); }
+
+  const lower = title.toLowerCase();
+  const now = new Date();
+
+  if (/\btoday\b/.test(lower)) {
+    due_at = _endOfDay(new Date());
+    title = title.replace(/\btoday\b/i, "");
+  } else if (/\btomorrow\b/.test(lower)) {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    due_at = _endOfDay(d);
+    title = title.replace(/\btomorrow\b/i, "");
+  } else if (/\bnext week\b/.test(lower)) {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    due_at = _endOfDay(d);
+    title = title.replace(/\bnext week\b/i, "");
+  } else {
+    const inDays = lower.match(/\bin (\d+) days?\b/);
+    if (inDays) {
+      const d = new Date(); d.setDate(d.getDate() + parseInt(inDays[1]));
+      due_at = _endOfDay(d);
+      title = title.replace(/\bin \d+ days?\b/i, "");
+    } else {
+      const DAYS = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+      for (let di = 0; di < DAYS.length; di++) {
+        if (new RegExp(`\\b${DAYS[di]}\\b`).test(lower)) {
+          const d = new Date();
+          let diff = di - d.getDay();
+          if (diff <= 0) diff += 7;
+          d.setDate(d.getDate() + diff);
+          due_at = _endOfDay(d);
+          title = title.replace(new RegExp(`\\b${DAYS[di]}\\b`, "i"), "");
+          break;
+        }
+      }
+    }
+  }
+
+  void now; // suppress unused warning
+  return { title: title.trim().replace(/\s{2,}/g, " "), priority, due_at };
+}
+
+export function ChatPanel({ sessionToLoad, onSessionLoaded, globalVoiceActive = false }: ChatPanelProps = {}) {
   const { settings } = useSettings();
   const { sessionId, newSession, switchSession } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -228,6 +693,21 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
+  const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
+  // Timeline mode
+  const [timelineMode, setTimelineMode] = useState(false);
+  const [timelineYear, setTimelineYear] = useState<number>(new Date().getFullYear() - 5);
+  const [timelineYears, setTimelineYears] = useState<number[]>([]);
+  const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    if (!timelineMode) return;
+    fetch(`${API}/api/timeline/years`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.years?.length) setTimelineYears(d.years); })
+      .catch(() => {});
+  }, [timelineMode]);
+
   // Voice state
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [alwaysOnVoice, setAlwaysOnVoice] = useState(false);
@@ -249,6 +729,8 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [analyzingImage, setAnalyzingImage] = useState(false);
+  const [activeAgents, setActiveAgents] = useState<ActiveAgent[]>([]);
+  const [orchestratorPlan, setOrchestratorPlan] = useState<{ agents: string[]; reasoning: string } | null>(null);
   // Session / Vision state
   const [sessionMode, setSessionMode] = useState<"temporary" | "expiring" | "permanent">("permanent");
   const [attachedImage, setAttachedImage] = useState<string | null>(null); // data URI
@@ -262,11 +744,46 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
   const loadingRef = useRef(false); // mirror of `loading` for interval callbacks
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const cameraStreamRef = useRef<MediaStream | null>(null);
+  const focusTimerRef = useRef<{ endAt: number; msgId: string } | null>(null);
+
+  // Focus timer countdown — updates every second
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (!focusTimerRef.current) return;
+      const { endAt, msgId } = focusTimerRef.current;
+      const rem = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      const mm = String(Math.floor(rem / 60)).padStart(2, "0");
+      const ss = String(rem % 60).padStart(2, "0");
+      if (rem === 0) {
+        setMessages(prev => prev.map(m =>
+          m.id === msgId ? { ...m, content: "✅ Focus session complete! Great work — take a break." } : m
+        ));
+        focusTimerRef.current = null;
+        fetch("http://localhost:8000/api/telegram/send", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: "⏱️ Focus session complete! Time to take a break. 🎉" }),
+        }).catch(() => {});
+      } else {
+        setMessages(prev => prev.map(m =>
+          m.id === msgId ? { ...m, content: `⏱️ Focus session — **${mm}:${ss}** remaining` } : m
+        ));
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    fetch(`${API}/api/suggestions`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.suggestions) setSuggestions(d.suggestions); })
+      .catch(() => {});
+  }, []);
 
   // Load a historical session when the parent passes one in
   useEffect(() => {
@@ -309,6 +826,48 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
     if ((!text && !imageToSend) || loading) return;
     if (!overrideText) setInput("");
 
+    // /task <title> [!low|!high] [today|tomorrow|monday|next week|in X days] — fast task create
+    if (text.startsWith("/task ")) {
+      const { title, priority, due_at } = parseTaskNLP(text.slice(6).trim());
+      if (title) {
+        const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: text, timestamp: Date.now() };
+        setMessages(prev => [...prev, userMsg]);
+        try {
+          await fetch("http://localhost:8000/api/tasks/", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, priority, ...(due_at ? { due_at } : {}) }),
+          });
+          const dueLabel = due_at
+            ? ` · due ${new Date(due_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
+            : "";
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(), role: "assistant",
+            content: `Task created: **${title}** [${priority}]${dueLabel} ✓`,
+            timestamp: Date.now(),
+          }]);
+        } catch {
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(), role: "assistant",
+            content: "Failed to create task — is the backend running?",
+            timestamp: Date.now(),
+          }]);
+        }
+      }
+      return;
+    }
+
+    // /focus <minutes> — start a focus timer (default 25 min)
+    if (text.startsWith("/focus")) {
+      const mins = Math.min(Math.max(parseInt(text.slice(6).trim()) || 25, 1), 120);
+      const timerId = crypto.randomUUID();
+      const mm = String(mins).padStart(2, "0");
+      const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: text, timestamp: Date.now() };
+      const timerMsg: Message = { id: timerId, role: "assistant", content: `⏱️ Focus session — **${mm}:00** remaining`, timestamp: Date.now() };
+      setMessages(prev => [...prev, userMsg, timerMsg]);
+      focusTimerRef.current = { endAt: Date.now() + mins * 60 * 1000, msgId: timerId };
+      return;
+    }
+
     if (!overrideImage) setAttachedImage(null);
     if (imageToSend) setAnalyzingImage(true);
 
@@ -326,6 +885,57 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
     setLoading(true);
 
     abortRef.current = new AbortController();
+
+    // ── Timeline mode: route to /api/timeline/chat instead ───────────────────
+    if (timelineMode && !imageToSend) {
+      try {
+        const res = await fetch(`${API}/api/timeline/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, year: timelineYear, session_id: sessionId || undefined }),
+          signal: abortRef.current.signal,
+        });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        let accumulated = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n"); buf = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const payload = line.slice(6);
+            if (payload === "[DONE]") break;
+            try {
+              const d = JSON.parse(payload);
+              if (d.content) {
+                accumulated += d.content;
+                setMessages(prev => prev.map(m =>
+                  m.id === aiId ? { ...m, content: m.content + d.content } : m
+                ));
+              }
+            } catch { /* ignore */ }
+          }
+        }
+        setMessages(prev => prev.map(m =>
+          m.id === aiId ? { ...m, streaming: false, meta: { model: `Vijay·${timelineYear}`, duration_ms: 0, tokens: { prompt: 0, completion: 0, total: 0 } } } : m
+        ));
+        if (voiceEnabled && accumulated) speakText(accumulated);
+      } catch (err: unknown) {
+        if ((err as Error).name !== "AbortError") {
+          setMessages(prev => prev.map(m =>
+            m.id === aiId ? { ...m, content: `Error: ${(err as Error).message}`, streaming: false } : m
+          ));
+        }
+      } finally {
+        setLoading(false);
+        setAnalyzingImage(false);
+      }
+      return;
+    }
 
     try {
       const res = await fetch(
@@ -351,6 +961,7 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
             stopStrings: settings.stopStrings.length > 0 ? settings.stopStrings : undefined,
             enableThinking: settings.enableThinking,
             sessionMode,
+            agentConfig: settings.agents,
           }),
           signal: abortRef.current.signal,
         }
@@ -378,7 +989,135 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
           if (!line.startsWith("data: ")) continue;
           const payload = line.slice(6);
 
-          if (payload === "[DONE]") { setSearchQuery(null); break; }
+          if (payload === "[DONE]") {
+            setSearchQuery(null);
+            setActiveAgents([]);
+            setOrchestratorPlan(null);
+            break;
+          }
+
+          if (payload.startsWith("[ORCHESTRATOR_PLAN]")) {
+            try {
+              const p = JSON.parse(payload.slice(19));
+              setOrchestratorPlan(p);
+              window.dispatchEvent(new CustomEvent("sj:agent", { detail: { type: "ORCHESTRATOR_PLAN", payload: { ...p, query: text } } }));
+              window.dispatchEvent(new CustomEvent("sj:query", { detail: { query: text } }));
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[AGENT_START]")) {
+            try {
+              const a = JSON.parse(payload.slice(13)) as ActiveAgent;
+              setActiveAgents(prev => [...prev.filter(x => x.name !== a.name), a]);
+              window.dispatchEvent(new CustomEvent("sj:agent", { detail: { type: "AGENT_START", payload: a } }));
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[AGENT_DONE]")) {
+            try {
+              const p = JSON.parse(payload.slice(12));
+              setActiveAgents(prev => prev.filter(x => x.name !== p.name));
+              window.dispatchEvent(new CustomEvent("sj:agent", { detail: { type: "AGENT_DONE", payload: p } }));
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[AGENT_ERROR]")) {
+            try {
+              const p = JSON.parse(payload.slice(13));
+              setActiveAgents(prev => prev.filter(x => x.name !== p.name));
+              window.dispatchEvent(new CustomEvent("sj:agent", { detail: { type: "AGENT_ERROR", payload: p } }));
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[AGENT_TOOL]")) {
+            try { window.dispatchEvent(new CustomEvent("sj:agent", { detail: { type: "AGENT_TOOL", payload: JSON.parse(payload.slice(12)) } })); } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[AGENT_TOOL_RESULT]")) {
+            try { window.dispatchEvent(new CustomEvent("sj:agent", { detail: { type: "AGENT_TOOL_RESULT", payload: JSON.parse(payload.slice(19)) } })); } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[PLAN_CREATED]")) {
+            try {
+              const p = JSON.parse(payload.slice(14));
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, planCreated: p } : m
+              ));
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[IT_REPAIR_STARTED]")) {
+            try {
+              const d = JSON.parse(payload.slice(19));
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, darwinTriggered: d } : m
+              ));
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[CHAIN_PLAN]")) {
+            try {
+              const p = JSON.parse(payload.slice(12)) as { steps: string[] };
+              setMessages(prev => prev.map(m =>
+                m.id === aiId ? { ...m, chainPlan: p } : m
+              ));
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[CHAIN_STEP]")) {
+            try {
+              const step = JSON.parse(payload.slice(12)) as ChainStep;
+              setMessages(prev => prev.map(m => {
+                if (m.id !== aiId) return m;
+                const existing = m.chainSteps || [];
+                const idx = existing.findIndex(s => s.step === step.step);
+                if (idx >= 0) {
+                  const updated = [...existing];
+                  updated[idx] = { ...updated[idx], ...step };
+                  return { ...m, chainSteps: updated };
+                }
+                return { ...m, chainSteps: [...existing, step] };
+              }));
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[APPROVAL_NEEDED]")) {
+            try {
+              const p = JSON.parse(payload.slice(17)) as Omit<PendingApproval, "aiId">;
+              setPendingApproval({ ...p, aiId });
+            } catch {}
+            continue;
+          }
+
+          if (payload.startsWith("[CHAIN_DONE]")) {
+            // Summary text comes as plain chunks after this; nothing to do here
+            continue;
+          }
+
+          if (payload.startsWith("[CHAIN_ERROR]")) {
+            try {
+              const { message: errMsg } = JSON.parse(payload.slice(13)) as { message: string };
+              setMessages(prev => prev.map(m => {
+                if (m.id !== aiId) return m;
+                // Mark all still-thinking steps as error
+                const updatedSteps = (m.chainSteps || []).map(s =>
+                  s.status === "thinking" ? { ...s, status: "error" as const } : s
+                );
+                return { ...m, chainSteps: updatedSteps, chainError: errMsg };
+              }));
+            } catch {}
+            continue;
+          }
 
           if (payload.startsWith("[ERROR]")) {
             try {
@@ -436,7 +1175,10 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
         }
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") {
+        setActiveAgents([]);
+        return;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       const isFetchFail = msg.includes("fetch") || msg.includes("Failed") || msg.includes("NetworkError");
       setMessages(prev => prev.map(m =>
@@ -451,6 +1193,7 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
     } finally {
       setLoading(false);
       setAnalyzingImage(false);
+      setActiveAgents([]);
       setMessages(prev => {
         const updated = prev.map(m => m.id === aiId ? { ...m, streaming: false } : m);
         // Flush any remaining sentence buffer
@@ -767,8 +1510,9 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
   });
 
   // ── Wake word via browser SpeechRecognition (zero local CPU, cloud-based) ──
+  // Suppressed when globalVoiceActive — the page-level useGlobalVoice handles it instead.
   useEffect(() => {
-    if (!wakeWordEnabled) {
+    if (!wakeWordEnabled || globalVoiceActive) {
       wakeRecognitionRef.current?.stop();
       wakeRecognitionRef.current = null;
       setWakeWordListening(false);
@@ -842,6 +1586,17 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
       <div className="sj-panel-header" style={{ flexShrink: 0 }}>
         <MessageSquare size={13} style={{ color: "var(--color-icon)" }} />
         <span className="sj-label">Chat</span>
+        {timelineMode && (
+          <span style={{
+            display: "flex", alignItems: "center", gap: 3, fontSize: 10,
+            color: "#a78bfa",
+            background: "rgba(167,139,250,0.12)",
+            border: "1px solid rgba(167,139,250,0.3)",
+            borderRadius: 4, padding: "1px 7px", fontWeight: 700,
+          }}>
+            🕰 {timelineYear}
+          </span>
+        )}
         {sessionMode === "temporary" && (
           <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: "var(--color-text-muted)", background: "color-mix(in srgb, #a855f7 15%, transparent)", border: "1px solid #a855f750", borderRadius: 4, padding: "1px 6px" }}>
             <Ghost size={9} /> Temporary
@@ -854,19 +1609,40 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
         )}
         <div className="sj-ml-auto sj-flex sj-items-center sj-gap-2">
           {totalTokens > 0 && <span className="sj-badge">{totalTokens.toLocaleString()} tokens</span>}
-          {analyzingImage && !searchQuery && (
+          {/* Live agent activity bar */}
+          {activeAgents.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {activeAgents.map(a => (
+                <span key={a.name} className="sj-micro" style={{
+                  display: "flex", alignItems: "center", gap: 3,
+                  color: "var(--color-accent)",
+                  background: "color-mix(in srgb, var(--color-accent) 10%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                  borderRadius: "var(--r-xs)", padding: "1px 6px",
+                }}>
+                  <span style={{ animation: "pulse 1.2s ease infinite" }}>{AGENT_EMOJI[a.name] || "🤖"}</span>
+                  {a.name}
+                  {AGENT_ICON[a.name]}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {analyzingImage && !searchQuery && activeAgents.length === 0 && (
             <span className="sj-micro" style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--color-accent)" }}>
               <Camera size={10} style={{ animation: "spin 1.5s linear infinite" }} />
               Analyzing image...
             </span>
           )}
-          {searchQuery && (
+          {searchQuery && activeAgents.length === 0 && (
             <span className="sj-micro" style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--color-text-secondary)" }}>
               <Globe size={10} style={{ animation: "spin 1.5s linear infinite" }} />
               {searchQuery}
             </span>
           )}
-          {loading && !searchQuery && !analyzingImage && <span className="sj-micro" style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(elapsed)}</span>}
+          {loading && !searchQuery && !analyzingImage && activeAgents.length === 0 && (
+            <span className="sj-micro" style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(elapsed)}</span>
+          )}
           <span className="sj-micro">{messages.filter(m => m.role === "user").length} messages</span>
 
           {/* TTS toggle */}
@@ -881,6 +1657,46 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
           >
             {voiceEnabled ? <Volume2 size={11} /> : <VolumeX size={11} />}
           </button>
+
+          {/* Timeline mode toggle + year picker */}
+          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <button
+              onClick={() => setTimelineMode(v => !v)}
+              title={timelineMode ? `Exit Timeline mode (currently ${timelineYear})` : "Timeline Mode — chat as yourself from a past year"}
+              style={{
+                background: "none", border: "none", cursor: "pointer", padding: "2px 4px",
+                color: timelineMode ? "#a78bfa" : "var(--color-text-muted)",
+                display: "flex", alignItems: "center", gap: 3, borderRadius: "var(--r-xs)",
+                outline: timelineMode ? "1px solid #a78bfa55" : "none",
+                fontSize: 11,
+              }}
+            >
+              <span style={{ fontSize: 12 }}>🕰</span>
+              {timelineMode && (
+                <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700 }}>
+                  {timelineYear}
+                </span>
+              )}
+            </button>
+            {timelineMode && (
+              <select
+                value={timelineYear}
+                onChange={e => setTimelineYear(Number(e.target.value))}
+                title="Select year"
+                style={{
+                  background: "#1e1b4b", border: "1px solid #a78bfa55",
+                  borderRadius: 4, color: "#a78bfa", fontSize: 10,
+                  padding: "1px 4px", cursor: "pointer", outline: "none",
+                }}
+              >
+                {Array.from({ length: currentYear - 2009 }, (_, i) => currentYear - i).map(y => (
+                  <option key={y} value={y} style={{ background: "#1e1b4b" }}>
+                    {y}{timelineYears.includes(y) ? " ●" : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
           {/* Always-on VAD toggle */}
           <button
@@ -907,7 +1723,7 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
           {/* Wake word toggle — off by default, cloud-based (Chrome/Edge) */}
           <button
             onClick={() => setWakeWordEnabled(v => !v)}
-            title={wakeWordEnabled ? 'Disable wake word ("Hey Jazper")' : 'Enable wake word — say "Jazper" to activate mic (Chrome/Edge only)'}
+            title={globalVoiceActive ? 'Wake word handled by Voice-First Mode (Ctrl+Shift+V)' : wakeWordEnabled ? 'Disable wake word ("Hey Jazper")' : 'Enable wake word — say "Jazper" to activate mic (Chrome/Edge only)'}
             style={{
               background: "none", border: "none", cursor: "pointer", padding: "2px 4px",
               color: wakeWordEnabled ? "var(--color-accent)" : "var(--color-text-muted)",
@@ -983,6 +1799,40 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
                sessionMode === "expiring"  ? "This chat will be deleted after 24 hours" :
                "This chat will be saved to history"}
             </p>
+
+            {/* Suggested prompts */}
+            {suggestions.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 12, maxWidth: 480 }}>
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setInput(s)}
+                    style={{
+                      padding: "5px 11px",
+                      borderRadius: "var(--r-md)",
+                      fontSize: 11,
+                      cursor: "pointer",
+                      border: "var(--border)",
+                      background: "var(--color-surface-float)",
+                      color: "var(--color-text-muted)",
+                      transition: "var(--ease-soft)",
+                      textAlign: "left",
+                      lineHeight: 1.4,
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-accent)";
+                      (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)";
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "";
+                      (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-muted)";
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1218,6 +2068,15 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded }: ChatPanelProps = {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Approval gate modal — shown when chain loop needs user confirmation */}
+      {pendingApproval && (
+        <ApprovalModal
+          approval={pendingApproval}
+          sessionId={sessionId}
+          onDone={() => setPendingApproval(null)}
+        />
       )}
     </div>
   );

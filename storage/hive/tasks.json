@@ -1,0 +1,16 @@
+{
+  "todo": [],
+  "doing": [
+    {
+      "id": "823ae3dccb",
+      "title": "test task",
+      "assignee": "scout",
+      "priority": "high",
+      "deps": [],
+      "created": "2026-08-20T16:30:26Z",
+      "status": "doing"
+    }
+  ],
+  "blocked": [],
+  "done": []
+}

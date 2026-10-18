@@ -1,0 +1,12 @@
+{
+  "id": "2026-08-20T20-54-12-b5b406",
+  "from": "human",
+  "to": "darwin",
+  "act": "query",
+  "subject": "direct test",
+  "body": "hello",
+  "in_reply_to": null,
+  "ts": 1787259252.0324597,
+  "ts_iso": "2026-08-20T20:54:12Z",
+  "read": false
+}

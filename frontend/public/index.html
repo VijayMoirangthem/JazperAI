@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Counter App</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const CounterApp = () => {
+      const [count, setCount] = useState(0);
+
+      const handleIncrement = () => {
+        setCount((prevCount) => prevCount + 1);
+      };
+
+      const handleDecrement = () => {
+        setCount((prevCount) => prevCount - 1);
+      };
+
+      return (
+        <div>
+          <h1>Counter App</h1>
+          <p>Count: {count}</p>
+          <button onClick={handleIncrement}>Increment</button>
+          <button onClick={handleDecrement}>Decrement</button>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<CounterApp />);
+  </script>
+</body>
+</html>
