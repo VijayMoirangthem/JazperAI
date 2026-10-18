@@ -37,9 +37,9 @@ class TestHermesMonitorWorker:
     @pytest.mark.asyncio
     async def test_skips_when_no_gmail_token(self):
         """Worker returns skipped=True when no Gmail account is connected."""
-        from app.workers.hermes_monitor_worker import HermesMonitorWorker
+        from agents.workers.hermes_monitor_worker import HermesMonitorWorker
         worker = HermesMonitorWorker()
-        with patch("app.workers.hermes_monitor_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.hermes_monitor_worker.asyncio.get_event_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = AsyncMock(return_value=(None, None))
             result = await worker.run(config={}, dry_run=True)
         assert result.get("skipped") is True
@@ -49,7 +49,7 @@ class TestHermesMonitorWorker:
     async def test_returns_scan_counts_on_success(self):
         """Worker processes emails and returns scanned/notified/skipped counts.
         Mocks _classify_email directly to avoid the prompt .format() path."""
-        from app.workers.hermes_monitor_worker import HermesMonitorWorker
+        from agents.workers.hermes_monitor_worker import HermesMonitorWorker
 
         worker = HermesMonitorWorker()
 
@@ -78,8 +78,8 @@ class TestHermesMonitorWorker:
                 return ("test@example.com", {"token": "abc"})
             return {"emails": fake_emails}
 
-        with patch("app.workers.hermes_monitor_worker._classify_email", side_effect=fake_classify), \
-             patch("app.workers.hermes_monitor_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.hermes_monitor_worker._classify_email", side_effect=fake_classify), \
+             patch("agents.workers.hermes_monitor_worker.asyncio.get_event_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = fake_run_in_executor
             result = await worker.run(config={"max_emails": 10}, dry_run=True)
 
@@ -91,7 +91,7 @@ class TestHermesMonitorWorker:
     @pytest.mark.asyncio
     async def test_handles_empty_inbox(self):
         """Worker returns cleanly when no unread emails found."""
-        from app.workers.hermes_monitor_worker import HermesMonitorWorker
+        from agents.workers.hermes_monitor_worker import HermesMonitorWorker
         worker = HermesMonitorWorker()
 
         call_num = [0]
@@ -101,7 +101,7 @@ class TestHermesMonitorWorker:
                 return ("test@example.com", {"token": "abc"})
             return {"emails": []}
 
-        with patch("app.workers.hermes_monitor_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.hermes_monitor_worker.asyncio.get_event_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = fake_executor
             result = await worker.run(config={}, dry_run=True)
 
@@ -111,7 +111,7 @@ class TestHermesMonitorWorker:
     @pytest.mark.asyncio
     async def test_handles_list_emails_exception(self):
         """Worker returns error dict when Gmail throws."""
-        from app.workers.hermes_monitor_worker import HermesMonitorWorker
+        from agents.workers.hermes_monitor_worker import HermesMonitorWorker
         worker = HermesMonitorWorker()
 
         call_num = [0]
@@ -121,14 +121,14 @@ class TestHermesMonitorWorker:
                 return ("test@example.com", {"token": "abc"})
             raise Exception("Gmail API error")
 
-        with patch("app.workers.hermes_monitor_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.hermes_monitor_worker.asyncio.get_event_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = fake_executor
             result = await worker.run(config={}, dry_run=True)
 
         assert "error" in result
 
     def test_worker_name(self):
-        from app.workers.hermes_monitor_worker import HermesMonitorWorker
+        from agents.workers.hermes_monitor_worker import HermesMonitorWorker
         assert HermesMonitorWorker.name == "hermes_monitor"
 
 
@@ -141,10 +141,10 @@ class TestScoutMonitorWorker:
     @pytest.mark.asyncio
     async def test_skips_when_no_topics(self):
         """Worker returns skipped=True when no topics are being monitored."""
-        from app.workers.scout_monitor_worker import ScoutMonitorWorker
+        from agents.workers.scout_monitor_worker import ScoutMonitorWorker
         worker = ScoutMonitorWorker()
-        with patch("app.workers.scout_monitor_worker._get_topics", return_value=[]):
-            with patch("app.workers.scout_monitor_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.scout_monitor_worker._get_topics", return_value=[]):
+            with patch("agents.workers.scout_monitor_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = AsyncMock(return_value=[])
                 result = await worker.run(config={}, dry_run=True)
         assert result.get("skipped") is True
@@ -152,7 +152,7 @@ class TestScoutMonitorWorker:
     @pytest.mark.asyncio
     async def test_checks_topics_and_returns_counts(self, mock_ai):
         """Worker checks each topic and returns topics_checked and notified."""
-        from app.workers.scout_monitor_worker import ScoutMonitorWorker
+        from agents.workers.scout_monitor_worker import ScoutMonitorWorker
         import json
 
         worker = ScoutMonitorWorker()
@@ -166,13 +166,13 @@ class TestScoutMonitorWorker:
         async def fake_executor(exc, fn):
             return fn()
 
-        with patch("app.workers.scout_monitor_worker._get_topics",         return_value=topics), \
-             patch("app.workers.scout_monitor_worker._was_seen",            return_value=False), \
-             patch("app.workers.scout_monitor_worker._mark_seen"), \
-             patch("app.services.search_service.run_search",               return_value="AI regulation news results"), \
-             patch("app.providers.ai_provider.ai_provider.chat",           side_effect=fake_chat):
+        with patch("agents.workers.scout_monitor_worker._get_topics",         return_value=topics), \
+             patch("agents.workers.scout_monitor_worker._was_seen",            return_value=False), \
+             patch("agents.workers.scout_monitor_worker._mark_seen"), \
+             patch("core.services.search_service.run_search",               return_value="AI regulation news results"), \
+             patch("core.providers.ai_provider.ai_provider.chat",           side_effect=fake_chat):
 
-            with patch("app.workers.scout_monitor_worker.asyncio.get_event_loop") as mock_loop:
+            with patch("agents.workers.scout_monitor_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = fake_executor
                 result = await worker.run(config={}, dry_run=True)
 
@@ -183,7 +183,7 @@ class TestScoutMonitorWorker:
     @pytest.mark.asyncio
     async def test_deduplicates_already_seen_content(self):
         """Worker skips topics whose content hash was already notified."""
-        from app.workers.scout_monitor_worker import ScoutMonitorWorker
+        from agents.workers.scout_monitor_worker import ScoutMonitorWorker
 
         worker = ScoutMonitorWorker()
         topics = [{"topic": "Python news", "query": "Python news latest"}]
@@ -191,11 +191,11 @@ class TestScoutMonitorWorker:
         async def fake_executor(exc, fn):
             return fn()
 
-        with patch("app.workers.scout_monitor_worker._get_topics",  return_value=topics), \
-             patch("app.workers.scout_monitor_worker._was_seen",     return_value=True), \
-             patch("app.services.search_service.run_search",         return_value="some results"):
+        with patch("agents.workers.scout_monitor_worker._get_topics",  return_value=topics), \
+             patch("agents.workers.scout_monitor_worker._was_seen",     return_value=True), \
+             patch("core.services.search_service.run_search",         return_value="some results"):
 
-            with patch("app.workers.scout_monitor_worker.asyncio.get_event_loop") as mock_loop:
+            with patch("agents.workers.scout_monitor_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = fake_executor
                 result = await worker.run(config={}, dry_run=True)
 
@@ -205,7 +205,7 @@ class TestScoutMonitorWorker:
     @pytest.mark.asyncio
     async def test_handles_search_failure_gracefully(self):
         """Worker continues to next topic when search raises."""
-        from app.workers.scout_monitor_worker import ScoutMonitorWorker
+        from agents.workers.scout_monitor_worker import ScoutMonitorWorker
 
         worker = ScoutMonitorWorker()
         topics = [{"topic": "Broken topic", "query": "broken"}]
@@ -218,7 +218,7 @@ class TestScoutMonitorWorker:
                 return topics                # _get_topics
             raise Exception("Search timeout")  # run_search
 
-        with patch("app.workers.scout_monitor_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.scout_monitor_worker.asyncio.get_event_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = fake_executor
             result = await worker.run(config={}, dry_run=True)
 
@@ -226,7 +226,7 @@ class TestScoutMonitorWorker:
         assert "topics_checked" in result
 
     def test_worker_name(self):
-        from app.workers.scout_monitor_worker import ScoutMonitorWorker
+        from agents.workers.scout_monitor_worker import ScoutMonitorWorker
         assert ScoutMonitorWorker.name == "scout_monitor"
 
 
@@ -239,13 +239,13 @@ class TestAtlasScheduledWorker:
     @pytest.mark.asyncio
     async def test_daily_digest_no_activity_skips(self, mock_ai):
         """Worker skips notification when there is no activity today."""
-        from app.workers.atlas_scheduled_worker import AtlasScheduledWorker
+        from agents.workers.atlas_scheduled_worker import AtlasScheduledWorker
 
         worker = AtlasScheduledWorker()
         empty_stats = {"new_apps": 0, "new_by_status": {}, "status_changes": [], "active_interviews": 0}
 
-        with patch("app.workers.atlas_scheduled_worker._get_daily_stats",  return_value=empty_stats), \
-             patch("app.workers.atlas_scheduled_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.atlas_scheduled_worker._get_daily_stats",  return_value=empty_stats), \
+             patch("agents.workers.atlas_scheduled_worker.asyncio.get_event_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = AsyncMock(return_value=empty_stats)
             result = await worker.run(config={"mode": "daily_digest"}, dry_run=True)
 
@@ -254,7 +254,7 @@ class TestAtlasScheduledWorker:
     @pytest.mark.asyncio
     async def test_daily_digest_with_activity(self, mock_ai):
         """Worker generates narrative and returns mode/stats when there IS activity."""
-        from app.workers.atlas_scheduled_worker import AtlasScheduledWorker
+        from agents.workers.atlas_scheduled_worker import AtlasScheduledWorker
 
         worker = AtlasScheduledWorker()
         stats = {"new_apps": 3, "new_by_status": {"applied": 3}, "status_changes": [], "active_interviews": 1}
@@ -262,10 +262,10 @@ class TestAtlasScheduledWorker:
         async def fake_chat(messages, **kwargs):
             return _chat_result("Applied to 3 jobs today. 1 active interview.")
 
-        with patch("app.workers.atlas_scheduled_worker._get_daily_stats", return_value=stats), \
-             patch("app.providers.ai_provider.ai_provider.chat", side_effect=fake_chat):
+        with patch("agents.workers.atlas_scheduled_worker._get_daily_stats", return_value=stats), \
+             patch("core.providers.ai_provider.ai_provider.chat", side_effect=fake_chat):
 
-            with patch("app.workers.atlas_scheduled_worker.asyncio.get_event_loop") as mock_loop:
+            with patch("agents.workers.atlas_scheduled_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = AsyncMock(return_value=stats)
                 result = await worker.run(config={"mode": "daily_digest"}, dry_run=True)
 
@@ -276,7 +276,7 @@ class TestAtlasScheduledWorker:
     @pytest.mark.asyncio
     async def test_weekly_report_mode(self, mock_ai):
         """Worker runs weekly report mode with correct stats structure."""
-        from app.workers.atlas_scheduled_worker import AtlasScheduledWorker
+        from agents.workers.atlas_scheduled_worker import AtlasScheduledWorker
 
         worker = AtlasScheduledWorker()
         stats = {
@@ -289,10 +289,10 @@ class TestAtlasScheduledWorker:
         async def fake_chat(messages, **kwargs):
             return _chat_result("Good week. 10 apps, 2 interviews, 30% response rate.")
 
-        with patch("app.workers.atlas_scheduled_worker._get_weekly_stats", return_value=stats), \
-             patch("app.providers.ai_provider.ai_provider.chat", side_effect=fake_chat):
+        with patch("agents.workers.atlas_scheduled_worker._get_weekly_stats", return_value=stats), \
+             patch("core.providers.ai_provider.ai_provider.chat", side_effect=fake_chat):
 
-            with patch("app.workers.atlas_scheduled_worker.asyncio.get_event_loop") as mock_loop:
+            with patch("agents.workers.atlas_scheduled_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = AsyncMock(return_value=stats)
                 result = await worker.run(config={"mode": "weekly_report"}, dry_run=True)
 
@@ -302,14 +302,14 @@ class TestAtlasScheduledWorker:
     @pytest.mark.asyncio
     async def test_handles_db_error_gracefully(self):
         """Worker returns error dict when DB query fails."""
-        from app.workers.atlas_scheduled_worker import AtlasScheduledWorker
+        from agents.workers.atlas_scheduled_worker import AtlasScheduledWorker
 
         worker = AtlasScheduledWorker()
 
-        with patch("app.workers.atlas_scheduled_worker._get_daily_stats",
+        with patch("agents.workers.atlas_scheduled_worker._get_daily_stats",
                    return_value={"error": "connection refused"}):
 
-            with patch("app.workers.atlas_scheduled_worker.asyncio.get_event_loop") as mock_loop:
+            with patch("agents.workers.atlas_scheduled_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = AsyncMock(
                     return_value={"error": "connection refused"}
                 )
@@ -318,7 +318,7 @@ class TestAtlasScheduledWorker:
         assert "error" in result
 
     def test_worker_name(self):
-        from app.workers.atlas_scheduled_worker import AtlasScheduledWorker
+        from agents.workers.atlas_scheduled_worker import AtlasScheduledWorker
         assert AtlasScheduledWorker.name == "atlas_scheduled"
 
 
@@ -331,10 +331,10 @@ class TestSageConsolidationWorker:
     @pytest.mark.asyncio
     async def test_skips_when_no_memories(self):
         """Worker skips when memory store is empty."""
-        from app.workers.sage_consolidation_worker import SageConsolidationWorker
+        from agents.workers.sage_consolidation_worker import SageConsolidationWorker
         worker = SageConsolidationWorker()
-        with patch("app.workers.sage_consolidation_worker._get_all_memories", return_value=[]):
-            with patch("app.workers.sage_consolidation_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.sage_consolidation_worker._get_all_memories", return_value=[]):
+            with patch("agents.workers.sage_consolidation_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = AsyncMock(return_value=[])
                 result = await worker.run(config={}, dry_run=True)
         assert result.get("skipped") is True
@@ -342,11 +342,11 @@ class TestSageConsolidationWorker:
     @pytest.mark.asyncio
     async def test_skips_when_too_few_memories(self):
         """Worker skips when fewer than 5 memories exist (not worth consolidating)."""
-        from app.workers.sage_consolidation_worker import SageConsolidationWorker
+        from agents.workers.sage_consolidation_worker import SageConsolidationWorker
         worker = SageConsolidationWorker()
         memories = [{"id": str(i), "content": f"Memory fact {i}", "created_at": "2026-01-01"} for i in range(3)]
-        with patch("app.workers.sage_consolidation_worker._get_all_memories", return_value=memories):
-            with patch("app.workers.sage_consolidation_worker.asyncio.get_event_loop") as mock_loop:
+        with patch("agents.workers.sage_consolidation_worker._get_all_memories", return_value=memories):
+            with patch("agents.workers.sage_consolidation_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = AsyncMock(return_value=memories)
                 result = await worker.run(config={}, dry_run=True)
         assert result.get("skipped") is True
@@ -354,7 +354,7 @@ class TestSageConsolidationWorker:
     @pytest.mark.asyncio
     async def test_removes_low_quality_memories(self, mock_ai):
         """Worker identifies and removes short/low-quality memory fragments."""
-        from app.workers.sage_consolidation_worker import SageConsolidationWorker
+        from agents.workers.sage_consolidation_worker import SageConsolidationWorker
         import json
 
         worker = SageConsolidationWorker()
@@ -370,12 +370,12 @@ class TestSageConsolidationWorker:
         async def fake_chat(messages, **kwargs):
             return _chat_result(json.dumps({"delete_ids": [], "merges": []}))
 
-        with patch("app.workers.sage_consolidation_worker._get_all_memories", return_value=memories), \
-             patch("app.workers.sage_consolidation_worker._delete_memories",   return_value=2), \
-             patch("app.workers.sage_consolidation_worker._remove_low_quality", return_value=["1", "2"]), \
-             patch("app.providers.ai_provider.ai_provider.chat", side_effect=fake_chat):
+        with patch("agents.workers.sage_consolidation_worker._get_all_memories", return_value=memories), \
+             patch("agents.workers.sage_consolidation_worker._delete_memories",   return_value=2), \
+             patch("agents.workers.sage_consolidation_worker._remove_low_quality", return_value=["1", "2"]), \
+             patch("core.providers.ai_provider.ai_provider.chat", side_effect=fake_chat):
 
-            with patch("app.workers.sage_consolidation_worker.asyncio.get_event_loop") as mock_loop:
+            with patch("agents.workers.sage_consolidation_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = AsyncMock(side_effect=lambda exc, fn: fn())
                 result = await worker.run(config={}, dry_run=True)
 
@@ -387,7 +387,7 @@ class TestSageConsolidationWorker:
     @pytest.mark.asyncio
     async def test_deduplicates_via_ai(self, mock_ai):
         """Worker calls AI and applies dedup deletions."""
-        from app.workers.sage_consolidation_worker import SageConsolidationWorker
+        from agents.workers.sage_consolidation_worker import SageConsolidationWorker
         import json
 
         worker = SageConsolidationWorker()
@@ -400,17 +400,17 @@ class TestSageConsolidationWorker:
         async def fake_chat(messages, **kwargs):
             return _chat_result(json.dumps({"delete_ids": ["1"], "merges": []}))
 
-        with patch("app.workers.sage_consolidation_worker._get_all_memories",  return_value=memories), \
-             patch("app.workers.sage_consolidation_worker._delete_memories",    return_value=1), \
-             patch("app.workers.sage_consolidation_worker._remove_low_quality", return_value=[]), \
-             patch("app.providers.ai_provider.ai_provider.chat", side_effect=fake_chat):
+        with patch("agents.workers.sage_consolidation_worker._get_all_memories",  return_value=memories), \
+             patch("agents.workers.sage_consolidation_worker._delete_memories",    return_value=1), \
+             patch("agents.workers.sage_consolidation_worker._remove_low_quality", return_value=[]), \
+             patch("core.providers.ai_provider.ai_provider.chat", side_effect=fake_chat):
 
-            with patch("app.workers.sage_consolidation_worker.asyncio.get_event_loop") as mock_loop:
+            with patch("agents.workers.sage_consolidation_worker.asyncio.get_event_loop") as mock_loop:
                 mock_loop.return_value.run_in_executor = AsyncMock(side_effect=lambda exc, fn: fn())
                 result = await worker.run(config={}, dry_run=True)
 
         assert "deleted" in result
 
     def test_worker_name(self):
-        from app.workers.sage_consolidation_worker import SageConsolidationWorker
+        from agents.workers.sage_consolidation_worker import SageConsolidationWorker
         assert SageConsolidationWorker.name == "sage_consolidation"

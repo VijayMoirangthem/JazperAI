@@ -55,7 +55,7 @@ def test_approvals_pending_and_unknown_resolve(client):
 
 
 def test_credentials_roundtrip():
-    from app.services import credentials_service as c
+    from core.services import credentials_service as c
     blob = c._encrypt({"k": "secretvalue", "n": 1})
     assert "secretvalue" not in blob
     assert c._decrypt(blob) == {"k": "secretvalue", "n": 1}

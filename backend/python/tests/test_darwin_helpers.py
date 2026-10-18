@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, patch
 class TestDetectProjectRoot:
 
     def _agent(self):
-        from app.agents.darwin_agent import DarwinAgent
+        from agents.roster.darwin_agent import DarwinAgent
         return DarwinAgent
 
     def test_returns_none_for_internal_files(self):
@@ -79,7 +79,7 @@ class TestDetectProjectRoot:
 class TestDetectAppType:
 
     def _agent(self):
-        from app.agents.darwin_agent import DarwinAgent
+        from agents.roster.darwin_agent import DarwinAgent
         return DarwinAgent
 
     def test_fastapi_backend_detected(self, tmp_path):
@@ -170,10 +170,10 @@ class TestLaunchAndVerify:
     @pytest.mark.asyncio
     async def test_skips_when_no_url(self, tmp_path):
         """If _detect_app_type finds no URLs, method returns None."""
-        from app.agents.darwin_agent import DarwinAgent
+        from agents.roster.darwin_agent import DarwinAgent
         files = [{"path": str(tmp_path / "README.md"), "content": "# hello"}]
         # _detect_project_root will return the tmp_path
-        with patch("app.agents.darwin_agent.DarwinAgent._detect_app_type",
+        with patch("agents.roster.darwin_agent.DarwinAgent._detect_app_type",
                    return_value={
                        "has_backend": False, "has_frontend": False,
                        "backend_dir": None,  "frontend_dir": None,
@@ -186,7 +186,7 @@ class TestLaunchAndVerify:
     @pytest.mark.asyncio
     async def test_voyager_pass_returns_result(self, tmp_path):
         """Happy path: Voyager says ok=True on first attempt."""
-        from app.agents.darwin_agent import DarwinAgent
+        from agents.roster.darwin_agent import DarwinAgent
         files = [
             {"path": str(tmp_path / "requirements.txt"), "content": "fastapi\nuvicorn"},
             {"path": str(tmp_path / "main.py"),          "content": "from fastapi import FastAPI\napp=FastAPI()"},
@@ -194,13 +194,13 @@ class TestLaunchAndVerify:
 
         voyager_ok = {"ok": True, "screenshot": None, "console_errors": [], "url": "http://localhost:8001"}
 
-        with patch("app.agents.darwin_agent.DarwinAgent._upsert_ticket", new_callable=AsyncMock), \
-             patch("app.agents.commander_agent.CommanderAgent.run", new_callable=AsyncMock,
+        with patch("agents.roster.darwin_agent.DarwinAgent._upsert_ticket", new_callable=AsyncMock), \
+             patch("agents.roster.commander_agent.CommanderAgent.run", new_callable=AsyncMock,
                    return_value={"ok": True, "stdout": "", "stderr": "", "exit_code": 0,
                                  "risk": "safe", "command": "test", "approval_required": False}), \
-             patch("app.agents.voyager_agent.VoyagerAgent.test_panel", new_callable=AsyncMock,
+             patch("agents.roster.voyager_agent.VoyagerAgent.test_panel", new_callable=AsyncMock,
                    return_value=voyager_ok), \
-             patch("app.services.ide_bus.ide_bus.emit"):
+             patch("core.services.ide_bus.ide_bus.emit"):
             result = await DarwinAgent._launch_and_verify("ticket-1", files, str(tmp_path))
 
         assert result is not None
@@ -209,7 +209,7 @@ class TestLaunchAndVerify:
     @pytest.mark.asyncio
     async def test_voyager_fail_attempts_fix_cycle(self, tmp_path):
         """If Voyager returns errors, it should attempt the fix loop (up to 3x)."""
-        from app.agents.darwin_agent import DarwinAgent
+        from agents.roster.darwin_agent import DarwinAgent
         files = [
             {"path": str(tmp_path / "requirements.txt"), "content": "fastapi\nuvicorn"},
             {"path": str(tmp_path / "main.py"),          "content": "from fastapi import FastAPI"},
@@ -224,14 +224,14 @@ class TestLaunchAndVerify:
             call_count += 1
             return voyager_fail
 
-        with patch("app.agents.darwin_agent.DarwinAgent._upsert_ticket", new_callable=AsyncMock), \
-             patch("app.agents.commander_agent.CommanderAgent.run", new_callable=AsyncMock,
+        with patch("agents.roster.darwin_agent.DarwinAgent._upsert_ticket", new_callable=AsyncMock), \
+             patch("agents.roster.commander_agent.CommanderAgent.run", new_callable=AsyncMock,
                    return_value={"ok": True, "stdout": "", "stderr": "", "exit_code": 0,
                                  "risk": "safe", "command": "test", "approval_required": False}), \
-             patch("app.agents.voyager_agent.VoyagerAgent.test_panel", side_effect=fake_voyager), \
-             patch("app.agents.oracle_agent.OracleAgent.diagnose", new_callable=AsyncMock,
+             patch("agents.roster.voyager_agent.VoyagerAgent.test_panel", side_effect=fake_voyager), \
+             patch("agents.roster.oracle_agent.OracleAgent.diagnose", new_callable=AsyncMock,
                    return_value={}), \
-             patch("app.services.ide_bus.ide_bus.emit"):
+             patch("core.services.ide_bus.ide_bus.emit"):
             result = await DarwinAgent._launch_and_verify("ticket-1", files, str(tmp_path))
 
         # Should have tried 3 times (Oracle returned no fix — no ForgeAgent call)

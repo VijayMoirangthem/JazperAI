@@ -146,7 +146,8 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P0-5 | Tooling bootstrap | ◐ dev.ps1 + gitleaks unverified | P0-3..5 | |
 | P1-01 | Compose pg+redis | ☑ | |
 | P1-02 | Env & secrets isolation | ☑ | |
-| P1-03…P1-16 | Foundation | ☐ | | M1 gate |
+| P1-03 | Backend re-layout | ☑ | |
+| P1-04…P1-16 | Foundation | ☐ | | M1 gate |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
 | P4-01…P4-14 | SRE/sandbox/spinoff | ☐ | | M4 gate |

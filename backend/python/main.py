@@ -11,77 +11,77 @@ import structlog.processors
 from collections import deque
 import datetime
 
-from app.routes import chat, memory, health, tasks, ws, models, voice, history, logs as logs_route, dashboard as dashboard_route, notifications as notifications_route
-from app.routes import jobs as jobs_route
-from app.routes import google as google_route
-from app.routes import apply as apply_route
-from app.routes import profile as profile_route
-from app.routes import agents as agents_route
-from app.routes import db_changes as db_changes_route
-from app.routes import company_dashboard as company_route
-from app.routes import phases as phases_route
-from app.routes import roadmap as roadmap_route
-from app.routes import approvals as approvals_route
-from app.routes import plans as plans_route
-from app.routes import workflows as workflows_route
-from app.routes import it_department as it_route
-from app.routes import voice_profile as voice_profile_route
-from app.routes import storage as storage_route
-from app.routes import ide as ide_route
-from app.routes import control_tower as control_tower_route
-from app.routes import voyager as voyager_route
-from app.routes import service_registry as service_registry_route
-from app.routes import timeline as timeline_route
-from app.routes import stream as stream_route
-from app.routes import agent_chat as agent_chat_route
-from app.routes.agent_chat import dept_router as dept_chat_router
-from app.routes import evolution as evolution_route
-from app.routes import calendar as calendar_route
-from app.routes import plugins as plugins_route
-from app.routes import shared_memory as shared_memory_route
-from app.routes import webhooks as webhooks_route
-from app.routes import model_costs as model_costs_route
-from app.routes import telegram as telegram_route
-from app.routes import briefings as briefings_route
-from app.routes import alert_config as alert_config_route
-from app.routes import resume as resume_route
-from app.routes import suggestions as suggestions_route
-from app.routes import automation as automation_route
-from app.routes import knowledge as knowledge_route
-from app.routes import cover_letter as cover_letter_route
-from app.routes import contacts as contacts_route
-from app.routes import planner as planner_route
-from app.routes import habits as habits_route
-from app.routes import search as search_route
-from app.routes import compose as compose_route
-from app.routes import stats as stats_route
-from app.routes import onboarding as onboarding_route
-from app.routes import activity as activity_route
-from app.routes import export_data as export_data_route
-from app.routes import hermes_drafts as hermes_drafts_route
-from app.routes import job_radar as job_radar_route
-from app.routes import voice_journal as voice_journal_route
-from app.routes import templates as templates_route
-from app.routes import email_analytics as email_analytics_route
-from app.routes import reminders as reminders_route
-from app.routes.interview_prep import router as interview_prep_route
-from app.routes.focus import router as focus_route
-from app.routes.goals import router as goals_router
-from app.routes.digest import router as digest_router
-from app.routes.triage import router as triage_router
-from app.routes.mood import router as mood_router
-from app.routes.task_priority import router as task_priority_router
-from app.routes.followup import router as followup_router
-from app.routes.reading_list import router as reading_list_router
-from app.routes.sprints import router as sprints_router
-from app.routes.offer_eval import router as offer_eval_router
-from app.routes.portfolio import router as portfolio_router
-from app.routes.salary_coach import router as salary_coach_router
-from app.routes.standup import router as standup_router
-from app.routes import hive as hive_route
-from app.routes import org as org_route
-from app.business.routes import clients as biz_clients_route, chat as biz_chat_route, projects as biz_projects_route, team as biz_team_route, finance as biz_finance_route
-from app.core.config import settings
+from api.routes import chat, memory, health, tasks, ws, models, voice, history, logs as logs_route, dashboard as dashboard_route, notifications as notifications_route
+from api.routes import jobs as jobs_route
+from api.routes import google as google_route
+from api.routes import apply as apply_route
+from api.routes import profile as profile_route
+from api.routes import agents as agents_route
+from api.routes import db_changes as db_changes_route
+from api.routes import company_dashboard as company_route
+from api.routes import phases as phases_route
+from api.routes import roadmap as roadmap_route
+from api.routes import approvals as approvals_route
+from api.routes import plans as plans_route
+from api.routes import workflows as workflows_route
+from api.routes import it_department as it_route
+from api.routes import voice_profile as voice_profile_route
+from api.routes import storage as storage_route
+from api.routes import ide as ide_route
+from api.routes import control_tower as control_tower_route
+from api.routes import voyager as voyager_route
+from api.routes import service_registry as service_registry_route
+from api.routes import timeline as timeline_route
+from api.routes import stream as stream_route
+from api.routes import agent_chat as agent_chat_route
+from api.routes.agent_chat import dept_router as dept_chat_router
+from api.routes import evolution as evolution_route
+from api.routes import calendar as calendar_route
+from api.routes import plugins as plugins_route
+from api.routes import shared_memory as shared_memory_route
+from api.routes import webhooks as webhooks_route
+from api.routes import model_costs as model_costs_route
+from api.routes import telegram as telegram_route
+from api.routes import briefings as briefings_route
+from api.routes import alert_config as alert_config_route
+from api.routes import resume as resume_route
+from api.routes import suggestions as suggestions_route
+from api.routes import automation as automation_route
+from api.routes import knowledge as knowledge_route
+from api.routes import cover_letter as cover_letter_route
+from api.routes import contacts as contacts_route
+from api.routes import planner as planner_route
+from api.routes import habits as habits_route
+from api.routes import search as search_route
+from api.routes import compose as compose_route
+from api.routes import stats as stats_route
+from api.routes import onboarding as onboarding_route
+from api.routes import activity as activity_route
+from api.routes import export_data as export_data_route
+from api.routes import hermes_drafts as hermes_drafts_route
+from api.routes import job_radar as job_radar_route
+from api.routes import voice_journal as voice_journal_route
+from api.routes import templates as templates_route
+from api.routes import email_analytics as email_analytics_route
+from api.routes import reminders as reminders_route
+from api.routes.interview_prep import router as interview_prep_route
+from api.routes.focus import router as focus_route
+from api.routes.goals import router as goals_router
+from api.routes.digest import router as digest_router
+from api.routes.triage import router as triage_router
+from api.routes.mood import router as mood_router
+from api.routes.task_priority import router as task_priority_router
+from api.routes.followup import router as followup_router
+from api.routes.reading_list import router as reading_list_router
+from api.routes.sprints import router as sprints_router
+from api.routes.offer_eval import router as offer_eval_router
+from api.routes.portfolio import router as portfolio_router
+from api.routes.salary_coach import router as salary_coach_router
+from api.routes.standup import router as standup_router
+from api.routes import hive as hive_route
+from api.routes import org as org_route
+from api.business.routes import clients as biz_clients_route, chat as biz_chat_route, projects as biz_projects_route, team as biz_team_route, finance as biz_finance_route
+from core.config import settings
 
 # ── In-memory log ring buffer (last 500 entries) ─────────────────────────────
 log_buffer: deque = deque(maxlen=500)
@@ -130,8 +130,8 @@ log = structlog.get_logger()
 async def _auto_repair_loop():
     """Background task: watch the log buffer for error-level events and trigger Darwin."""
     import queue as _q
-    from app.services.error_store import error_store
-    from app.agents.darwin_agent import DarwinAgent
+    from core.services.error_store import error_store
+    from agents.roster.darwin_agent import DarwinAgent
 
     q: _q.Queue = _q.Queue(maxsize=500)
     log_subscribers.append(q)
@@ -177,17 +177,17 @@ async def _auto_repair_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("Sir Jazper OS starting", model=settings.AI_MODEL, env=settings.ENV)
-    from app.db.init import ensure_tables
+    from memory.db.init import ensure_tables
     ensure_tables()
 
-    from app.business.db import ensure_business_tables
+    from api.business.db import ensure_business_tables
     ensure_business_tables()
 
-    from app.services.storage import storage as _storage
+    from core.services.storage import storage as _storage
     _storage.ensure_bucket()
 
-    from app.scheduler.scheduler import start_scheduler, stop_scheduler
-    from app.services.linkedin_service import seed_default_screening_answers
+    from core.scheduler.scheduler import start_scheduler, stop_scheduler
+    from core.services.linkedin_service import seed_default_screening_answers
     try:
         seed_default_screening_answers()
     except Exception:
@@ -196,7 +196,7 @@ async def lifespan(app: FastAPI):
 
     # Hive layer: seed agent workspaces + fleet log
     try:
-        from app.services.hive_service import hive as _hive
+        from core.services.hive_service import hive as _hive
         _hive.init()
         log.info("Hive layer initialized", root=str(_hive.root()))
     except Exception as hive_exc:
@@ -206,7 +206,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_auto_repair_loop(), name="it-auto-repair")
 
     # Phase 7D: start filesystem watcher (daemon thread, auto-triggers npm/pip install)
-    from app.system.file_watcher import start as fw_start
+    from core.system.file_watcher import start as fw_start
     try:
         fw_start(asyncio.get_event_loop())
     except Exception as fw_exc:

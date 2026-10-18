@@ -41,7 +41,7 @@ def mock_ai():
 
     # chat() must return a ChatResult dataclass — agents access .content / .prompt_tokens etc.
     async def _fake_chat(messages, **kwargs):
-        from app.providers.ai_provider import ChatResult
+        from core.providers.ai_provider import ChatResult
         return ChatResult(
             content=stub_text,
             model="mock-model",
@@ -66,14 +66,14 @@ def mock_ai():
     mock.stream              = _fake_stream
     mock.stream_with_tools   = _fake_stream_with_tools
 
-    with patch("app.providers.ai_provider.ai_provider", mock):
+    with patch("core.providers.ai_provider.ai_provider", mock):
         yield mock
 
 
 @pytest.fixture
 def mock_search():
     """Stub web search so Scout tests don't hit Tavily."""
-    with patch("app.services.search_service.run_search", return_value="Mocked search result."):
+    with patch("core.services.search_service.run_search", return_value="Mocked search result."):
         yield
 
 
@@ -83,9 +83,9 @@ def mock_gmail():
     gmail_service uses standalone functions (no GmailService class).
     With mock_ai in place, stream_with_tools never calls tools so these
     stubs are a safety net rather than primary mocks."""
-    with patch("app.services.gmail_service.list_emails", return_value=[]), \
-         patch("app.services.gmail_service.get_email",   return_value={}), \
-         patch("app.services.gmail_service.send_email",  return_value={"id": "mock"}):
+    with patch("core.services.gmail_service.list_emails", return_value=[]), \
+         patch("core.services.gmail_service.get_email",   return_value={}), \
+         patch("core.services.gmail_service.send_email",  return_value={"id": "mock"}):
         yield
 
 

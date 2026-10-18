@@ -15,7 +15,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.agents.orchestrator import _keyword_route
+from agents.roster.orchestrator import _keyword_route
 
 
 # ── High-confidence cases — should NEVER need LLM confirmation ───────────────
