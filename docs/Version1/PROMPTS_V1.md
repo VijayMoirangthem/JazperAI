@@ -153,13 +153,13 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P1-07 | Directory seed | ☑ static seed, not yet in DB; C-15 founder unconfirmed | |
 | P1-08 | Async DB layer | ◐ asyncpg pool + memory path async; psycopg2 centralised in memory/db/legacy_pg.py (~55 callers remain, sync defs) | |
 | P1-09 | Redis layer | ◐ layer+tests done; p95 pubsub 9.4-11.6ms on Docker Desktop (test bar relaxed to 15ms); existing Redis callers not migrated | |
-| P1-10 | Unified memory + PII | ◐ code+sanitizer tests done; DB roundtrip test awaiting bge-m3 download | |
+| P1-10 | Unified memory + PII | ☑ roundtrip test passes with bge-m3 (1024); legacy tables empty so migrate_memories.py had nothing to copy | |
 | P1-11 | Vault | ☑ (live creds table empty; migrate_credentials.py ready; not wired to Google/LinkedIn flows beyond credentials_service) | |
 | P1-12 | Provider layer | ◐ core/llm done + tested; stub active until ANTHROPIC_API_KEY set (C-1 ⛔); legacy ai_provider call sites not migrated | |
 | P1-13 | Audit writer | ☑ (bus tap helper written, not started at boot) | |
 | P1-14 | Hive->PG | ☑ (MinIO objects not inspected) | |
 | P1-15 | Backups & restore | ◐ logical backup+drill+WAL archiving done; no pg_basebackup PITR drill, no offsite (C-11) | |
-| P1-16 | M1 gate | ☐ | | M1 gate |
+| P1-16 | M1 gate | ◐ fresh-clone backend tests 142 pass; UI/chat not re-verified; gitleaks not run; D6 not deleted | | M1 gate |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
 | P4-01…P4-14 | SRE/sandbox/spinoff | ☐ | | M4 gate |
