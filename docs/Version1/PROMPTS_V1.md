@@ -149,7 +149,8 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P1-03 | Backend re-layout | ☑ | |
 | P1-04 | API versioning | ◐ aliases+deprecations done; domain grouping deferred | |
 | P1-05 | Alembic baseline & schemas | ◐ baseline+schemas done; business_* data copy deferred | |
-| P1-06…P1-16 | Foundation | ☐ | | M1 gate |
+| P1-06 | Tenancy & RLS | ☑ (app not yet wired to apply_context) | |
+| P1-07…P1-16 | Foundation | ☐ | | M1 gate |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
 | P4-01…P4-14 | SRE/sandbox/spinoff | ☐ | | M4 gate |
