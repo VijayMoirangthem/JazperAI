@@ -28,3 +28,6 @@ google-api-python-client
 pypdf>=4.0.0
 psutil
 psutil
+alembic==1.13.3
+sqlalchemy==2.0.35
+asyncpg==0.29.0
