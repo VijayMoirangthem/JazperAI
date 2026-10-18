@@ -40,3 +40,5 @@ backend/infra/volumes/
 # IDE / agent artifacts
 .claude/worktrees/
 storage/archive/munder/hive/
+infra/.env
+storage/backups/

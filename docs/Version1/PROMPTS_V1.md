@@ -111,21 +111,21 @@ Legend: ☐ todo · ◐ in progress · ☑ done · ⛔ blocked (credential id) �
 
 ### Approved deletions (Claude may delete ONLY these; user edits this list)
 Mark `[x]` to approve. Unchecked = not approved.
-- [ ] D1 `infra/postgres/init.sql/` (empty dir)
+- [x] D1 `infra/postgres/init.sql/` (empty dir)
   - Verification: Verified: empty dir. **Delete: safe.**
-- [ ] D2 `backend/python/uvicorn_*.log`, `backend/python/uploads/`
+- [x] D2 `backend/python/uvicorn_*.log`, `backend/python/uploads/`
   - Verification: Verified: logs are stray; `uploads/agent_avatars` is used by `routes/agents.py:35` (1 item). **Delete logs only; keep `uploads/` or move to `storage/`.**
-- [ ] D3 `frontend/public/{file,globe,next,vercel,window}.svg`
+- [x] D3 `frontend/public/{file,globe,next,vercel,window}.svg`
   - Verification: Verified: no references to any of the 5 SVGs in `frontend/src` or `backend`. **Delete: safe.**
-- [ ] D4 `frontend/tsconfig.tsbuildinfo`
+- [x] D4 `frontend/tsconfig.tsbuildinfo`
   - Verification: Verified: not tracked by git. **Delete: safe (regenerated).**
-- [ ] D5 `backend/munder-web/dist/`
+- [x] D5 `backend/munder-web/dist/`
   - Verification: Verified: git-ignored build output. **Delete: safe.**
-- [ ] D6 MinIO service/dependency/paths (after P1-01 usage check)
+- [x] D6 MinIO service/dependency/paths (after P1-01 usage check)
   - Verification: Verified: only `core/config.py` settings, `requirements.txt` `minio==7.2.7`, and a fallback comment in `chain_loop.py:397`. No client import found. **Delete: safe** (also re-check `routes/storage.py`/`services/storage.py` in P1-01).
-- [ ] D7 `backend/infra/nginx/`
+- [x] D7 `backend/infra/nginx/`
   - Verification: Verified: contains only `nginx.conf`; mentioned only in docs/README. **Delete: safe.**
-- [ ] D8 duplicate `duckduckgo-search`/`ddgs`
+- [x] D8 duplicate `duckduckgo-search`/`ddgs`
   - Verification: Verified: both used in `agent_tools.py:1473-1476` as try-ddgs-then-fallback. **Keep `ddgs`, drop `duckduckgo-search`.**
 - [ ] D9 Three.js stack (at P3-13 only)
   - Verification: Verified: only 2 importers: `ConversationSphere.tsx`, `CommandCenter3DScene.tsx`. **Defer to P3-13 as planned.**
@@ -144,7 +144,8 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P0-3 | Characterization tests | ☑ | P0-3..5 | |
 | P0-4 | CI & license/SBOM report | ☑ | P0-3..5 | |
 | P0-5 | Tooling bootstrap | ◐ dev.ps1 + gitleaks unverified | P0-3..5 | |
-| P1-01…P1-16 | Foundation | ☐ | | M1 gate |
+| P1-01 | Compose pg+redis | ☑ | |
+| P1-02…P1-16 | Foundation | ☐ | | M1 gate |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
 | P4-01…P4-14 | SRE/sandbox/spinoff | ☐ | | M4 gate |
