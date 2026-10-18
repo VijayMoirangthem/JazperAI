@@ -1,4 +1,6 @@
 """APScheduler instance — loads cron jobs from DB, dispatches to workers."""
+from core.config import settings as _settings
+_LIGHT_MODEL = _settings.LIGHT_MODEL
 import asyncio
 import json
 import uuid
@@ -711,7 +713,7 @@ def _schedule_goal_checker() -> None:
                     )
                     result = await ai_provider.chat(
                         messages=[{"role": "user", "content": prompt}],
-                        model="llama-3.1-8b-instant",
+                        model=_LIGHT_MODEL,
                         max_tokens=5,
                         temperature=0.0,
                         enable_thinking=False,

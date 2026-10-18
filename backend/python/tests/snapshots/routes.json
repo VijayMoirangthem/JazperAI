@@ -2757,6 +2757,10 @@
  ],
  [
   "POST",
+  "/api/llm/complete"
+ ],
+ [
+  "POST",
   "/api/memory/core"
  ],
  [
@@ -3362,6 +3366,10 @@
  [
   "POST",
   "/api/v1/knowledge/url"
+ ],
+ [
+  "POST",
+  "/api/v1/llm/complete"
  ],
  [
   "POST",

@@ -6,6 +6,8 @@ Jazper's voice, and delivers via Telegram. Runs on schedule from scheduler.py
 and can be triggered manually via the briefings API.
 """
 from __future__ import annotations
+from core.config import settings as _settings
+_LIGHT_MODEL = _settings.LIGHT_MODEL
 import asyncio
 import json
 from datetime import datetime, timezone
@@ -16,7 +18,7 @@ from memory.db.legacy_pg import _pg
 
 log = structlog.get_logger()
 
-_BRIEFING_MODEL = "llama-3.1-8b-instant"
+_BRIEFING_MODEL = _LIGHT_MODEL
 
 
 # ── Config ────────────────────────────────────────────────────────────────────

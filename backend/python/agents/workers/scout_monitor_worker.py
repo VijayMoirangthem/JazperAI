@@ -12,6 +12,8 @@ Topics are stored in Redis with a TTL. The user manages them via chat:
 
 Jazper's Sage agent saves topics via memory; this worker retrieves and acts on them.
 """
+from core.config import settings as _settings
+_LIGHT_MODEL = _settings.LIGHT_MODEL
 import json
 import asyncio
 import hashlib
@@ -192,7 +194,7 @@ class ScoutMonitorWorker(BaseWorker):
             try:
                 ai_result = await ai_provider.chat(
                     messages=[{"role": "user", "content": prompt}],
-                    model="llama-3.1-8b-instant",
+                    model=_LIGHT_MODEL,
                     temperature=0.0,
                     max_tokens=100,
                 )

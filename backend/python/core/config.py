@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     MINIO_ROOT_PASSWORD: str = ""
     MINIO_BUCKET: str = "sirjazper"
 
+    # LLM tiers (D-6). LIGHT_MODEL is used by legacy OpenAI-compatible call sites until they move to core.llm
+    LIGHT_MODEL: str = "llama-3.1-8b-instant"
+    EDGE_MODE: bool = False  # local models only allowed when true
+
     # Embeddings (unified memory, D-5)
     EMBEDDING_PROVIDER: str = "local"
     EMBEDDING_MODEL: str = "BAAI/bge-m3"

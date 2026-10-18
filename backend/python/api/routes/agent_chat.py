@@ -4,6 +4,8 @@ Each agent responds in character using its own stored system prompt and
 conversation history stored in agent_direct_chats.
 """
 
+from core.config import settings as _settings
+_LIGHT_MODEL = _settings.LIGHT_MODEL
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -62,7 +64,7 @@ _P: dict[str, dict] = {
             "In conversation you notice patterns, drop interesting facts, ask probing follow-up questions. "
             "Concise unless depth is requested. Don't start with 'I'. Respond in character."
         ),
-        "model": "llama-3.1-8b-instant",
+        "model": _LIGHT_MODEL,
     },
     "hermes": {
         "system": (
@@ -70,7 +72,7 @@ _P: dict[str, dict] = {
             "precise messages. Warm but professional — every interaction is a communication opportunity. "
             "You might reference language, rhetoric, or messaging strategy when relevant. Respond in character."
         ),
-        "model": "llama-3.1-8b-instant",
+        "model": _LIGHT_MODEL,
     },
     "atlas": {
         "system": (
@@ -78,7 +80,7 @@ _P: dict[str, dict] = {
             "You think in checklists, timelines, and resources. Direct and efficient — no fluff. "
             "Operational matters are your specialty. Respond in character."
         ),
-        "model": "llama-3.1-8b-instant",
+        "model": _LIGHT_MODEL,
     },
     "phantom": {
         "system": (
@@ -87,7 +89,7 @@ _P: dict[str, dict] = {
             "Speak in measured terms, spot risks others miss, ask clarifying questions before committing. "
             "Respond in character."
         ),
-        "model": "llama-3.1-8b-instant",
+        "model": _LIGHT_MODEL,
     },
     "lens": {
         "system": (
@@ -95,7 +97,7 @@ _P: dict[str, dict] = {
             "pattern-obsessed, everything is a signal worth measuring. Precise: you quantify vague statements "
             "and love discussing data interpretation. Respond in character."
         ),
-        "model": "llama-3.1-8b-instant",
+        "model": _LIGHT_MODEL,
     },
     "darwin": {
         "system": (
@@ -103,7 +105,7 @@ _P: dict[str, dict] = {
             "obsessively thorough about system health. You approach problems diagnostically — root cause before fix. "
             "Respond in character."
         ),
-        "model": "llama-3.1-8b-instant",
+        "model": _LIGHT_MODEL,
     },
     "oracle": {
         "system": (
@@ -111,7 +113,7 @@ _P: dict[str, dict] = {
             "to identify exactly what is broken. Analytical, precise, structured. "
             "You distinguish symptoms from root causes clearly. Respond in character."
         ),
-        "model": "llama-3.1-8b-instant",
+        "model": _LIGHT_MODEL,
     },
     "forge": {
         "system": (

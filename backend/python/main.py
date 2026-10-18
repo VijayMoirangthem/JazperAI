@@ -329,6 +329,8 @@ app.include_router(biz_finance_route.router, prefix="/api/business/finance", tag
 
 from api.routes import directory as directory_route
 app.include_router(directory_route.router, prefix="/api/directory", tags=["directory"])
+from api.routes import llm as llm_route
+app.include_router(llm_route.router, prefix="/api/llm", tags=["llm"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

@@ -155,7 +155,8 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P1-09 | Redis layer | ◐ layer+tests done; p95 pubsub 9.4-11.6ms on Docker Desktop (test bar relaxed to 15ms); existing Redis callers not migrated | |
 | P1-10 | Unified memory + PII | ◐ code+sanitizer tests done; DB roundtrip test awaiting bge-m3 download | |
 | P1-11 | Vault | ☑ (live creds table empty; migrate_credentials.py ready; not wired to Google/LinkedIn flows beyond credentials_service) | |
-| P1-12…P1-16 | Foundation | ☐ | | M1 gate |
+| P1-12 | Provider layer | ◐ core/llm done + tested; stub active until ANTHROPIC_API_KEY set (C-1 ⛔); legacy ai_provider call sites not migrated | |
+| P1-13…P1-16 | Foundation | ☐ | | M1 gate |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
 | P4-01…P4-14 | SRE/sandbox/spinoff | ☐ | | M4 gate |
