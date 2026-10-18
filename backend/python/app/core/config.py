@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     # AI Provider
     AI_BASE_URL: str = "http://localhost:1234/v1"
-    AI_API_KEY: str = "lm-studio"
+    AI_API_KEY: str = ""
     AI_API_KEY2: str = ""
     AI_API_KEY3: str = ""
     AI_MODEL: str = "qwen/qwen3.5-9b"
@@ -15,19 +15,19 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5433
     POSTGRES_USER: str = "sirjazper"
-    POSTGRES_PASSWORD: str = "changeme"
+    POSTGRES_PASSWORD: str  # required — no default (P1-02)
     POSTGRES_DB: str = "coos"
 
     # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str = "changeme"
+    REDIS_PASSWORD: str  # required — no default (P1-02)
 
     # MinIO
     MINIO_HOST: str = "localhost"
     MINIO_PORT: int = 9000
     MINIO_ROOT_USER: str = "sirjazper"
-    MINIO_ROOT_PASSWORD: str = "changeme"
+    MINIO_ROOT_PASSWORD: str = ""
     MINIO_BUCKET: str = "sirjazper"
 
     # Server

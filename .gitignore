@@ -42,3 +42,7 @@ backend/infra/volumes/
 storage/archive/munder/hive/
 infra/.env
 storage/backups/
+storage/*
+!storage/.gitkeep
+*.tsbuildinfo
+backend/munder-web/dist/
