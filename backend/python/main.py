@@ -327,6 +327,8 @@ app.include_router(biz_team_route.router,    prefix="/api/business/team",    tag
 app.include_router(biz_chat_route.router,    prefix="/api/business/chat",    tags=["business-chat"])
 app.include_router(biz_finance_route.router, prefix="/api/business/finance", tags=["business-finance"])
 
+from api.routes import directory as directory_route
+app.include_router(directory_route.router, prefix="/api/directory", tags=["directory"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

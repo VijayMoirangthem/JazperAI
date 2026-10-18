@@ -733,6 +733,10 @@
  ],
  [
   "GET",
+  "/api/directory/"
+ ],
+ [
+  "GET",
   "/api/email-analytics"
  ],
  [
@@ -1486,6 +1490,10 @@
  [
   "GET",
   "/api/v1/direct/dept/{dept_id}/history"
+ ],
+ [
+  "GET",
+  "/api/v1/directory/"
  ],
  [
   "GET",
