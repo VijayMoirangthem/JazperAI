@@ -4,10 +4,11 @@ const { spawn } = require("node:child_process");
 const http = require("node:http");
 const path = require("node:path");
 
-const UI_URL = process.env.JASPER_UI_URL || "http://localhost:3001";
+const UI_URL = process.env.JASPER_UI_URL || "http://localhost:5173";
 const API_URL = process.env.JASPER_API_URL || "http://localhost:8000";
 const ROOT = path.resolve(__dirname, "..");
 const SMOKE = process.argv.includes("--smoke");
+const UI_CHECK = process.argv.includes("--ui-check");
 const ALLOWED_ORIGINS = new Set([new URL(UI_URL).origin, new URL(API_URL).origin]);
 
 let win = null;
@@ -88,6 +89,18 @@ app.whenReady().then(async () => {
     return;
   }
   await ensureBackend();
+  if (UI_CHECK) {
+    const errors = [];
+    win = null;
+    const w = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true } });
+    w.webContents.on("console-message", (_e, level, message) => { if (level >= 3) errors.push(message.slice(0, 160)); });
+    await w.loadURL(UI_URL);
+    await new Promise((r) => setTimeout(r, 6000));
+    const info = await w.webContents.executeJavaScript("JSON.stringify({title: document.title, textLen: document.body.innerText.length, nav: document.querySelectorAll('nav,aside,button').length})");
+    console.log("UI_CHECK " + info + " errors=" + JSON.stringify(errors.slice(0, 5)));
+    app.exit(0);
+    return;
+  }
   await createWindow(UI_URL);
 });
 

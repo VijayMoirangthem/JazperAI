@@ -44,4 +44,5 @@ Supersedes the P3 prototype slices in `Version1/PROMPTS_V1.md`; P0–P2 foundati
 | A1 | ☑ registry+API+tiered router+Groq live-verified (old Groq models were retired: now gpt-oss-20b/qwen3.8-27b/gpt-oss-120b) |
 | A2 | ☑ AI Providers panel (Next UI; ports in B2) |
 | A3 | ◐ CliProvider written, untested against a real CLI |
-| B–G | ☐ |
+| B1 | ☑ app/ Vite+React19 workspace builds; Electron loads it with 0 console errors (reuses ../frontend/src via alias until B4); no shared/ wire types yet |
+| B2–B4, C–G | ☐ |
