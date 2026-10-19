@@ -167,7 +167,7 @@ class BaseAgent:
             trace.success = True
 
             announce(self.name, "idle")
-        await emit("AGENT_DONE", {
+            await emit("AGENT_DONE", {
                 "name": self.name,
                 "tokens_prompt": trace.tokens_prompt,
                 "tokens_completion": trace.tokens_completion,
