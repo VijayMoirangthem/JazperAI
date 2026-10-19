@@ -46,3 +46,4 @@ storage/*
 !storage/.gitkeep
 *.tsbuildinfo
 backend/munder-web/dist/
+Project_References/
