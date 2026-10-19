@@ -1,0 +1,14 @@
+{
+  "name": "jasper-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sir Jasper AI desktop shell (Electron)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke"
+  },
+  "devDependencies": {
+    "electron": "33.2.1"
+  }
+}

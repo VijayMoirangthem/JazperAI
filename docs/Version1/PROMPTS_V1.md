@@ -163,6 +163,8 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P2-01 | Agent registry | ☑ (DB-backed, API, adapter; registry not auto-loaded at boot) | |
 | P2-02 | Supervisor graph | ◐ LangGraph graph+PG checkpointer resume test OK; endpoint uses MemorySaver; classify=keyword only; Windows prod needs selector loop for PG saver | |
 | P2-07 | HITL engine | ◐ engine+API+tests done; existing approvals UI/API not adapted; LangGraph interrupt not used | |
+| P3-02 | Electron shell | ◐ desktop/ wraps existing Next UI; security smoke test passes; no electron-builder packaging, no Playwright, Vite renderer migration deferred | |
+| P3-03 | WS JSON-RPC client | ◐ TS client+store+resume test OK; types hand-written (not generated from schemas); not yet run against a live backend restart | |
 | P2-09 | Event bus + /ws/rpc | ◐ in-process bus+JSON-RPC done, agents publish state changes; Redis fan-out + legacy shim not done | |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
