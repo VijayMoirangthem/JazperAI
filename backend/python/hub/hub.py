@@ -12,7 +12,6 @@ import json
 import time
 
 import structlog
-from jsonschema import Draft7Validator
 
 from core import audit, hitl
 from core.telemetry import span
@@ -122,6 +121,7 @@ class Hub:
         tool = next((t for t in await self.catalogue() if t["name"] == name), None)
         if tool is None:
             raise ToolError(f"unknown tool {name}")
+        from jsonschema import Draft7Validator  # lazy: ~2.5 s import
         errors = [e.message for e in Draft7Validator(tool["schema"]).iter_errors(arguments)]
         if errors:
             raise ToolError("invalid arguments: " + "; ".join(errors[:3]))

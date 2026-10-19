@@ -1081,6 +1081,10 @@
  ],
  [
   "GET",
+  "/api/mcp-hub/presets"
+ ],
+ [
+  "GET",
   "/api/mcp-hub/tools"
  ],
  [
@@ -1902,6 +1906,10 @@
  [
   "GET",
   "/api/v1/mcp-hub/connectors"
+ ],
+ [
+  "GET",
+  "/api/v1/mcp-hub/presets"
  ],
  [
   "GET",
@@ -2997,6 +3005,10 @@
  ],
  [
   "POST",
+  "/api/mcp-hub/presets/{pid}"
+ ],
+ [
+  "POST",
   "/api/memory/core"
  ],
  [
@@ -3673,6 +3685,10 @@
  ],
  [
   "POST",
+  "/api/v1/mcp-hub/presets/{pid}"
+ ],
+ [
+  "POST",
   "/api/v1/memory/core"
  ],
  [
@@ -4049,6 +4065,10 @@
  ],
  [
   "PUT",
+  "/api/finops/prices"
+ ],
+ [
+  "PUT",
   "/api/hitl/levels/{slug}"
  ],
  [
@@ -4106,6 +4126,10 @@
  [
   "PUT",
   "/api/v1/finops/budgets"
+ ],
+ [
+  "PUT",
+  "/api/v1/finops/prices"
  ],
  [
   "PUT",

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+OPTIONAL_MOUNTS = {"/ui", "/munder"}  # exist only when the UI has been built
 SNAP = Path(__file__).parent.parent / "snapshots" / "routes.json"
 
 
@@ -28,7 +29,7 @@ def _table(app):
     rows = set()
     for r in app.routes:
         for m in getattr(r, "methods", None) or ["WS"]:
-            if m != "HEAD":
+            if m != "HEAD" and r.path not in OPTIONAL_MOUNTS:
                 rows.add((m, r.path))
     return sorted(rows)
 

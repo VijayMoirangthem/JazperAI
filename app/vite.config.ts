@@ -9,6 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, here, "");
   return {
+    base: env.JASPER_BASE || "/", // production build is served by the backend under /ui/
     plugins: [react(), tailwind()],
     resolve: {
       alias: [

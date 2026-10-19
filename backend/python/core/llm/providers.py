@@ -1,8 +1,8 @@
 """Provider implementations: Anthropic (primary), OpenAI-compatible (fallback / edge-local), Stub (no key / tests)."""
+import sys
 import time
 from collections.abc import AsyncIterator
 
-import anthropic
 import structlog
 from openai import AsyncOpenAI
 
@@ -25,6 +25,9 @@ class Provider:
 
 
 def _classify(e: Exception) -> ProviderError:
+    anthropic = sys.modules.get("anthropic")  # imported lazily (slow); if it was never imported the error cannot be one of its own
+    if anthropic is None:
+        return ProviderError(type(e).__name__, retryable=False)
     """429 / 529 / 5xx / timeouts / connection drops are retryable; other 4xx are not."""
     if isinstance(e, anthropic.APIStatusError):
         return ProviderError(f"{e.status_code}", retryable=e.status_code in (408, 429, 529) or e.status_code >= 500)
@@ -37,6 +40,7 @@ class AnthropicProvider(Provider):
     name = "anthropic"
 
     def __init__(self, api_key: str, base_url: str | None = None, http_client=None, models: dict[str, str] | None = None):
+        import anthropic  # lazy: the SDK costs ~8 s to import and is only needed when this provider is used
         self.models = models or ANTHROPIC_TIERS
         self.client = anthropic.AsyncAnthropic(api_key=api_key, base_url=base_url, max_retries=0, timeout=60,
                                             **({"http_client": http_client} if http_client else {}))

@@ -9,8 +9,6 @@ import sys
 import threading
 from concurrent.futures import TimeoutError as FutureTimeout
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
 
 
 class ConnectionError_(RuntimeError):
@@ -26,7 +24,7 @@ class Connection:
         self._thread: threading.Thread | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._stop: asyncio.Event | None = None
-        self._session: ClientSession | None = None
+        self._session = None
 
     def start(self, timeout: float = 30) -> None:
         self._thread = threading.Thread(target=self._main, name=f"mcp-{self.cid}", daemon=True)
@@ -47,6 +45,8 @@ class Connection:
             loop.close()
 
     async def _serve(self) -> None:
+        from mcp import ClientSession, StdioServerParameters  # lazy: ~3 s import, only when a connector actually starts
+        from mcp.client.stdio import stdio_client
         self._stop = asyncio.Event()
         params = StdioServerParameters(command=self.command[0], args=self.command[1:], env={**os.environ, **self.env})
         async with stdio_client(params) as (r, w):

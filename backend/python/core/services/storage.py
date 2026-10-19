@@ -71,6 +71,13 @@ class _StorageClient:
 
     def ensure_bucket(self):
         """Create the bucket if it doesn't exist. Called on startup."""
+        import socket
+        from core.config import settings as _s
+        try:  # MinIO is optional: a closed port must cost half a second, not the SDK's 30 s of retries
+            socket.create_connection((_s.MINIO_HOST, _s.MINIO_PORT), timeout=0.5).close()
+        except OSError:
+            log.info("MinIO not running — object storage disabled (optional)")
+            return
         try:
             self._init()
             if not self.client.bucket_exists(self.bucket):

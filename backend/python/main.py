@@ -381,3 +381,9 @@ if _MUNDER_DIST.exists():
 else:
     log.warning("munder-web dist not found", path=str(_MUNDER_DIST))
 
+
+
+# ── Production UI: the Vite build (app/dist, built with JASPER_BASE=/ui/) served by the API; used when JASPER_MODE=prod ──
+_UI_DIST = Path(__file__).resolve().parents[2] / "app" / "dist"
+if (_UI_DIST / "index.html").exists():
+    app.mount("/ui", StaticFiles(directory=str(_UI_DIST), html=True), name="ui")

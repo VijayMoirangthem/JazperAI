@@ -4,8 +4,9 @@ const { spawn } = require("node:child_process");
 const http = require("node:http");
 const path = require("node:path");
 
-const UI_URL = process.env.JASPER_UI_URL || "http://localhost:5173";
 const API_URL = process.env.JASPER_API_URL || "http://localhost:8000";
+const PROD = process.env.JASPER_MODE === "prod"; // built UI served by the backend (no dev server)
+const UI_URL = process.env.JASPER_UI_URL || (PROD ? API_URL + "/ui/" : "http://localhost:5173");
 const ROOT = path.resolve(__dirname, "..");
 const SMOKE = process.argv.includes("--smoke");
 const UI_CHECK = process.argv.includes("--ui-check");
@@ -35,6 +36,7 @@ function ping(url) {
 
 async function ensureBackend() {
   if (await ping(`${API_URL}/health/`)) return;
+  if (process.env.JASPER_LAUNCHER) { await waitFor(`${API_URL}/health/`, 300); return; } // Jazper.exe owns the services; just wait for them
   const py = path.join(ROOT, "backend", ".venv", "Scripts", "python.exe");
   backend = spawn(py, ["run_server.py", "--port", new URL(API_URL).port || "8000"], {
     cwd: path.join(ROOT, "backend", "python"), stdio: "ignore", windowsHide: true,
@@ -46,7 +48,7 @@ async function ensureBackend() {
 // ── window ──────────────────────────────────────────────────────────────────────────────
 const SPLASH = "<body style='margin:0;background:#0b0f14;color:#cbd5e1;font:15px Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:14px'>" +
   "<div style='width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:30px;color:#fff'>JZ</div>" +
-  "<div>Starting Sir Jasper AI…</div><div id=m style='opacity:.5;font-size:12px'>database, backend, interface</div></body>";
+  "<div>Starting Sir Jasper AI…</div><div id=m style='opacity:.5;font-size:12px'>database, backend, interface (after code changes the first start rebuilds the interface and can take a couple of minutes)</div></body>";
 
 let tray = null;
 function setupTray() {
