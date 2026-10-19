@@ -208,7 +208,8 @@ async def lifespan(app: FastAPI):
     # Plan V2 F1: load hot-pluggable bots and open the durable checkpointer
     try:
         from agents.registry import registry as _bot_registry
-        await _bot_registry.reload()
+        from agents.org import ensure_org
+        await ensure_org()  # seeds executives + spec crews once; never overwrites edits
         from core.durable import get_checkpointer
         await get_checkpointer()
     except Exception as exc:
@@ -352,6 +353,8 @@ from api.routes import chat2 as chat2_route
 app.include_router(chat2_route.router, prefix="/api/chat2", tags=["chat2"])
 from api.routes import edit as edit_route
 app.include_router(edit_route.router, prefix="/api/edit", tags=["edit"])
+from api.routes import company as company_route
+app.include_router(company_route.router, prefix="/api/company", tags=["company"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

@@ -15,4 +15,4 @@ if __name__ == "__main__":
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--reload", action="store_true")
     a = ap.parse_args()
-    uvicorn.run("main:app", host="127.0.0.1", port=a.port, reload=a.reload, loop="asyncio")
+    uvicorn.run("main:app", host="127.0.0.1", port=a.port, reload=a.reload, loop="none")

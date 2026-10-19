@@ -705,6 +705,10 @@
  ],
  [
   "GET",
+  "/api/company/structure"
+ ],
+ [
+  "GET",
   "/api/contacts"
  ],
  [
@@ -1490,6 +1494,10 @@
  [
   "GET",
   "/api/v1/company/kpis"
+ ],
+ [
+  "GET",
+  "/api/v1/company/structure"
  ],
  [
   "GET",
@@ -2553,7 +2561,15 @@
  ],
  [
   "POST",
+  "/api/company/directive"
+ ],
+ [
+  "POST",
   "/api/company/kill-switch"
+ ],
+ [
+  "POST",
+  "/api/company/seed"
  ],
  [
   "POST",
@@ -3197,7 +3213,15 @@
  ],
  [
   "POST",
+  "/api/v1/company/directive"
+ ],
+ [
+  "POST",
   "/api/v1/company/kill-switch"
+ ],
+ [
+  "POST",
+  "/api/v1/company/seed"
  ],
  [
   "POST",

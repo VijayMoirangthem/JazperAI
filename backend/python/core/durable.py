@@ -26,7 +26,8 @@ async def get_checkpointer():
         await _saver.setup()
         log.info("durable checkpointer: postgres")
     except Exception as e:
-        log.warning("durable checkpointer unavailable, using memory (runs will not survive a restart)", error=str(e)[:160])
+        import asyncio
+        log.warning("durable checkpointer unavailable, using memory (runs will not survive a restart)", error=str(e)[:160], loop=type(asyncio.get_running_loop()).__name__)
         _saver = MemorySaver()
     return _saver
 
