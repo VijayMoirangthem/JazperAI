@@ -35,6 +35,7 @@ class LLMResult(BaseModel):
 
 
 class ProviderError(Exception):
-    def __init__(self, msg: str, retryable: bool = True):
+    def __init__(self, msg: str, retryable: bool = True, retry_after: float | None = None):
         super().__init__(msg)
         self.retryable = retryable
+        self.retry_after = retry_after  # seconds the server asked us to wait (429)

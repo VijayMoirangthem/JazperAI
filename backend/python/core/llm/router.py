@@ -14,7 +14,7 @@ log = structlog.get_logger()
 
 
 class LLMRouter:
-    def __init__(self, chain: list[Provider], attempts: int = 3, base_delay: float = 0.5, breaker_threshold: int = 3,
+    def __init__(self, chain: list[Provider], attempts: int = 4, base_delay: float = 0.5, breaker_threshold: int = 3,
                  breaker_cooldown: float = 30.0, sleep=asyncio.sleep):
         self.chain, self.attempts, self.base_delay = chain, attempts, base_delay
         self.threshold, self.cooldown, self._sleep = breaker_threshold, breaker_cooldown, sleep
@@ -40,7 +40,12 @@ class LLMRouter:
             except ProviderError as e:
                 if not e.retryable or i == self.attempts - 1:
                     raise
-                await self._sleep(self.base_delay * (2 ** i) * (0.5 + random.random()))
+                if e.retry_after and p is not self.chain[-1]:
+                    raise  # rate limited with another model still available: fail over now instead of waiting
+                wait = self.base_delay * (2 ** i) * (0.5 + random.random())
+                if e.retry_after:  # honour the server's Retry-After on 429 (capped so a request never hangs for minutes)
+                    wait = max(wait, min(e.retry_after, 20.0))
+                await self._sleep(wait)
 
     async def complete(self, req: LLMRequest) -> LLMResult:
         failed: list[str] = []

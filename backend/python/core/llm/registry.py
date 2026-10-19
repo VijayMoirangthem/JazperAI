@@ -86,8 +86,11 @@ async def seed_if_empty() -> None:
               "frontier": "openai/gpt-oss-120b" if slug == "groq" else settings.AI_MODEL}
     for tier, m in models.items():
         await aio.execute("INSERT INTO shared.llm_models (provider, model_id, label) VALUES ($1,$2,$2) ON CONFLICT DO NOTHING", slug, m)
-        await aio.execute("INSERT INTO shared.llm_routing (tier, chain) VALUES ($1,$2::jsonb)", tier,
-                          json.dumps([{"provider": slug, "model": m}]))
+        fallback = {"light": "qwen/qwen3.8-27b", "standard": "openai/gpt-oss-20b", "frontier": "qwen/qwen3.8-27b"}[tier] if slug == "groq" else None
+        if fallback:  # limits are per model on Groq: a second model keeps a tier answering when the first is rate limited
+            await aio.execute("INSERT INTO shared.llm_models (provider, model_id, label) VALUES ($1,$2,$2) ON CONFLICT DO NOTHING", slug, fallback)
+        chain = [{"provider": slug, "model": m}] + ([{"provider": slug, "model": fallback}] if fallback else [])
+        await aio.execute("INSERT INTO shared.llm_routing (tier, chain) VALUES ($1,$2::jsonb)", tier, json.dumps(chain))
 
 
 async def build_router() -> TieredRouter:

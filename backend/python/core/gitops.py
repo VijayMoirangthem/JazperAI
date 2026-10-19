@@ -42,7 +42,8 @@ async def create_patch_branch(repo: Path, task: str, worktrees: Path) -> tuple[s
 
 
 async def commit(worktree: Path, message: str, agent_id: str, model: str, prompt: str) -> str:
-    await git(worktree, "add", "-A")
+    # never commit bytecode caches or env files that test runs / the loop itself put in the worktree
+    await git(worktree, "add", "-A", "--", ".", ":(exclude,glob)**/__pycache__/**", ":(exclude,glob)**/*.pyc", ":(exclude,glob)**/.env", ":(exclude,glob)**/.pytest_cache/**")
     if not await git(worktree, "status", "--porcelain"):
         raise GitError("nothing to commit")
     trailers = f"\n\nAgent-Id: {agent_id}\nModel: {model}\nPrompt-Hash: {hashlib.sha256(prompt.encode()).hexdigest()[:16]}"

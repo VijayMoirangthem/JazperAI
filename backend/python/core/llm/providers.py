@@ -111,8 +111,13 @@ class OpenAICompatProvider(Provider):
                                                           temperature=req.temperature)
         except Exception as e:
             status = getattr(e, "status_code", None)
+            ra = None
+            try:
+                ra = float(e.response.headers.get("retry-after")) if getattr(e, "response", None) is not None else None
+            except (TypeError, ValueError):
+                ra = None
             raise ProviderError(type(e).__name__, retryable=status in (408, 429, 529) or (status or 0) >= 500
-                                or type(e).__name__ in ("APITimeoutError", "APIConnectionError")) from e
+                                or type(e).__name__ in ("APITimeoutError", "APIConnectionError"), retry_after=ra) from e
         u = r.usage
         return LLMResult(text=r.choices[0].message.content or "", stop_reason=r.choices[0].finish_reason,
                          usage=Usage(provider=self.name, model=model, input_tokens=getattr(u, "prompt_tokens", 0) or 0,

@@ -40,7 +40,7 @@ class DevState(TypedDict, total=False):
 
 def _run_tests(cmd: list[str], cwd: str, timeout: float) -> tuple[int, str]:
     try:
-        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, env={**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1"})
         return p.returncode, (p.stdout + p.stderr)[-1500:]
     except subprocess.TimeoutExpired:
         return 124, "test run timed out"
