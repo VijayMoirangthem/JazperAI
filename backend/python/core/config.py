@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # LLM tiers (D-6). LIGHT_MODEL is used by legacy OpenAI-compatible call sites until they move to core.llm
     LIGHT_MODEL: str = "llama-3.1-8b-instant"
     EDGE_MODE: bool = False  # local models only allowed when true
+    WS_TOKEN: str = ""  # when set, /ws/rpc requires ?token=
 
     # Embeddings (unified memory, D-5)
     EMBEDDING_PROVIDER: str = "local"
