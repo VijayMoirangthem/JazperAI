@@ -57,12 +57,30 @@ def _announce(rid: UUID, tier: int, action: str, summary: str) -> None:
                  "summary": summary[:2000]})
 
 
+LEVELS = ("ask", "auto_edits", "approve_for_me", "full")
+
+
+async def level_of(slug: str) -> str:
+    row = await aio.fetch("SELECT level FROM shared.approval_levels WHERE slug=$1", slug)
+    return row[0]["level"] if row else "ask"
+
+
+async def set_level(slug: str, level: str) -> None:
+    if level not in LEVELS:
+        raise ValueError(level)
+    await aio.execute("INSERT INTO shared.approval_levels (slug, level) VALUES ($1,$2) "
+                      "ON CONFLICT (slug) DO UPDATE SET level=$2, updated_at=now()", slug, level)
+
+
 async def gate(action: str, summary: str, requester: str, ttl_s: float = DEFAULT_TTL_S,
                veto_window_s: float | None = None) -> bool:
     """Returns True if the action may proceed."""
     tier, rid = tier_of(action), uuid4()
     if tier == 1:
         await _save(rid, 1, action, summary, requester, ttl_s, status="auto")
+        return True
+    if tier == 2 and await level_of(requester) != "ask":
+        await _save(rid, 2, action, summary, requester, ttl_s, status="auto")  # Tier 3 always needs a human, whatever the level
         return True
     await _save(rid, tier, action, summary, requester, ttl_s)
     fut: asyncio.Future = asyncio.get_running_loop().create_future()

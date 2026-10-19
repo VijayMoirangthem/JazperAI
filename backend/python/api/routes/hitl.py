@@ -36,3 +36,21 @@ async def respond(request_id: UUID, body: RespondIn):
 @router.get("/policy")
 async def policy():
     return {"policy": hitl.POLICY, "default_tier": 3}
+
+
+class LevelIn(BaseModel):
+    level: str
+
+
+@router.get("/levels")
+async def levels():
+    return {"levels": {r["slug"]: r["level"] for r in await aio.fetch("SELECT slug, level FROM shared.approval_levels")}, "options": list(hitl.LEVELS)}
+
+
+@router.put("/levels/{slug}")
+async def put_level(slug: str, body: LevelIn):
+    try:
+        await hitl.set_level(slug, body.level)
+    except ValueError:
+        raise HTTPException(422, "unknown level")
+    return {"slug": slug, "level": body.level}

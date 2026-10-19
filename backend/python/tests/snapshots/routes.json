@@ -765,6 +765,10 @@
  ],
  [
   "GET",
+  "/api/edit/file"
+ ],
+ [
+  "GET",
   "/api/email-analytics"
  ],
  [
@@ -850,6 +854,10 @@
  [
   "GET",
   "/api/history/{session_id}"
+ ],
+ [
+  "GET",
+  "/api/hitl/levels"
  ],
  [
   "GET",
@@ -1545,6 +1553,10 @@
  ],
  [
   "GET",
+  "/api/v1/edit/file"
+ ],
+ [
+  "GET",
   "/api/v1/email-analytics"
  ],
  [
@@ -1630,6 +1642,10 @@
  [
   "GET",
   "/api/v1/history/{session_id}"
+ ],
+ [
+  "GET",
+  "/api/v1/hitl/levels"
  ],
  [
   "GET",
@@ -2593,6 +2609,14 @@
  ],
  [
   "POST",
+  "/api/edit/apply"
+ ],
+ [
+  "POST",
+  "/api/edit/stream"
+ ],
+ [
+  "POST",
   "/api/focus/sessions"
  ],
  [
@@ -3229,6 +3253,14 @@
  ],
  [
   "POST",
+  "/api/v1/edit/apply"
+ ],
+ [
+  "POST",
+  "/api/v1/edit/stream"
+ ],
+ [
+  "POST",
   "/api/v1/focus/sessions"
  ],
  [
@@ -3853,6 +3885,10 @@
  ],
  [
   "PUT",
+  "/api/hitl/levels/{slug}"
+ ],
+ [
+  "PUT",
   "/api/ide/file"
  ],
  [
@@ -3894,6 +3930,10 @@
  [
   "PUT",
   "/api/v1/bots/"
+ ],
+ [
+  "PUT",
+  "/api/v1/hitl/levels/{slug}"
  ],
  [
   "PUT",

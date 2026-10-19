@@ -341,6 +341,8 @@ from api.routes import hitl as hitl_route
 app.include_router(hitl_route.router, prefix="/api/hitl", tags=["hitl"])
 from api.routes import chat2 as chat2_route
 app.include_router(chat2_route.router, prefix="/api/chat2", tags=["chat2"])
+from api.routes import edit as edit_route
+app.include_router(edit_route.router, prefix="/api/edit", tags=["edit"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

@@ -24,18 +24,33 @@ const ROOMS: Channel[] = [
 const LEVELS: [ApprovalLevel, string][] = [["ask", "Ask for approval"], ["auto_edits", "Auto-accept edits"], ["approve_for_me", "Approve for me"], ["full", "Full access"]];
 
 /** Splits ``` fenced blocks from prose so code renders monospaced and copyable. */
-function Rich({ text }: { text: string }) {
+interface AskSpec { question: string; options: string[] }
+function parseAsk(block: string): AskSpec | null {
+  try { const j = JSON.parse(block.replace(/^```asks*/, "").replace(/```$/, "")); return Array.isArray(j.options) && j.question ? j : null; } catch { return null; }
+}
+function AskCard({ ask, onAnswer }: { ask: AskSpec; onAnswer?: (t: string) => void }) {
+  return (
+    <div role="group" aria-label="Question" className="my-2 rounded-2xl bg-black/30 px-3 py-2 ring-1 ring-white/15">
+      <div className="mb-2 text-sm font-semibold">{ask.question}</div>
+      <div className="flex flex-wrap gap-2">
+        {ask.options.slice(0, 6).map((o) => <button key={o} onClick={() => onAnswer?.(o)} className="rounded-full bg-white/10 px-3 py-1 text-xs hover:bg-white/20">{o}</button>)}
+      </div>
+    </div>
+  );
+}
+
+function Rich({ text, onAnswer }: { text: string; onAnswer?: (t: string) => void }) {
   const parts = text.split(/(```[\s\S]*?```)/g);
   return (
     <>
-      {parts.map((p, i) => p.startsWith("```")
+      {parts.map((p, i) => p.startsWith("```ask") && parseAsk(p) ? <AskCard key={i} ask={parseAsk(p)!} onAnswer={onAnswer} /> : p.startsWith("```")
         ? <pre key={i} className="my-2 overflow-x-auto rounded bg-black/40 p-2 text-xs font-mono">{p.replace(/^```\w*\n?/, "").replace(/```$/, "")}</pre>
         : <span key={i} className="whitespace-pre-wrap">{p}</span>)}
     </>
   );
 }
 
-function Bubble({ m }: { m: ChatMessage }) {
+function Bubble({ m, onAnswer }: { m: ChatMessage; onAnswer?: (t: string) => void }) {
   const mine = m.from === "you";
   return (
     <div className={`group flex ${mine ? "justify-end" : "justify-start"}`}>
@@ -46,7 +61,7 @@ function Bubble({ m }: { m: ChatMessage }) {
           : a.dataUrl && a.mime.startsWith("audio/")
             ? <audio key={a.name} controls src={a.dataUrl} className="mb-1 h-8" />
             : <div key={a.name} className="mb-1 inline-flex items-center gap-1 rounded bg-black/30 px-2 py-0.5 text-xs"><Paperclip size={11} />{a.name}</div>)}
-        <Rich text={m.text || (m.streaming ? "…" : "")} />
+        <Rich text={m.text || (m.streaming ? "…" : "")} onAnswer={m.streaming ? undefined : onAnswer} />
         <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-60">
           <button className="opacity-0 group-hover:opacity-100" title="Copy" onClick={() => navigator.clipboard?.writeText(m.text)}><Copy size={11} /></button>
           {new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -104,7 +119,13 @@ function Composer({ channel, members, onSend, busy, onStop }: { channel: string;
       mr.ondataavailable = (e) => chunks.push(e.data);
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop()); setRec(null);
-        await addFiles([new File(chunks, `voice-note-${Date.now()}.webm`, { type: "audio/webm" })]);
+        const file = new File(chunks, `voice-note-${Date.now()}.webm`, { type: "audio/webm" });
+        await addFiles([file]);
+        try {
+          const fd = new FormData(); fd.append("audio", file);
+          const r = await fetch(`${API}/api/voice/transcribe`, { method: "POST", body: fd }).then((x) => x.json());
+          if (r.text) setText((t) => (t ? t + " " : "") + r.text);
+        } catch { /* keep the audio attachment only */ }
       };
       mr.start(); setRec(mr);
     } catch { /* microphone denied */ }
@@ -170,6 +191,9 @@ export function ChatPanel2() {
     const t = setInterval(load, 5000);
     return () => { c.stop(); clearInterval(t); };
   }, []);
+  useEffect(() => {
+    fetch(`${API}/api/v1/hitl/levels`).then((r) => r.json()).then((d) => Object.entries(d.levels ?? {}).forEach(([slug, l]) => setApprovalLevel(slug, l as ApprovalLevel))).catch(() => undefined);
+  }, [setApprovalLevel]);
   useEffect(() => { markRead(active.id); }, [active.id, messages.length, markRead]);
 
   const members = useMemo(() => {
@@ -237,7 +261,7 @@ export function ChatPanel2() {
         <header className="px-4 py-3 border-b flex items-center gap-3">
           <span className="font-semibold">{active.label}</span>
           {active.kind === "dm" && (
-            <select value={level} onChange={(e) => setApprovalLevel(active.id.slice(3), e.target.value as ApprovalLevel)} className="ml-auto text-xs rounded border bg-transparent px-2 py-1" title="Approval level for this bot">
+            <select value={level} onChange={(e) => { const l = e.target.value as ApprovalLevel; const slug = active.id.slice(3); setApprovalLevel(slug, l); void fetch(`${API}/api/v1/hitl/levels/${slug}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ level: l }) }); }} className="ml-auto text-xs rounded border bg-transparent px-2 py-1" title="Approval level for this bot">
               {LEVELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           )}
@@ -248,7 +272,7 @@ export function ChatPanel2() {
           {shown.map((m, i) => (
             <div key={m.id}>
               {vp.start + i === unreadRef.current && <div className="my-2 flex items-center gap-2 text-xs text-blue-400"><span className="h-px flex-1 bg-blue-500/40" />New messages<span className="h-px flex-1 bg-blue-500/40" /></div>}
-              <Bubble m={m} />
+              <Bubble m={m} onAnswer={(t) => void send(t, [])} />
             </div>
           ))}
           {typing.length > 0 && <div className="text-xs opacity-60">{typing.join(", ")} working…</div>}

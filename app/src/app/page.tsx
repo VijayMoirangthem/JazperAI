@@ -7,6 +7,7 @@ import { ChatPanel2 } from "@/components/panels/ChatPanel2";
 import { OfficePanel } from "@/components/panels/OfficePanel";
 import { AiProvidersPanel } from "@/components/panels/AiProvidersPanel";
 import { BusinessPanel } from "@/components/panels/BusinessPanel";
+import { DiffEditorPanel } from "@/components/panels/DiffEditorPanel";
 import { LiveAgentsPanel } from "@/components/panels/LiveAgentsPanel";
 import { DashboardPanel } from "@/components/panels/DashboardPanel";
 import { ChatPanel, type LoadedSession } from "@/components/panels/ChatPanel";
@@ -230,6 +231,7 @@ export default function Home() {
     ide:            <IDEPanel />,
     control_tower:  <ControlTowerPanel />,
     live_agents:    <LiveAgentsPanel />,
+    diff_editor:    <DiffEditorPanel />,
     business:       <BusinessPanel />,
     ai_providers:   <AiProvidersPanel />,
     office:         <OfficePanel />,

@@ -73,3 +73,15 @@ async def test_tier2_proceeds_unless_vetoed():
     rid = UUID(str(await _pending_id()))
     await hitl.respond(rid, False, "founder")
     assert await asyncio.wait_for(task, 2) is False
+
+
+async def test_level_full_skips_tier2_wait_but_never_tier3():
+    await hitl.set_level("test-lvl", "full")
+    assert await hitl.gate("mcp.write", "write", "test-lvl", veto_window_s=30) is True  # no 30s wait
+    task = asyncio.create_task(hitl.gate("git.merge_main", "merge", "test-lvl", ttl_s=5))
+    rid = UUID(str(await _pending_id()))
+    await asyncio.sleep(0.05)
+    assert not task.done()  # tier 3 still blocks
+    await hitl.respond(rid, False, "founder")
+    assert await asyncio.wait_for(task, 2) is False
+    await aio.execute("DELETE FROM shared.approval_levels WHERE slug='test-lvl'")
