@@ -2533,6 +2533,10 @@
  ],
  [
   "POST",
+  "/api/directive/"
+ ],
+ [
+  "POST",
   "/api/focus/sessions"
  ],
  [
@@ -3146,6 +3150,10 @@
  [
   "POST",
   "/api/v1/direct/dept/{dept_id}"
+ ],
+ [
+  "POST",
+  "/api/v1/directive/"
  ],
  [
   "POST",

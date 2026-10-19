@@ -335,6 +335,8 @@ from api.routes import rpc as rpc_route
 app.include_router(rpc_route.router, prefix="/ws", tags=["websocket"])
 from api.routes import bots as bots_route
 app.include_router(bots_route.router, prefix="/api/bots", tags=["bots"])
+from api.routes import directive as directive_route
+app.include_router(directive_route.router, prefix="/api/directive", tags=["directive"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

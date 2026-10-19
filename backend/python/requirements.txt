@@ -33,3 +33,6 @@ sqlalchemy==2.0.35
 asyncpg==0.29.0
 keyring==25.5.0
 anthropic==1.15.0
+langgraph
+langgraph-checkpoint-postgres
+psycopg[binary,pool]
