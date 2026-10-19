@@ -8,7 +8,7 @@
     "dev": "vite --port 5173",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/rpcClient.test.mjs tests/chat.test.mjs tests/diffEditor.test.mjs"
+    "test": "node --test tests/rpcClient.test.mjs tests/chat.test.mjs tests/diffEditor.test.mjs tests/office.test.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",

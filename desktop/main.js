@@ -10,6 +10,7 @@ const ROOT = path.resolve(__dirname, "..");
 const SMOKE = process.argv.includes("--smoke");
 const UI_CHECK = process.argv.includes("--ui-check");
 const CHAT_CHECK = process.argv.includes("--chat-check");
+const OFFICE_CHECK = process.argv.includes("--office-check");
 const ALLOWED_ORIGINS = new Set([new URL(UI_URL).origin, new URL(API_URL).origin]);
 
 let win = null;
@@ -90,6 +91,18 @@ app.whenReady().then(async () => {
     return;
   }
   await ensureBackend();
+  if (OFFICE_CHECK) {
+    const w = new BrowserWindow({ show: true, x: 40, y: 40, width: 1400, height: 900, webPreferences: { contextIsolation: true, sandbox: true } });
+    w.webContents.on("console-message", (_e, level, message) => { if (level >= 3) console.log("CONSOLE_ERR " + message.slice(0, 200)); });
+    await w.loadURL(UI_URL + "#office");
+    await new Promise((r) => setTimeout(r, 6000));
+    await w.webContents.executeJavaScript("fetch('http://localhost:8000/ws/demo',{method:'POST'})");
+    await new Promise((r) => setTimeout(r, 4500));
+    console.log("OFFICE_CHECK " + (await w.webContents.executeJavaScript("new Promise((res) => { let n = 0; const t0 = performance.now(); const tick = () => { n++; if (performance.now() - t0 < 3000) requestAnimationFrame(tick); else res(JSON.stringify({ rafFps: Math.round(n / 3), gameFps: window.__officeFps, people: window.__officePeople, canvases: document.querySelectorAll('canvas').length })); }; requestAnimationFrame(tick); })")));
+    require("node:fs").writeFileSync(process.env.JASPER_SHOT || "office.png", (await w.webContents.capturePage()).toPNG());
+    app.exit(0);
+    return;
+  }
   if (CHAT_CHECK) {
     const w = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true } });
     w.webContents.on("console-message", (_e, level, message) => { if (level >= 3) console.log("CONSOLE_ERR " + message.slice(0, 300)); });
@@ -125,7 +138,12 @@ app.whenReady().then(async () => {
       errors = [];
       await w.loadURL(UI_URL + "#" + p);
       await new Promise((r) => setTimeout(r, 3500));
-      const info = await w.webContents.executeJavaScript("JSON.stringify({title: document.title, len: document.body.innerText.length})");
+      if (p === "office") {
+        await w.webContents.executeJavaScript("fetch('http://localhost:8000/ws/demo',{method:'POST'})");
+        await new Promise((r) => setTimeout(r, 6000));
+      }
+      if (process.env.JASPER_SHOTDIR) require("node:fs").writeFileSync(require("node:path").join(process.env.JASPER_SHOTDIR, p + ".png"), (await w.webContents.capturePage()).toPNG());
+      const info = await w.webContents.executeJavaScript("JSON.stringify({title: document.title, len: document.body.innerText.length, fps: window.__officeFps, people: window.__officePeople})");
       console.log("UI_CHECK " + p + " " + info + " errors=" + JSON.stringify(errors.slice(0, 3)));
     }
     app.exit(0);
