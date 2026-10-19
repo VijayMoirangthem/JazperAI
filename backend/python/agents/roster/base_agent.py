@@ -151,6 +151,8 @@ class BaseAgent:
 
         start = time.monotonic()
 
+        from core.eventbus import announce
+        announce(self.name, "working", bubble=str(task)[:100])
         await emit("AGENT_START", {
             "name": self.name,
             "emoji": self.emoji,
@@ -164,7 +166,8 @@ class BaseAgent:
             trace.duration_ms = int((time.monotonic() - start) * 1000)
             trace.success = True
 
-            await emit("AGENT_DONE", {
+            announce(self.name, "idle")
+        await emit("AGENT_DONE", {
                 "name": self.name,
                 "tokens_prompt": trace.tokens_prompt,
                 "tokens_completion": trace.tokens_completion,
@@ -189,6 +192,7 @@ class BaseAgent:
                 self.name, success=False,
                 duration_ms=trace.duration_ms,
             )
+            announce(self.name, "error", reason=str(e))
             await emit("AGENT_ERROR", {"name": self.name, "error": str(e)})
 
             return AgentResult(
