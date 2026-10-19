@@ -20,7 +20,7 @@ import { ChatPanel, type LoadedSession } from "@/components/panels/ChatPanel";
 import { TasksPanel } from "@/components/panels/TasksPanel";
 import { LogsPanel } from "@/components/panels/LogsPanel";
 import { SettingsPanel } from "@/components/panels/SettingsPanel";
-import { MemoryPanel } from "@/components/panels/MemoryPanel";
+import { MemoryV2Panel } from "@/components/panels/MemoryV2Panel";
 import { HistoryPanel } from "@/components/panels/HistoryPanel";
 import { JobsPanel } from "@/components/panels/JobsPanel";
 import { GmailPanel } from "@/components/panels/GmailPanel";
@@ -214,7 +214,7 @@ export default function Home() {
     history:  <HistoryPanel onLoadSession={handleLoadSession} />,
     tasks:    <TasksPanel />,
     logs:     <LogsPanel />,
-    memory:   <MemoryPanel />,
+    memory:   <MemoryV2Panel />,
     browser:  <PlaceholderPanel label="Browser Control" />,
     settings: <SettingsPanel />,
     jobs:     <JobsPanel />,

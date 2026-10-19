@@ -46,3 +46,4 @@ Supersedes the P3 prototype slices in `Version1/PROMPTS_V1.md`; P0–P2 foundati
 | A3 | ◐ CliProvider written, untested against a real CLI |
 | B1 | ☑ app/ Vite+React19 workspace builds; Electron loads it with 0 console errors (reuses ../frontend/src via alias until B4); no shared/ wire types yet |
 | B2–B4, C–G | ☐ |
+| G2 | ☑ Memory v2: migration applied, tests pass, wired into chat2 _speak(), MemoryV2Panel registered |

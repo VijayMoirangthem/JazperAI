@@ -4,6 +4,7 @@ Events (one JSON object per line):
   {"t":"speaker","slug":..}  {"t":"delta","slug":..,"text":..}  {"t":"done","slug":..,"usage":{..}}  {"t":"error","message":..}
 Room events also start with {"t":"route","slugs":[..],"source":..,"confidence":..}.
 """
+import asyncio
 import json
 from collections.abc import AsyncIterator
 
@@ -17,6 +18,7 @@ from core import directory, finops
 from core.eventbus import announce
 from core.llm.registry import get_router
 from core.llm.types import LLMRequest, Usage
+from memory import consolidate
 
 router = APIRouter()
 MAX_HISTORY = 20
@@ -70,9 +72,23 @@ def _line(o: dict) -> str:
 
 async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attachment], tier: str | None = None) -> AsyncIterator[str]:
     system, default_tier = _persona(slug)
+    
+    # Memory v2: recall relevant facts before answering (only for jasper)
+    if slug == "jasper":
+        try:
+            facts = await asyncio.wait_for(consolidate.recall(text, k=4), timeout=4.0)
+            if facts:
+                bullet = "\n".join(f"- {f}" for f in facts)
+                system = f"{system}\n\nWhat you already know about the user:\n{bullet}"
+        except asyncio.TimeoutError:
+            pass  # memory must never block the conversation
+        except Exception:
+            pass  # memory must never break a conversation
+    
     msgs = [{"role": t.role, "content": t.content} for t in history[-MAX_HISTORY:]] + [{"role": "user", "content": _user_content(text, atts)}]
     yield _line({"t": "speaker", "slug": slug})
     announce(slug, "working", bubble=text[:100])
+    reply_parts: list[str] = []
     try:
         b = registry.routable(slug)
         with finops.attribute(slug, b.crew if b else None):
@@ -80,12 +96,17 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
                 if isinstance(item, Usage):
                     yield _line({"t": "done", "slug": slug, "usage": item.model_dump()})
                 else:
+                    reply_parts.append(item)
                     yield _line({"t": "delta", "slug": slug, "text": item})
     except Exception as e:
         announce(slug, "error", reason=str(e))
         yield _line({"t": "error", "slug": slug, "message": str(e)[:200]})
         return
     announce(slug, "idle")
+    
+    # Memory v2: consolidate the turn after the reply (only for jasper)
+    if slug == "jasper" and reply_parts:
+        asyncio.create_task(consolidate.consolidate_turn(r, text, "".join(reply_parts)))
 
 
 @router.post("/stream")
