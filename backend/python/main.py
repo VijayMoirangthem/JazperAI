@@ -233,7 +233,7 @@ class NoCacheMunderMiddleware(BaseHTTPMiddleware):
 app.add_middleware(NoCacheMunderMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=sorted({settings.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3001", "http://127.0.0.1:3001"}),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -339,6 +339,8 @@ from api.routes import directive as directive_route
 app.include_router(directive_route.router, prefix="/api/directive", tags=["directive"])
 from api.routes import hitl as hitl_route
 app.include_router(hitl_route.router, prefix="/api/hitl", tags=["hitl"])
+from api.routes import chat2 as chat2_route
+app.include_router(chat2_route.router, prefix="/api/chat2", tags=["chat2"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

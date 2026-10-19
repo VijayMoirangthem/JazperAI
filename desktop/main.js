@@ -9,6 +9,7 @@ const API_URL = process.env.JASPER_API_URL || "http://localhost:8000";
 const ROOT = path.resolve(__dirname, "..");
 const SMOKE = process.argv.includes("--smoke");
 const UI_CHECK = process.argv.includes("--ui-check");
+const CHAT_CHECK = process.argv.includes("--chat-check");
 const ALLOWED_ORIGINS = new Set([new URL(UI_URL).origin, new URL(API_URL).origin]);
 
 let win = null;
@@ -89,6 +90,32 @@ app.whenReady().then(async () => {
     return;
   }
   await ensureBackend();
+  if (CHAT_CHECK) {
+    const w = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true } });
+    w.webContents.on("console-message", (_e, level, message) => { if (level >= 3) console.log("CONSOLE_ERR " + message.slice(0, 300)); });
+    w.setSize(1280, 860);
+    await w.loadURL(UI_URL + "#team_chat");
+    await new Promise((r) => setTimeout(r, 4000));
+    const script = `(async () => {
+      const ta = document.querySelector('textarea');
+      if (!ta) return 'NO_TEXTAREA';
+      const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+      set.call(ta, 'Reply with exactly the word: pong'); ta.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 200));
+      ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await new Promise(r => setTimeout(r, 15000));
+      const el = document.querySelector('.rounded-2xl');
+      const hits = [];
+      const walk = (rules, layer) => { for (const r of rules) { if (r.cssRules && !r.selectorText) walk(r.cssRules, (r.name || r.constructor.name) + '/' + layer); else if (r.selectorText && (r.style.padding || r.style.paddingInline) ) { try { if (el.matches(r.selectorText)) hits.push(layer + ' ' + r.selectorText + ' => ' + (r.style.padding || r.style.paddingInline)); } catch (e) {} } } };
+      for (const sh of document.styleSheets) { try { walk(sh.cssRules, 'top'); } catch (e) {} }
+      return 'PADHITS ' + hits.join(' ;; ') + ' computed=' + getComputedStyle(el).padding + ' cls=' + el.className;
+      return 'ta=' + document.querySelectorAll('textarea').length + ' bubbles=' + document.querySelectorAll('.rounded-2xl').length + ' text=' + document.body.innerText.replace(/\s+/g, ' ').slice(0, 400);
+    })()`;
+    console.log("CHAT_CHECK " + (await w.webContents.executeJavaScript(script)));
+    require("node:fs").writeFileSync(process.env.JASPER_SHOT || "shot.png", (await w.webContents.capturePage()).toPNG());
+    app.exit(0);
+    return;
+  }
   if (UI_CHECK) {
     const errors = [];
     win = null;

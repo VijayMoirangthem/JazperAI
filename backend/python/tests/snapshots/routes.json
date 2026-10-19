@@ -2525,6 +2525,14 @@
  ],
  [
   "POST",
+  "/api/chat2/room"
+ ],
+ [
+  "POST",
+  "/api/chat2/stream"
+ ],
+ [
+  "POST",
   "/api/company/departments/{dept_id}/toggle"
  ],
  [
@@ -3150,6 +3158,14 @@
  [
   "POST",
   "/api/v1/chat/stream"
+ ],
+ [
+  "POST",
+  "/api/v1/chat2/room"
+ ],
+ [
+  "POST",
+  "/api/v1/chat2/stream"
  ],
  [
   "POST",

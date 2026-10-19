@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
-import { TeamChatPanel } from "@/components/panels/TeamChatPanel";
+import { ChatPanel2 } from "@/components/panels/ChatPanel2";
 import { OfficePanel } from "@/components/panels/OfficePanel";
 import { AiProvidersPanel } from "@/components/panels/AiProvidersPanel";
 import { BusinessPanel } from "@/components/panels/BusinessPanel";
@@ -233,7 +233,7 @@ export default function Home() {
     business:       <BusinessPanel />,
     ai_providers:   <AiProvidersPanel />,
     office:         <OfficePanel />,
-    team_chat:      <TeamChatPanel />,
+    team_chat:      <ChatPanel2 />,
     company:        <CompanyDashboardPanel />,
     pipeline:       <PipelinePanel />,
     evolution:      <EvolutionPanel />,

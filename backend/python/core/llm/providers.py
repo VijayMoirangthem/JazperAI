@@ -116,16 +116,20 @@ class OpenAICompatProvider(Provider):
                                      latency_ms=int((time.perf_counter() - t0) * 1000)))
 
     async def stream(self, req: LLMRequest) -> AsyncIterator[str | Usage]:
-        t0, model = time.perf_counter(), self.models[req.tier]
+        t0, model, u = time.perf_counter(), self.models[req.tier], None
         try:
             s = await self.client.chat.completions.create(model=model, messages=self._msgs(req), max_tokens=req.max_tokens,
-                                                          temperature=req.temperature, stream=True)
+                                                          temperature=req.temperature, stream=True,
+                                                          stream_options={"include_usage": True})
             async for chunk in s:
+                if getattr(chunk, "usage", None):
+                    u = chunk.usage
                 if chunk.choices and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
         except Exception as e:
             raise ProviderError(type(e).__name__, retryable=True) from e
-        yield Usage(provider=self.name, model=model, latency_ms=int((time.perf_counter() - t0) * 1000))
+        yield Usage(provider=self.name, model=model, input_tokens=getattr(u, "prompt_tokens", 0) or 0,
+                    output_tokens=getattr(u, "completion_tokens", 0) or 0, latency_ms=int((time.perf_counter() - t0) * 1000))
 
     async def count_tokens(self, req: LLMRequest) -> int:
         return sum(len(m.get("content", "")) for m in self._msgs(req)) // 4  # coarse estimate
