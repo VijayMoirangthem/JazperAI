@@ -1,3 +1,2 @@
-@import "../../frontend/src/app/globals.css";
-@source "../../frontend/src";
+@import "./app/globals.css";
 :root { --font-inter: "Inter", system-ui, sans-serif; --font-jetbrains: "JetBrains Mono", monospace; }

@@ -290,6 +290,7 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
   { id: "team_chat",     label: "Team Chat",      description: "Chat with Sir Jasper, agents and department channels", icon: Radio,   group: "agent_os", system: "agent_os" },
   { id: "office",        label: "Virtual Office", description: "2D office with live agent bubbles", icon: Building2, group: "agent_os", system: "agent_os" },
   { id: "ai_providers",  label: "AI Providers",  description: "Add AI providers, models and tier routing", icon: Server, group: "agent_os", system: "agent_os" },
+  { id: "business",      label: "Business",      description: "Clients, projects, team and finance", icon: Building2, group: "agent_os", system: "agent_os" },
   { id: "live_agents",   label: "Live Agents",    description: "Real-time agent states from the event bus", icon: Radio,       group: "agent_os", system: "agent_os" },
   { id: "control_tower", label: "Control Tower",   description: "System control and monitoring",             icon: Server,      group: "agent_os", system: "agent_os" },
   { id: "plans",         label: "Plans",           description: "Multi-step agent plan tracker",             icon: GitBranch,   group: "agent_os", system: "agent_os" },

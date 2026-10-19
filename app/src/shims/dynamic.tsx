@@ -1,9 +1,9 @@
-import { Suspense, lazy, type ComponentType } from "react";
+import { Suspense, lazy, type Attributes, type ComponentType, type ReactNode } from "react";
 
 type Loader<P> = () => Promise<ComponentType<P> | { default: ComponentType<P> }>;
 
 /** Minimal stand-in for next/dynamic: lazy chunk + Suspense. `ssr` and `loading` options are accepted and ignored. */
-export default function dynamic<P extends object>(loader: Loader<P>, opts?: { ssr?: boolean; loading?: () => JSX.Element | null }) {
+export default function dynamic<P extends object>(loader: Loader<P>, opts?: { ssr?: boolean; loading?: () => ReactNode }) {
   const Lazy = lazy(async () => {
     const m = await loader();
     return "default" in (m as object) ? (m as { default: ComponentType<P> }) : { default: m as ComponentType<P> };
@@ -11,7 +11,7 @@ export default function dynamic<P extends object>(loader: Loader<P>, opts?: { ss
   return function Dynamic(props: P) {
     return (
       <Suspense fallback={opts?.loading ? opts.loading() : null}>
-        <Lazy {...(props as P & JSX.IntrinsicAttributes)} />
+        <Lazy {...(props as P & Attributes)} />
       </Suspense>
     );
   };
