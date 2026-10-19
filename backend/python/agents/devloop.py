@@ -1,7 +1,7 @@
 """Bounded dev-loop graph (spec §10): plan -> implement -> verify -> repair (max 3 attempts) -> rollback -> escalate.
 
-Verification runs the test command in the patch worktree via subprocess with a timeout. This is NOT isolated: until the Docker
-sandbox lands (Plan V2 G1) the runner is flagged `isolated: false` in every result and only repos you trust should be used.
+Verification runs the test command in the patch worktree. With sandbox=True it runs in an ephemeral hardened Docker container (no network,
+read-only copy of the tree); otherwise it is a plain subprocess, flagged `isolated: false` in the result.
 """
 import asyncio
 import subprocess
@@ -26,6 +26,7 @@ class DevState(TypedDict, total=False):
     task: str
     test_cmd: list[str]
     workdir: str
+    sandbox: bool
     branch: str
     worktree: str
     base: str
@@ -60,9 +61,16 @@ def build_devloop(implement: Implement, agent: str = "forge", model: str = "unkn
 
     async def verify(s: DevState):
         announce(agent, "testing", bubble=f"attempt {s['attempt']}")
-        with span("devloop.verify", attempt=s["attempt"]):
-            code, out = await asyncio.to_thread(_run_tests, s["test_cmd"], str(Path(s["worktree"]) / s.get("workdir", "")), test_timeout)
-        hist = s["history"] + [{"attempt": s["attempt"], "exit": code, "isolated": False}]
+        isolated = bool(s.get("sandbox"))
+        with span("devloop.verify", attempt=s["attempt"], isolated=isolated):
+            cwd = Path(s["worktree"]) / s.get("workdir", "")
+            if isolated:
+                from hub import sandbox
+                r = await sandbox.run(s["test_cmd"], cwd, timeout_s=test_timeout, network="none")
+                code, out = (124 if r.timed_out else r.exit_code), r.output[-1500:]
+            else:
+                code, out = await asyncio.to_thread(_run_tests, s["test_cmd"], str(cwd), test_timeout)
+        hist = s["history"] + [{"attempt": s["attempt"], "exit": code, "isolated": isolated}]
         if code == 0:
             sha = await gitops.commit(Path(s["worktree"]), f"agent-patch: {s['task'][:60]}", agent, model, s["task"])
             return {"passed": True, "commit": sha, "history": hist}
@@ -96,10 +104,10 @@ def build_devloop(implement: Implement, agent: str = "forge", model: str = "unkn
     return g.compile()
 
 
-async def run_devloop(repo: Path, worktrees: Path, task: str, test_cmd: list[str], implement: Implement, workdir: str = "", **kw) -> DevState:
+async def run_devloop(repo: Path, worktrees: Path, task: str, test_cmd: list[str], implement: Implement, workdir: str = "", sandbox: bool = False, **kw) -> DevState:
     graph = build_devloop(implement, **kw)
     # recursion_limit is a second, framework-level guard: 3 attempts * 2 nodes + plan/rollback/escalate fits in 14 steps
-    out = await graph.ainvoke({"repo": str(repo), "worktrees": str(worktrees), "task": task, "test_cmd": test_cmd, "workdir": workdir, "status": "verified"},
+    out = await graph.ainvoke({"repo": str(repo), "worktrees": str(worktrees), "task": task, "test_cmd": test_cmd, "workdir": workdir, "sandbox": sandbox, "status": "verified"},
                               {"recursion_limit": 14})
-    out["isolated"] = False
+    out["isolated"] = sandbox
     return out

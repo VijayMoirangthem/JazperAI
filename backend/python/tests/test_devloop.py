@@ -89,3 +89,13 @@ async def test_merge_to_main_requires_approved_tier3_record(repo, tmp_path):
     with pytest.raises(gitops.GitError):  # only agent-patch/* branches
         await gitops.merge_to_main(repo, "main", rid)
     await aio.execute("DELETE FROM shared.hitl_requests WHERE requester='test-dl'")
+
+
+async def test_verification_can_run_inside_the_docker_sandbox(repo, tmp_path):
+    from hub import sandbox
+    if not sandbox.available():
+        pytest.skip("docker not available")
+    out = await run_devloop(repo, tmp_path / "wt", "fix add in sandbox", ["python", "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider"], fixer(2),
+                            sandbox=True)
+    assert out["passed"] and out["attempt"] == 2 and out["isolated"] is True
+    assert all(h["isolated"] for h in out["history"])

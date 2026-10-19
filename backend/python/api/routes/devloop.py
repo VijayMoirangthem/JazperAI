@@ -20,6 +20,7 @@ RUNS: dict[str, dict] = {}
 WORKTREES = ROOT / "storage" / "worktrees"
 PRESETS = {  # name -> (command, workdir inside the worktree)
     "pytest-backend": ([sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", "--ignore=tests/test_probe_pulse.py"], "backend/python"),
+    "pytest-sandbox": (["python", "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider"], "", True),  # isolated in Docker; for self-contained test suites
     "none": ([sys.executable, "-c", "pass"], ""),
 }
 
@@ -46,11 +47,12 @@ async def _execute(run: dict) -> None:
             run["attempt"] = attempt
             await impl(wt, attempt, feedback)
 
-        cmd, workdir = PRESETS[run["test"]]
-        out = await run_devloop(ROOT, WORKTREES, run["task"], cmd, implement, workdir=workdir)
+        cmd, workdir, *rest = PRESETS[run["test"]]
+        sandboxed = bool(rest and rest[0])
+        out = await run_devloop(ROOT, WORKTREES, run["task"], cmd, implement, workdir=workdir, sandbox=sandboxed)
         passed = out.get("passed") is True
         diff = (await gitops.diff(Path(out["worktree"]), out["base"]))[:60000] if passed else ""
-        run.update(branch=out["branch"], base=out["base"], history=out["history"], worktree_path=out["worktree"], isolated=False, diff=diff,
+        run.update(branch=out["branch"], base=out["base"], history=out["history"], worktree_path=out["worktree"], isolated=bool(out.get("isolated")), diff=diff,
                    commit=out.get("commit"), status="verified" if passed else out.get("status", "rolled_back_escalated"))  # status last: readers see a complete run
     except Exception as e:
         run.update(status="error", error=str(e)[:300])

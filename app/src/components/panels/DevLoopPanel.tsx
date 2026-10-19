@@ -41,11 +41,11 @@ export function DevLoopPanel() {
         <textarea value={files} onChange={(e) => setFiles(e.target.value)} rows={2} placeholder="files to edit (one per line, from project root)" className="w-full rounded border bg-transparent p-2 font-mono text-xs" />
         <div className="flex gap-2">
           <select value={test} onChange={(e) => setTest(e.target.value)} className="flex-1 rounded border bg-transparent px-2 py-1 text-xs">
-            <option value="pytest-backend">Verify with backend pytest</option><option value="none">No verification</option>
+            <option value="pytest-backend">Verify with backend pytest (on this machine)</option><option value="pytest-sandbox">Verify in Docker sandbox (isolated)</option><option value="none">No verification</option>
           </select>
           <button disabled={task.length < 5 || !files.trim()} onClick={start} className="rounded border px-3 py-1 text-sm disabled:opacity-40">Run</button>
         </div>
-        <div className="text-[11px] opacity-60">Runs on a separate branch in a worktree; tests run on your machine (not isolated until the Docker sandbox lands). Nothing reaches your current branch without your approval.</div>
+        <div className="text-[11px] opacity-60">Runs on a separate branch in a worktree; the Docker option isolates the tests (no network, read-only copy). Nothing reaches your current branch without your approval.</div>
         {runs.map((r) => (
           <button key={r.id} onClick={() => setSel(r.id)} className="block w-full rounded border p-2 text-left text-sm" style={{ background: sel === r.id ? "rgba(255,255,255,0.08)" : "transparent" }}>
             <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: COLOR[r.status] ?? "#64748b" }} /><span className="truncate">{r.task}</span></div>
