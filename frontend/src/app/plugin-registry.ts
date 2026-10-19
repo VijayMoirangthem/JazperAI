@@ -287,6 +287,8 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
   { id: "qa",            label: "QA Center",       description: "Quality assurance and testing",             icon: ShieldCheck, group: "agent_os", system: "agent_os" },
   { id: "observatory",   label: "Observatory",     description: "Live agent feed and session monitor",       icon: Radio,       group: "agent_os", system: "agent_os" },
   { id: "company",       label: "Company",         description: "Company-level KPIs and dept scorecards",    icon: Building2,   group: "agent_os", system: "agent_os" },
+  { id: "team_chat",     label: "Team Chat",      description: "Chat with Sir Jasper, agents and department channels", icon: Radio,   group: "agent_os", system: "agent_os" },
+  { id: "office",        label: "Virtual Office", description: "2D office with live agent bubbles", icon: Building2, group: "agent_os", system: "agent_os" },
   { id: "live_agents",   label: "Live Agents",    description: "Real-time agent states from the event bus", icon: Radio,       group: "agent_os", system: "agent_os" },
   { id: "control_tower", label: "Control Tower",   description: "System control and monitoring",             icon: Server,      group: "agent_os", system: "agent_os" },
   { id: "plans",         label: "Plans",           description: "Multi-step agent plan tracker",             icon: GitBranch,   group: "agent_os", system: "agent_os" },

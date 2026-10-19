@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { TeamChatPanel } from "@/components/panels/TeamChatPanel";
+import { OfficePanel } from "@/components/panels/OfficePanel";
 import { LiveAgentsPanel } from "@/components/panels/LiveAgentsPanel";
 import { DashboardPanel } from "@/components/panels/DashboardPanel";
 import { ChatPanel, type LoadedSession } from "@/components/panels/ChatPanel";
@@ -226,6 +228,8 @@ export default function Home() {
     ide:            <IDEPanel />,
     control_tower:  <ControlTowerPanel />,
     live_agents:    <LiveAgentsPanel />,
+    office:         <OfficePanel />,
+    team_chat:      <TeamChatPanel />,
     company:        <CompanyDashboardPanel />,
     pipeline:       <PipelinePanel />,
     evolution:      <EvolutionPanel />,

@@ -165,6 +165,8 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P2-07 | HITL engine | ◐ engine+API+tests done; existing approvals UI/API not adapted; LangGraph interrupt not used | |
 | P3-02 | Electron shell | ◐ desktop/ wraps existing Next UI; security smoke test passes; no electron-builder packaging, no Playwright, Vite renderer migration deferred | |
 | P3-03 | WS JSON-RPC client | ◐ TS client+store+resume test OK; types hand-written (not generated from schemas); not yet run against a live backend restart | |
+| P3-07 | Chat UI v2 | ◐ Team Chat panel: roster, DMs, department channels, bubbles, ticks, typing from live events; no attachments/audio/token streaming/Playwright | |
+| P3-09 | Phaser office | ◐ Phaser+Tiled-format map, humans+bots at desks, live bubbles/colors, click-to-walk BFS; no rooms builder, schedules, fps measurement; art is generated (no licensed assets) | |
 | P2-09 | Event bus + /ws/rpc | ◐ in-process bus+JSON-RPC done, agents publish state changes; Redis fan-out + legacy shim not done | |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |
