@@ -237,6 +237,10 @@
  ],
  [
   "DELETE",
+  "/api/system/secrets/{name}"
+ ],
+ [
+  "DELETE",
   "/api/tasks/{task_id}"
  ],
  [
@@ -482,6 +486,10 @@
  [
   "DELETE",
   "/api/v1/storage/{prefix}/{filename}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/system/secrets/{name}"
  ],
  [
   "DELETE",
@@ -1289,6 +1297,14 @@
  ],
  [
   "GET",
+  "/api/system/health"
+ ],
+ [
+  "GET",
+  "/api/system/secrets"
+ ],
+ [
+  "GET",
   "/api/task-priority"
  ],
  [
@@ -2090,6 +2106,14 @@
  [
   "GET",
   "/api/v1/suggestions"
+ ],
+ [
+  "GET",
+  "/api/v1/system/health"
+ ],
+ [
+  "GET",
+  "/api/v1/system/secrets"
  ],
  [
   "GET",
@@ -3089,6 +3113,10 @@
  ],
  [
   "POST",
+  "/api/system/backup"
+ ],
+ [
+  "POST",
   "/api/task-priority/analyze"
  ],
  [
@@ -3753,6 +3781,10 @@
  ],
  [
   "POST",
+  "/api/v1/system/backup"
+ ],
+ [
+  "POST",
   "/api/v1/task-priority/analyze"
  ],
  [
@@ -4005,6 +4037,10 @@
  ],
  [
   "PUT",
+  "/api/system/secrets"
+ ],
+ [
+  "PUT",
   "/api/templates/{template_id}"
  ],
  [
@@ -4058,6 +4094,10 @@
  [
   "PUT",
   "/api/v1/profile/"
+ ],
+ [
+  "PUT",
+  "/api/v1/system/secrets"
  ],
  [
   "PUT",

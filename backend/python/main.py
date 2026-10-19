@@ -362,6 +362,8 @@ from api.routes import finops as finops_route
 app.include_router(finops_route.router, prefix="/api/finops", tags=["finops"])
 from api.routes import mcp_hub as mcp_hub_route
 app.include_router(mcp_hub_route.router, prefix="/api/mcp-hub", tags=["mcp-hub"])
+from api.routes import system as system_route
+app.include_router(system_route.router, prefix="/api/system", tags=["system"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

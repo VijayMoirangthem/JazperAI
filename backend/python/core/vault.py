@@ -90,3 +90,11 @@ def decrypt(blob: str) -> dict:
 def reencrypt(blob: str) -> str:
     """Re-encrypt under the current primary key (after rotate())."""
     return _fernet().rotate(blob.encode()).decode()
+
+
+def delete(name: str) -> None:
+    try:
+        _kr().delete_password(SERVICE, name)
+    except Exception:
+        pass  # already absent
+    log.info("vault secret deleted", name=name)

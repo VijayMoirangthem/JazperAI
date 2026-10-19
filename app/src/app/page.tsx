@@ -8,6 +8,10 @@ import { OfficePanel } from "@/components/panels/OfficePanel";
 import { AiProvidersPanel } from "@/components/panels/AiProvidersPanel";
 import { BusinessPanel } from "@/components/panels/BusinessPanel";
 import { DiffEditorPanel } from "@/components/panels/DiffEditorPanel";
+import { CompanyPanel } from "@/components/panels/CompanyPanel";
+import { FinOpsPanel } from "@/components/panels/FinOpsPanel";
+import { McpHubPanel } from "@/components/panels/McpHubPanel";
+import { SystemPanel } from "@/components/panels/SystemPanel";
 import { LiveAgentsPanel } from "@/components/panels/LiveAgentsPanel";
 import { DashboardPanel } from "@/components/panels/DashboardPanel";
 import { ChatPanel, type LoadedSession } from "@/components/panels/ChatPanel";
@@ -231,6 +235,10 @@ export default function Home() {
     ide:            <IDEPanel />,
     control_tower:  <ControlTowerPanel />,
     live_agents:    <LiveAgentsPanel />,
+    system: <SystemPanel />,
+    mcp_hub: <McpHubPanel />,
+    finops: <FinOpsPanel />,
+    org_chart: <CompanyPanel />,
     diff_editor:    <DiffEditorPanel />,
     business:       <BusinessPanel />,
     ai_providers:   <AiProvidersPanel />,

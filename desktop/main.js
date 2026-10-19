@@ -103,7 +103,7 @@ app.whenReady().then(async () => {
   if (OFFICE_CHECK) {
     const w = new BrowserWindow({ show: true, x: 40, y: 40, width: 1400, height: 900, webPreferences: { contextIsolation: true, sandbox: true } });
     w.webContents.on("console-message", (_e, level, message) => { if (level >= 3) console.log("CONSOLE_ERR " + message.slice(0, 200)); });
-    await w.loadURL(UI_URL + "#office");
+    await w.loadURL(UI_URL + "#" + (process.env.JASPER_HASH || "office"));
     await new Promise((r) => setTimeout(r, 6000));
     await w.webContents.executeJavaScript("fetch('http://localhost:8000/ws/demo',{method:'POST'})");
     await new Promise((r) => setTimeout(r, 4500));
