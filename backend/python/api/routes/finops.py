@@ -22,3 +22,19 @@ async def summary():
 async def put_budget(b: BudgetIn):
     await finops.set_budget(b.scope, b.daily_soft, b.daily_hard)
     return {"saved": b.scope}
+
+
+class PriceIn(BaseModel):
+    model: str
+    input_per_m: float
+    output_per_m: float
+    source: str = ""
+
+
+@router.put("/prices")
+async def put_price(p: PriceIn):
+    if p.input_per_m < 0 or p.output_per_m < 0:
+        from fastapi import HTTPException
+        raise HTTPException(422, "prices must be >= 0")
+    await finops.set_price(p.model, p.input_per_m, p.output_per_m, p.source)
+    return {"saved": p.model}

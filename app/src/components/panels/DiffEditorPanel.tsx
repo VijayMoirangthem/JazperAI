@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DiffEditor } from "@monaco-editor/react";
 import "@/lib/monacoLocal";
 import { Check, FileDiff, X } from "lucide-react";
@@ -21,6 +21,9 @@ export function DiffEditorPanel() {
   const [state, setState] = useState<"idle" | "streaming" | "done" | "error">("idle");
   const [msg, setMsg] = useState("");
   const abort = useRef<AbortController | null>(null);
+  const editorRef = useRef<{ setModel: (m: null) => void } | null>(null);
+  // detach the models before Monaco disposes them, otherwise leaving the panel throws "model got disposed before the widget was reset"
+  useEffect(() => () => { try { editorRef.current?.setModel(null); } catch { /* already disposed */ } }, []);
   const modified = useMemo(() => applyAccepted(original, hunks, rejected), [original, hunks, rejected]);
 
   const run = async () => {
@@ -63,7 +66,7 @@ export function DiffEditorPanel() {
       </div>
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-w-0">
-          <DiffEditor height="100%" theme="vs-dark" original={original} modified={modified} language={path.split(".").pop() === "py" ? "python" : path.split(".").pop() === "ts" || path.split(".").pop() === "tsx" ? "typescript" : undefined}
+          <DiffEditor height="100%" keepCurrentOriginalModel keepCurrentModifiedModel onMount={(e) => { editorRef.current = e as unknown as { setModel: (m: null) => void }; }} theme="vs-dark" original={original} modified={modified} language={path.split(".").pop() === "py" ? "python" : path.split(".").pop() === "ts" || path.split(".").pop() === "tsx" ? "typescript" : undefined}
             options={{ readOnly: true, renderSideBySide: true, minimap: { enabled: false }, automaticLayout: true }} />
         </div>
         <aside className="w-72 space-y-2 overflow-y-auto border-l p-2">

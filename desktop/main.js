@@ -17,7 +17,8 @@ let win = null;
 let backend = null;
 
 // ── single instance + deep link (jasper://… for OAuth loopback hand-off) ──────────────────
-if (!app.requestSingleInstanceLock() && !SMOKE) app.quit();
+const E2E = !!process.env.JASPER_E2E; // automated tests run their own instance
+if (!E2E && !app.requestSingleInstanceLock() && !SMOKE) app.quit();
 app.setAsDefaultProtocolClient("jasper");
 app.on("second-instance", (_e, argv) => {
   if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
@@ -175,7 +176,7 @@ app.whenReady().then(async () => {
     return;
   }
   await createWindow("data:text/html;charset=utf-8," + encodeURIComponent(SPLASH));
-  setupTray();
+  if (!E2E) setupTray();
   await ensureBackend();
   if (await waitFor(UI_URL, 180)) await win.loadURL(UI_URL);
   else await win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent("<body style='background:#0b0f14;color:#f87171;font:15px Segoe UI;padding:40px'>The interface did not start. Check storage/logs/renderer.err.log, then reopen the app.</body>"));

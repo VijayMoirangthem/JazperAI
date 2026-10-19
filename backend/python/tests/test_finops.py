@@ -84,3 +84,19 @@ async def test_summary_and_endpoint():
     c = TestClient(app)
     assert c.put("/api/v1/finops/budgets", json={"scope": "agent:fo-d", "daily_hard": 10}).status_code == 200
     assert c.get("/api/v1/finops/summary").json()["today"]["calls"] >= 1
+
+
+async def test_entered_prices_drive_cost():
+    await finops.set_price("priced-model", 2.0, 10.0, "test")
+    p = Fixed("fp", 1_000_000)
+    r = router(p)
+    with finops.attribute("fo-p"):
+        await r.complete(LLMRequest(messages=[{"role": "user", "content": "x"}], tier="light"))  # model fp-light: unpriced
+    unpriced = (await aio.fetch("SELECT cost_usd FROM shared.llm_ledger WHERE agent='fo-p'"))[0]["cost_usd"]
+    assert unpriced is None
+    await finops.set_price("fp-light", 1.0, 3.0, "test")
+    with finops.attribute("fo-p"):
+        await r.complete(LLMRequest(messages=[{"role": "user", "content": "x"}], tier="light"))
+    costs = [float(x["cost_usd"]) for x in await aio.fetch("SELECT cost_usd FROM shared.llm_ledger WHERE agent='fo-p' AND cost_usd IS NOT NULL")]
+    assert costs == [1.0]  # 1M input tokens at $1/M
+    await aio.execute("DELETE FROM shared.model_prices WHERE model IN ('priced-model','fp-light')")

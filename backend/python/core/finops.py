@@ -46,11 +46,33 @@ def _price(model: str) -> dict | None:
     return _pricing.get(model)
 
 
-def cost_of(u: Usage) -> float | None:
-    p = _price(u.model)
+_db_prices: dict[str, dict] = {}
+_db_prices_at = 0.0
+
+
+async def _load_prices() -> dict[str, dict]:
+    global _db_prices, _db_prices_at
+    import time
+    if time.monotonic() - _db_prices_at > 30:
+        rows = await aio.fetch("SELECT model, input_per_m, output_per_m FROM shared.model_prices")
+        _db_prices = {r["model"]: {"input": float(r["input_per_m"]), "output": float(r["output_per_m"])} for r in rows}
+        _db_prices_at = time.monotonic()
+    return _db_prices
+
+
+def cost_of(u: Usage, prices: dict[str, dict] | None = None) -> float | None:
+    """Prices entered in the app (shared.model_prices) win over core/pricing.yaml; unknown -> None (tokens are still counted)."""
+    p = (prices or {}).get(u.model) or _price(u.model)
     if not p or p.get("input") is None or p.get("output") is None:
         return None
     return (u.input_tokens * p["input"] + u.output_tokens * p["output"]) / 1_000_000
+
+
+async def set_price(model: str, input_per_m: float, output_per_m: float, source: str = "") -> None:
+    global _db_prices_at
+    await aio.execute("INSERT INTO shared.model_prices (model, input_per_m, output_per_m, source) VALUES ($1,$2,$3,$4) "
+                      "ON CONFLICT (model) DO UPDATE SET input_per_m=$2, output_per_m=$3, source=$4, updated_at=now()", model, input_per_m, output_per_m, source)
+    _db_prices_at = 0.0
 
 
 async def record(u: Usage, tier: str | None = None) -> None:
@@ -59,7 +81,7 @@ async def record(u: Usage, tier: str | None = None) -> None:
         await aio.execute(
             "INSERT INTO shared.llm_ledger (agent, division, provider, model, tier, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd, latency_ms) "
             "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", agent, division, u.provider, u.model, tier, u.input_tokens, u.output_tokens,
-            u.cache_read_tokens, u.cache_write_tokens, cost_of(u), u.latency_ms)
+            u.cache_read_tokens, u.cache_write_tokens, cost_of(u, await _load_prices()), u.latency_ms)
     except Exception as e:  # accounting must never break a user request
         log.warning("finops record failed", error=str(e)[:120])
 
@@ -101,10 +123,11 @@ async def summary() -> dict:
     per_hour = float(last3h) / 3
     return {
         "today": {"calls": tot["calls"], "input_tokens": int(tot["i"]), "output_tokens": int(tot["o"]), "cache_read_tokens": int(tot["cr"]),
-                  "cost_usd": float(tot["cost"]) if _pricing_known() else None},
+                  "cost_usd": float(tot["cost"]) if (await _load_prices() or _pricing_known()) else None},
         "by_division": [dict(r) for r in await by("division")], "by_agent": [dict(r) for r in await by("agent")][:20],
         "by_model": [dict(r) for r in await by("model")],
         "forecast": {"tokens_per_hour": round(per_hour), "tokens_next_24h": round(per_hour * 24)},
+        "prices": [{"model": r["model"], "input_per_m": float(r["input_per_m"]), "output_per_m": float(r["output_per_m"]), "source": r["source"]} for r in await aio.fetch("SELECT * FROM shared.model_prices ORDER BY model")],
         "budgets": [dict(r) for r in await aio.fetch("SELECT scope, daily_soft, daily_hard FROM shared.budgets ORDER BY scope")],
     }
 

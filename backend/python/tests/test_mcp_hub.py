@@ -65,3 +65,19 @@ async def test_connector_crash_restarts_and_new_connector_appears_without_restar
     assert "t-demo2.echo" in {t["name"] for t in await hub.catalogue()}  # hot discovery, no restart
     await hub.remove("t-demo2")
     assert "t-demo2.echo" not in {t["name"] for t in await hub.catalogue()}
+
+
+async def test_google_workspace_preset_lists_read_only_tools_offline():
+    from hub.presets import PRESETS
+    p = PRESETS["google-workspace"]
+    h = Hub()
+    await h.upsert("t-gw", p["name"], p["command"], p["env_secrets"], p["tool_tiers"])
+    try:
+        cat = await h.catalogue()
+        mine = {t["tool"]: t for t in cat if t["connector"] == "t-gw"}
+        assert {"gmail_search", "gmail_read", "calendar_today", "calendar_range"} <= set(mine)
+        assert all(t["action"] == "mcp.read" for t in mine.values())  # read-only: Tier 1, no approval wait
+    finally:
+        await h.remove("t-gw")
+        await h.shutdown()
+        await aio.close_pool()

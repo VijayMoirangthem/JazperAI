@@ -70,3 +70,19 @@ async def call(body: CallIn):
         return await hub.use_tool(body.name, body.arguments, body.agent)
     except ToolError as e:
         raise HTTPException(422, str(e))
+
+
+@router.get("/presets")
+async def presets():
+    from hub.presets import PRESETS
+    return {"presets": [{"id": k, "name": v["name"], "needs": v["needs"], "command": v["command"]} for k, v in PRESETS.items()]}
+
+
+@router.post("/presets/{pid}")
+async def add_preset(pid: str):
+    from hub.presets import PRESETS
+    p = PRESETS.get(pid)
+    if p is None:
+        raise HTTPException(404, "unknown preset")
+    await hub.upsert(pid, p["name"], p["command"], p["env_secrets"], p["tool_tiers"])
+    return {"saved": pid, "needs": p["needs"]}

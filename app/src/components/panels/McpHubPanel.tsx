@@ -19,6 +19,8 @@ export function McpHubPanel() {
   const [sel, setSel] = useState<Tool | null>(null);
   const [args, setArgs] = useState("{}");
   const [out, setOut] = useState("");
+  const [presets, setPresets] = useState<{ id: string; name: string; needs: string }[]>([]);
+  useEffect(() => { fetch(base + "/presets").then((r) => r.json()).then((d) => setPresets(d.presets ?? [])).catch(() => undefined); }, []);
   const [draft, setDraft] = useState({ id: "", name: "", command: "" });
 
   const load = useCallback(async () => {
@@ -54,7 +56,15 @@ export function McpHubPanel() {
             <div className="truncate font-mono text-[10px] opacity-50">{c.command.join(" ")}</div>
           </div>
         ))}
-        <button className="text-xs underline" onClick={() => fetch(`${base}/connectors/demo`, { method: "POST" }).then(load)}>+ add the built-in demo connector</button>
+        <div className="space-y-1">
+          <div className="text-xs uppercase opacity-60">One-click connectors</div>
+          {presets.map((p) => (
+            <button key={p.id} title={p.needs} className="block w-full rounded border p-2 text-left text-xs" onClick={() => fetch(`${base}/presets/${p.id}`, { method: "POST" }).then((r) => r.json()).then((d) => { setMsg(d.needs ? "Added. " + d.needs : "Added"); load(); })}>
+              + {p.name}{p.needs ? <span className="block opacity-50">{p.needs}</span> : null}
+            </button>
+          ))}
+          <button className="text-xs underline" onClick={() => fetch(`${base}/connectors/demo`, { method: "POST" }).then(load)}>+ built-in demo connector (for trying the hub)</button>
+        </div>
         <div className="space-y-1 rounded border p-2">
           <div className="text-xs opacity-60">Add an MCP server (stdio command). Credentials go in System → Secrets, never here.</div>
           <input value={draft.id} onChange={(e) => setDraft({ ...draft, id: e.target.value })} placeholder="id (a-z, 0-9, -)" className="w-full rounded border bg-transparent px-2 py-1 text-xs" />

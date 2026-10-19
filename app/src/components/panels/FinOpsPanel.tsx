@@ -12,6 +12,7 @@ interface Summary {
   by_division: Row[]; by_agent: Row[]; by_model: Row[];
   forecast: { tokens_per_hour: number; tokens_next_24h: number };
   budgets: { scope: string; daily_soft: number | null; daily_hard: number | null }[];
+  prices: { model: string; input_per_m: number; output_per_m: number; source: string }[];
 }
 const fmt = (n: number) => n.toLocaleString();
 
@@ -36,6 +37,7 @@ export function FinOpsPanel() {
   const [s, setS] = useState<Summary | null>(null);
   const [b, setB] = useState({ scope: "global", soft: "", hard: "" });
   const [msg, setMsg] = useState("");
+  const [pr, setPr] = useState({ model: "", input: "", output: "" });
   const load = useCallback(() => fetch(`${base}/summary`).then((r) => r.json()).then(setS).catch(() => setMsg("Backend unreachable")), []);
   useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [load]);
 
@@ -43,6 +45,11 @@ export function FinOpsPanel() {
     const num = (v: string) => (v.trim() ? Number(v) : null);
     const r = await fetch(`${base}/budgets`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: b.scope, daily_soft: num(b.soft), daily_hard: num(b.hard) }) });
     setMsg(r.ok ? `Budget saved for ${b.scope}` : "Failed"); load();
+  };
+
+  const savePrice = async (model: string, i: number, o: number, source: string) => {
+    const r = await fetch(base + "/prices", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, input_per_m: i, output_per_m: o, source }) });
+    setMsg(r.ok ? "Price saved for " + model : "Failed"); setPr({ model: "", input: "", output: "" }); load();
   };
 
   return (
@@ -64,6 +71,18 @@ export function FinOpsPanel() {
             <input value={b.soft} onChange={(e) => setB({ ...b, soft: e.target.value })} placeholder="soft" className="w-28 rounded border bg-transparent px-2 py-1 text-xs" />
             <input value={b.hard} onChange={(e) => setB({ ...b, hard: e.target.value })} placeholder="hard" className="w-28 rounded border bg-transparent px-2 py-1 text-xs" />
             <button onClick={save} className="rounded border px-3 py-1 text-xs">Save</button>
+          </div>
+        </section>
+        <section className="space-y-2 rounded border p-3">
+          <div className="text-sm font-medium">Model prices (USD per 1M tokens): cost shows once a model has a price</div>
+          {s.prices.map((x) => <div key={x.model} className="flex gap-4 font-mono text-xs"><span className="w-64">{x.model}</span><span>in {x.input_per_m}</span><span>out {x.output_per_m}</span><span className="opacity-50">{x.source}</span></div>)}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <input list="models-used" value={pr.model} onChange={(e) => setPr({ ...pr, model: e.target.value })} placeholder="model id" className="w-64 rounded border bg-transparent px-2 py-1 font-mono text-xs" />
+            <datalist id="models-used">{s.by_model.map((m) => <option key={m.k} value={m.k} />)}</datalist>
+            <input value={pr.input} onChange={(e) => setPr({ ...pr, input: e.target.value })} placeholder="input $/1M" className="w-28 rounded border bg-transparent px-2 py-1 text-xs" />
+            <input value={pr.output} onChange={(e) => setPr({ ...pr, output: e.target.value })} placeholder="output $/1M" className="w-28 rounded border bg-transparent px-2 py-1 text-xs" />
+            <button disabled={!pr.model || pr.input === "" || pr.output === ""} onClick={() => savePrice(pr.model, Number(pr.input), Number(pr.output), "entered in app")} className="rounded border px-3 py-1 text-xs disabled:opacity-40">Save</button>
+            <button disabled={!pr.model} onClick={() => savePrice(pr.model, 0, 0, "free tier")} className="rounded border px-3 py-1 text-xs disabled:opacity-40">Mark free tier</button>
           </div>
         </section>
       </>)}
