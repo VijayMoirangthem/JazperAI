@@ -837,6 +837,14 @@
  ],
  [
   "GET",
+  "/api/hitl/pending"
+ ],
+ [
+  "GET",
+  "/api/hitl/policy"
+ ],
+ [
+  "GET",
   "/api/hive/activity"
  ],
  [
@@ -1598,6 +1606,14 @@
  [
   "GET",
   "/api/v1/history/{session_id}"
+ ],
+ [
+  "GET",
+  "/api/v1/hitl/pending"
+ ],
+ [
+  "GET",
+  "/api/v1/hitl/policy"
  ],
  [
   "GET",
@@ -2593,6 +2609,10 @@
  ],
  [
   "POST",
+  "/api/hitl/{request_id}/respond"
+ ],
+ [
+  "POST",
   "/api/hive/agents/{codename}/inbox/{msg_id}/read"
  ],
  [
@@ -3210,6 +3230,10 @@
  [
   "POST",
   "/api/v1/hermes/draft"
+ ],
+ [
+  "POST",
+  "/api/v1/hitl/{request_id}/respond"
  ],
  [
   "POST",

@@ -162,6 +162,7 @@ Mark `[x]` to approve. Unchecked = not approved.
 | P1-16 | M1 gate | ◐ fresh-clone backend tests 142 pass; UI/chat not re-verified; gitleaks not run; D6 not deleted | | M1 gate |
 | P2-01 | Agent registry | ☑ (DB-backed, API, adapter; registry not auto-loaded at boot) | |
 | P2-02 | Supervisor graph | ◐ LangGraph graph+PG checkpointer resume test OK; endpoint uses MemorySaver; classify=keyword only; Windows prod needs selector loop for PG saver | |
+| P2-07 | HITL engine | ◐ engine+API+tests done; existing approvals UI/API not adapted; LangGraph interrupt not used | |
 | P2-09 | Event bus + /ws/rpc | ◐ in-process bus+JSON-RPC done, agents publish state changes; Redis fan-out + legacy shim not done | |
 | P2-01…P2-16 | Agent runtime | ☐ | | M2 gate |
 | P3-01…P3-15 | Desktop/office | ☐ | | M3 gate |

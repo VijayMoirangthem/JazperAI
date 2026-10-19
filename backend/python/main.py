@@ -337,6 +337,8 @@ from api.routes import bots as bots_route
 app.include_router(bots_route.router, prefix="/api/bots", tags=["bots"])
 from api.routes import directive as directive_route
 app.include_router(directive_route.router, prefix="/api/directive", tags=["directive"])
+from api.routes import hitl as hitl_route
+app.include_router(hitl_route.router, prefix="/api/hitl", tags=["hitl"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 
