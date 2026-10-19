@@ -333,6 +333,8 @@ from api.routes import llm as llm_route
 app.include_router(llm_route.router, prefix="/api/llm", tags=["llm"])
 from api.routes import rpc as rpc_route
 app.include_router(rpc_route.router, prefix="/ws", tags=["websocket"])
+from api.routes import bots as bots_route
+app.include_router(bots_route.router, prefix="/api/bots", tags=["bots"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 
