@@ -125,3 +125,16 @@ def test_default_router_without_key_uses_stub_and_endpoint_works(monkeypatch):
     from main import app
     r = TestClient(app).post("/api/v1/llm/complete", json={"prompt": "hello"})
     assert r.status_code == 200 and r.json()["usage"]["provider"] == "stub"
+
+
+async def test_cli_provider_runs_command_and_reports_errors():
+    import sys
+    from core.llm.cli_engine import CliProvider
+    from core.llm.types import ProviderError
+    ok = CliProvider("cli-t", f'"{sys.executable}" -c "import sys; print(sys.stdin.read().upper())"')
+    res = await ok.complete(REQ)
+    assert "YO" in res.text and res.usage.provider == "cli-t"
+    with pytest.raises(ProviderError):
+        await CliProvider("cli-bad", f'"{sys.executable}" -c "import sys; sys.exit(3)"').complete(REQ)
+    with pytest.raises(ProviderError):
+        await CliProvider("cli-missing", "definitely-not-a-real-binary-xyz").complete(REQ)

@@ -125,6 +125,10 @@
  ],
  [
   "DELETE",
+  "/api/mcp-hub/connectors/{cid}"
+ ],
+ [
+  "DELETE",
   "/api/memory/auto"
  ],
  [
@@ -366,6 +370,10 @@
  [
   "DELETE",
   "/api/v1/llm/providers/{slug}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/mcp-hub/connectors/{cid}"
  ],
  [
   "DELETE",
@@ -1042,6 +1050,14 @@
  [
   "GET",
   "/api/logs/stream"
+ ],
+ [
+  "GET",
+  "/api/mcp-hub/connectors"
+ ],
+ [
+  "GET",
+  "/api/mcp-hub/tools"
  ],
  [
   "GET",
@@ -1838,6 +1854,14 @@
  [
   "GET",
   "/api/v1/logs/stream"
+ ],
+ [
+  "GET",
+  "/api/v1/mcp-hub/connectors"
+ ],
+ [
+  "GET",
+  "/api/v1/mcp-hub/tools"
  ],
  [
   "GET",
@@ -2897,6 +2921,18 @@
  ],
  [
   "POST",
+  "/api/mcp-hub/call"
+ ],
+ [
+  "POST",
+  "/api/mcp-hub/connectors/demo"
+ ],
+ [
+  "POST",
+  "/api/mcp-hub/find"
+ ],
+ [
+  "POST",
   "/api/memory/core"
  ],
  [
@@ -3549,6 +3585,18 @@
  ],
  [
   "POST",
+  "/api/v1/mcp-hub/call"
+ ],
+ [
+  "POST",
+  "/api/v1/mcp-hub/connectors/demo"
+ ],
+ [
+  "POST",
+  "/api/v1/mcp-hub/find"
+ ],
+ [
+  "POST",
   "/api/v1/memory/core"
  ],
  [
@@ -3945,6 +3993,10 @@
  ],
  [
   "PUT",
+  "/api/mcp-hub/connectors"
+ ],
+ [
+  "PUT",
   "/api/memory/core/{memory_id}"
  ],
  [
@@ -3994,6 +4046,10 @@
  [
   "PUT",
   "/api/v1/llm/routing/{tier}"
+ ],
+ [
+  "PUT",
+  "/api/v1/mcp-hub/connectors"
  ],
  [
   "PUT",
