@@ -7,6 +7,7 @@ import {
   Edit3, Zap,
 } from "lucide-react";
 import DiffEditor from "@monaco-editor/react";
+import "@/lib/monacoLocal";
 import type { editor as MonacoEditor } from "monaco-editor";
 import { useApprovals, type ApprovalRequest } from "@/hooks/useApprovals";
 

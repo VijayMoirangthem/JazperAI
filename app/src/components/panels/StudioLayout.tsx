@@ -21,6 +21,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Editor from "@monaco-editor/react";
+import "@/lib/monacoLocal";
 import DiffEditorComponent from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import {

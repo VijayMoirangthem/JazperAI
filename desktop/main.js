@@ -117,14 +117,17 @@ app.whenReady().then(async () => {
     return;
   }
   if (UI_CHECK) {
-    const errors = [];
-    win = null;
-    const w = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true } });
-    w.webContents.on("console-message", (_e, level, message) => { if (level >= 3) errors.push(message.slice(0, 160)); });
-    await w.loadURL(UI_URL);
-    await new Promise((r) => setTimeout(r, 6000));
-    const info = await w.webContents.executeJavaScript("JSON.stringify({title: document.title, textLen: document.body.innerText.length, nav: document.querySelectorAll('nav,aside,button').length})");
-    console.log("UI_CHECK " + info + " errors=" + JSON.stringify(errors.slice(0, 5)));
+    const panels = (process.env.JASPER_PANELS || "dashboard").split(",");
+    const w = new BrowserWindow({ show: false, width: 1280, height: 860, webPreferences: { contextIsolation: true, sandbox: true } });
+    let errors = [];
+    w.webContents.on("console-message", (_e, level, message) => { if (level >= 3) errors.push(message.slice(0, 140)); });
+    for (const p of panels) {
+      errors = [];
+      await w.loadURL(UI_URL + "#" + p);
+      await new Promise((r) => setTimeout(r, 3500));
+      const info = await w.webContents.executeJavaScript("JSON.stringify({title: document.title, len: document.body.innerText.length})");
+      console.log("UI_CHECK " + p + " " + info + " errors=" + JSON.stringify(errors.slice(0, 3)));
+    }
     app.exit(0);
     return;
   }

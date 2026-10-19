@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { DiffEditor } from "@monaco-editor/react";
+import "@/lib/monacoLocal";
 import { Check, FileDiff, X } from "lucide-react";
 import { readNdjson } from "@/chat/ndjson";
 import { applyAccepted, type Hunk } from "@/lib/applyHunks";

@@ -1,4 +1,5 @@
 import pytest
+from uuid import uuid4
 from fastapi.testclient import TestClient
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -26,7 +27,7 @@ async def test_resume_after_simulated_restart_with_postgres_checkpointer():
     dsn = (f"postgresql://{settings.POSTGRES_USER}:{quote_plus(settings.POSTGRES_PASSWORD)}@{settings.POSTGRES_HOST}:"
            f"{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
     kw = {"autocommit": True, "prepare_threshold": 0}
-    cfg = {"configurable": {"thread_id": "resume-test-1"}}
+    cfg = {"configurable": {"thread_id": f"resume-test-{uuid4().hex[:8]}"}}
     try:
         async with AsyncConnectionPool(dsn, kwargs=kw, open=False) as pool:
             await pool.open()
