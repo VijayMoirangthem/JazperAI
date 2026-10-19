@@ -364,6 +364,8 @@ from api.routes import mcp_hub as mcp_hub_route
 app.include_router(mcp_hub_route.router, prefix="/api/mcp-hub", tags=["mcp-hub"])
 from api.routes import system as system_route
 app.include_router(system_route.router, prefix="/api/system", tags=["system"])
+from api.routes import devloop as devloop_route
+app.include_router(devloop_route.router, prefix="/api/devloop", tags=["devloop"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

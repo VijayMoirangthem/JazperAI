@@ -296,6 +296,8 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
   { id: "mcp_hub", label: "Tool Hub", description: "MCP connectors and tools", icon: Server, group: "agent_os", system: "agent_os" },
   { id: "system", label: "System", description: "Health, secrets and backups", icon: ShieldCheck, group: "agent_os", system: "agent_os" },
   { id: "org_chart", label: "Org Chart", description: "Live org chart and executive directives", icon: Building2, group: "agent_os", system: "agent_os" },
+  { id: "dev_loop", label: "Dev Loop", description: "AI code changes on a branch, with tests and approved merge", icon: GitBranch, group: "agent_os", system: "agent_os" },
+  { id: "setup", label: "Setup", description: "First-run checklist", icon: ShieldCheck, group: "agent_os", system: "agent_os" },
   { id: "live_agents",   label: "Live Agents",    description: "Real-time agent states from the event bus", icon: Radio,       group: "agent_os", system: "agent_os" },
   { id: "control_tower", label: "Control Tower",   description: "System control and monitoring",             icon: Server,      group: "agent_os", system: "agent_os" },
   { id: "plans",         label: "Plans",           description: "Multi-step agent plan tracker",             icon: GitBranch,   group: "agent_os", system: "agent_os" },

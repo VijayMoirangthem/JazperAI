@@ -12,6 +12,8 @@ import { CompanyPanel } from "@/components/panels/CompanyPanel";
 import { FinOpsPanel } from "@/components/panels/FinOpsPanel";
 import { McpHubPanel } from "@/components/panels/McpHubPanel";
 import { SystemPanel } from "@/components/panels/SystemPanel";
+import { DevLoopPanel } from "@/components/panels/DevLoopPanel";
+import { SetupPanel } from "@/components/panels/SetupPanel";
 import { LiveAgentsPanel } from "@/components/panels/LiveAgentsPanel";
 import { DashboardPanel } from "@/components/panels/DashboardPanel";
 import { ChatPanel, type LoadedSession } from "@/components/panels/ChatPanel";
@@ -235,6 +237,8 @@ export default function Home() {
     ide:            <IDEPanel />,
     control_tower:  <ControlTowerPanel />,
     live_agents:    <LiveAgentsPanel />,
+    dev_loop:       <DevLoopPanel />,
+    setup:          <SetupPanel onNavigate={(v) => navigate(v)} />,
     system: <SystemPanel />,
     mcp_hub: <McpHubPanel />,
     finops: <FinOpsPanel />,

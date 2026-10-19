@@ -119,3 +119,22 @@ async def backup():
     if p.returncode != 0:
         raise HTTPException(500, (p.stderr or p.stdout)[-300:])
     return {"ok": True, "output": p.stdout.strip()[-200:]}
+
+
+LOG_FILES = {"backend": "backend.err.log", "backend-out": "backend.out.log", "renderer": "renderer.err.log", "launcher": "launcher.log", "watchdog": "watchdog.log"}
+
+
+@router.get("/logs")
+async def logs(name: str = "backend", lines: int = 200):
+    fn = LOG_FILES.get(name)
+    if not fn:
+        raise HTTPException(404, f"log must be one of {list(LOG_FILES)}")
+    p = ROOT / "storage" / "logs" / fn
+    if not p.exists():
+        return {"name": name, "lines": []}
+    data = p.read_bytes()[-200_000:].decode("utf-8", errors="replace")
+    text = [l for l in data.splitlines() if l.strip()][-max(1, min(lines, 1000)):]
+    # never echo anything that looks like a key
+    import re as _re
+    text = [_re.sub(r"(sk-[A-Za-z0-9_-]{12,}|gsk_[A-Za-z0-9]{12,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})", "<redacted>", l) for l in text]
+    return {"name": name, "lines": text}

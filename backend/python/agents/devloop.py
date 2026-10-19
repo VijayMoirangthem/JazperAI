@@ -25,6 +25,7 @@ class DevState(TypedDict, total=False):
     worktrees: str
     task: str
     test_cmd: list[str]
+    workdir: str
     branch: str
     worktree: str
     base: str
@@ -60,7 +61,7 @@ def build_devloop(implement: Implement, agent: str = "forge", model: str = "unkn
     async def verify(s: DevState):
         announce(agent, "testing", bubble=f"attempt {s['attempt']}")
         with span("devloop.verify", attempt=s["attempt"]):
-            code, out = await asyncio.to_thread(_run_tests, s["test_cmd"], s["worktree"], test_timeout)
+            code, out = await asyncio.to_thread(_run_tests, s["test_cmd"], str(Path(s["worktree"]) / s.get("workdir", "")), test_timeout)
         hist = s["history"] + [{"attempt": s["attempt"], "exit": code, "isolated": False}]
         if code == 0:
             sha = await gitops.commit(Path(s["worktree"]), f"agent-patch: {s['task'][:60]}", agent, model, s["task"])
@@ -95,10 +96,10 @@ def build_devloop(implement: Implement, agent: str = "forge", model: str = "unkn
     return g.compile()
 
 
-async def run_devloop(repo: Path, worktrees: Path, task: str, test_cmd: list[str], implement: Implement, **kw) -> DevState:
+async def run_devloop(repo: Path, worktrees: Path, task: str, test_cmd: list[str], implement: Implement, workdir: str = "", **kw) -> DevState:
     graph = build_devloop(implement, **kw)
     # recursion_limit is a second, framework-level guard: 3 attempts * 2 nodes + plan/rollback/escalate fits in 14 steps
-    out = await graph.ainvoke({"repo": str(repo), "worktrees": str(worktrees), "task": task, "test_cmd": test_cmd, "status": "verified"},
+    out = await graph.ainvoke({"repo": str(repo), "worktrees": str(worktrees), "task": task, "test_cmd": test_cmd, "workdir": workdir, "status": "verified"},
                               {"recursion_limit": 14})
     out["isolated"] = False
     return out

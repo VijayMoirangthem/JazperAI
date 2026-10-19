@@ -499,7 +499,10 @@ class AIProvider:
 
     async def get_models(self) -> list[dict]:
         response = await self.client.models.list()
-        return [{"id": m.id, "object": m.object} for m in response.data]
+        non_chat = ("whisper", "guard", "tts", "orpheus", "embed", "moderation")  # speech/safety/embedding models cannot answer chat
+        models = [{"id": m.id, "object": m.object} for m in response.data if not any(w in m.id.lower() for w in non_chat)]
+        models.sort(key=lambda m: m["id"] != self.default_model)  # the configured model first: the top bar shows the first entry
+        return models
 
     async def embed(self, text: str) -> list[float] | None:
         from core.services.embedding_service import embed as local_embed

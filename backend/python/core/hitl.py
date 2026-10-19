@@ -5,6 +5,7 @@ Tier 3 explicit authorization (blocks until a human responds; timeout => DENIED)
 Requests are persisted in shared.hitl_requests and announced on the `human-intervention-request` bus topic.
 """
 import asyncio
+import contextvars
 import json
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
@@ -28,6 +29,12 @@ APPROVER_OVERRIDES = {"filing.submit": ["compliance_officer_placeholder"], "paym
 DEFAULT_TTL_S = 15 * 60
 VETO_WINDOW_S = 5.0
 _pending: dict[UUID, asyncio.Future] = {}
+_last_rid: contextvars.ContextVar[UUID | None] = contextvars.ContextVar("hitl_last_rid", default=None)
+
+
+def last_request_id() -> UUID | None:
+    """Id of the request opened by the most recent gate() call in this context (to hand to e.g. the merge step)."""
+    return _last_rid.get()
 
 
 def tier_of(action: str) -> int:
@@ -76,6 +83,7 @@ async def gate(action: str, summary: str, requester: str, ttl_s: float = DEFAULT
                veto_window_s: float | None = None) -> bool:
     """Returns True if the action may proceed."""
     tier, rid = tier_of(action), uuid4()
+    _last_rid.set(rid)
     if tier == 1:
         await _save(rid, 1, action, summary, requester, ttl_s, status="auto")
         return True

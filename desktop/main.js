@@ -1,5 +1,5 @@
 // Sir Jasper AI desktop shell (P3-02). Loads the existing UI (Next dev server for now; Vite renderer later, ADR D-4).
-const { app, BrowserWindow, ipcMain, Notification, dialog, session, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, dialog, session, shell, Tray, Menu, nativeImage } = require("electron");
 const { spawn } = require("node:child_process");
 const http = require("node:http");
 const path = require("node:path");
@@ -46,6 +46,22 @@ async function ensureBackend() {
 const SPLASH = "<body style='margin:0;background:#0b0f14;color:#cbd5e1;font:15px Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:14px'>" +
   "<div style='width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:30px;color:#fff'>JZ</div>" +
   "<div>Starting Sir Jasper AI…</div><div id=m style='opacity:.5;font-size:12px'>database, backend, interface</div></body>";
+
+let tray = null;
+function setupTray() {
+  tray = new Tray(nativeImage.createFromPath(path.join(__dirname, "icon.png")).resize({ width: 16, height: 16 }));
+  const show = () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } };
+  tray.setToolTip("Jazper");
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: "Open Jazper", click: show },
+    // the login item starts Jazper.exe, which brings up Docker, the backend and the interface before the window
+    { label: "Start with Windows", type: "checkbox", checked: app.getLoginItemSettings().openAtLogin,
+      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked, path: path.join(ROOT, "Jazper.exe") }) },
+    { type: "separator" },
+    { label: "Quit", click: () => app.quit() },
+  ]));
+  tray.on("click", show);
+}
 
 async function waitFor(url, seconds) {
   for (let i = 0; i < seconds; i++) { if (await ping(url)) return true; await new Promise((r) => setTimeout(r, 1000)); }
@@ -159,6 +175,7 @@ app.whenReady().then(async () => {
     return;
   }
   await createWindow("data:text/html;charset=utf-8," + encodeURIComponent(SPLASH));
+  setupTray();
   await ensureBackend();
   if (await waitFor(UI_URL, 180)) await win.loadURL(UI_URL);
   else await win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent("<body style='background:#0b0f14;color:#f87171;font:15px Segoe UI;padding:40px'>The interface did not start. Check storage/logs/renderer.err.log, then reopen the app.</body>"));

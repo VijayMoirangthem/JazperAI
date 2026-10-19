@@ -1,4 +1,4 @@
-// Tiny no-console launcher: runs scripts\jasper-launch.ps1 hidden. Built into "Sir Jasper AI.exe" by scripts\build_launcher.ps1.
+// Tiny no-console launcher: runs scripts\jasper-launch.ps1 hidden. Built into "Jazper.exe" by scripts\build_launcher.ps1.
 using System;
 using System.Diagnostics;
 using System.IO;

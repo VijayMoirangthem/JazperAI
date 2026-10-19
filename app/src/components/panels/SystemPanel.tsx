@@ -16,6 +16,9 @@ export function SystemPanel() {
   const [msg, setMsg] = useState("");
   const [draft, setDraft] = useState({ name: "", value: "" });
   const [busy, setBusy] = useState(false);
+  const [logName, setLogName] = useState("backend");
+  const [logLines, setLogLines] = useState<string[]>([]);
+  useEffect(() => { const f = () => fetch(`${base}/logs?name=${logName}&lines=150`).then((r) => r.json()).then((d) => setLogLines(d.lines ?? [])).catch(() => undefined); f(); const t = setInterval(f, 4000); return () => clearInterval(t); }, [logName]);
 
   const load = useCallback(async () => {
     try {
@@ -74,6 +77,13 @@ export function SystemPanel() {
       <section className="flex items-center gap-3 rounded border p-3">
         <DatabaseBackup size={16} /><span className="text-sm">Encrypted backup of the database and Redis</span>
         <button disabled={busy} onClick={backup} className="ml-auto rounded border px-3 py-1 text-sm disabled:opacity-40">Back up now</button>
+      </section>
+      <section className="space-y-2 rounded border p-3">
+        <div className="flex items-center gap-2 text-sm font-medium">Logs
+          <select value={logName} onChange={(e) => setLogName(e.target.value)} className="ml-auto rounded border bg-transparent px-2 py-0.5 text-xs">
+            {["backend", "backend-out", "renderer", "launcher", "watchdog"].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select></div>
+        <pre className="max-h-72 overflow-auto rounded bg-black/40 p-2 text-[11px] leading-snug">{logLines.length ? logLines.join(String.fromCharCode(10)) : "(empty)"}</pre>
       </section>
     </div>
   );

@@ -61,6 +61,10 @@
  ],
  [
   "DELETE",
+  "/api/devloop/runs/{rid}"
+ ],
+ [
+  "DELETE",
   "/api/direct/agent/{codename}/history"
  ],
  [
@@ -310,6 +314,10 @@
  [
   "DELETE",
   "/api/v1/contacts/{contact_id}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/devloop/runs/{rid}"
  ],
  [
   "DELETE",
@@ -762,6 +770,14 @@
  [
   "GET",
   "/api/db-changes"
+ ],
+ [
+  "GET",
+  "/api/devloop/runs"
+ ],
+ [
+  "GET",
+  "/api/devloop/runs/{rid}"
  ],
  [
   "GET",
@@ -1301,6 +1317,10 @@
  ],
  [
   "GET",
+  "/api/system/logs"
+ ],
+ [
+  "GET",
   "/api/system/secrets"
  ],
  [
@@ -1574,6 +1594,14 @@
  [
   "GET",
   "/api/v1/db-changes"
+ ],
+ [
+  "GET",
+  "/api/v1/devloop/runs"
+ ],
+ [
+  "GET",
+  "/api/v1/devloop/runs/{rid}"
  ],
  [
   "GET",
@@ -2110,6 +2138,10 @@
  [
   "GET",
   "/api/v1/system/health"
+ ],
+ [
+  "GET",
+  "/api/v1/system/logs"
  ],
  [
   "GET",
@@ -2662,6 +2694,14 @@
  [
   "POST",
   "/api/db-changes/{change_id}/rollback"
+ ],
+ [
+  "POST",
+  "/api/devloop/runs"
+ ],
+ [
+  "POST",
+  "/api/devloop/runs/{rid}/merge"
  ],
  [
   "POST",
@@ -3330,6 +3370,14 @@
  [
   "POST",
   "/api/v1/db-changes/{change_id}/rollback"
+ ],
+ [
+  "POST",
+  "/api/v1/devloop/runs"
+ ],
+ [
+  "POST",
+  "/api/v1/devloop/runs/{rid}/merge"
  ],
  [
   "POST",
