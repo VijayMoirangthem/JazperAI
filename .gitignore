@@ -47,3 +47,6 @@ storage/*
 *.tsbuildinfo
 backend/munder-web/dist/
 Project_References/
+Sir Jasper AI.exe
+desktop/*.png
+!desktop/icon.png

@@ -43,9 +43,18 @@ async function ensureBackend() {
 }
 
 // ── window ──────────────────────────────────────────────────────────────────────────────
+const SPLASH = "<body style='margin:0;background:#0b0f14;color:#cbd5e1;font:15px Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:14px'>" +
+  "<div style='width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:30px;color:#fff'>JZ</div>" +
+  "<div>Starting Sir Jasper AI…</div><div id=m style='opacity:.5;font-size:12px'>database, backend, interface</div></body>";
+
+async function waitFor(url, seconds) {
+  for (let i = 0; i < seconds; i++) { if (await ping(url)) return true; await new Promise((r) => setTimeout(r, 1000)); }
+  return false;
+}
+
 function createWindow(url) {
   win = new BrowserWindow({
-    width: 1440, height: 900, show: !SMOKE, backgroundColor: "#0b0f14", title: "Sir Jasper AI",
+    width: 1440, height: 900, show: !SMOKE, backgroundColor: "#0b0f14", title: "Sir Jasper AI", icon: path.join(__dirname, "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true, nodeIntegration: false, sandbox: true, webviewTag: false,
@@ -149,7 +158,10 @@ app.whenReady().then(async () => {
     app.exit(0);
     return;
   }
-  await createWindow(UI_URL);
+  await createWindow("data:text/html;charset=utf-8," + encodeURIComponent(SPLASH));
+  await ensureBackend();
+  if (await waitFor(UI_URL, 180)) await win.loadURL(UI_URL);
+  else await win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent("<body style='background:#0b0f14;color:#f87171;font:15px Segoe UI;padding:40px'>The interface did not start. Check storage/logs/renderer.err.log, then reopen the app.</body>"));
 });
 
 app.on("before-quit", () => { if (backend) backend.kill(); });
