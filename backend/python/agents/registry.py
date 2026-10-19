@@ -7,11 +7,9 @@ import json
 from dataclasses import dataclass, field
 
 from core.eventbus import announce
-from core.llm.router import LLMRouter, default_router
+from core.llm.registry import get_router
 from core.llm.types import LLMRequest
 from memory.db import aio
-
-_router: LLMRouter | None = None
 
 
 @dataclass
@@ -82,14 +80,13 @@ class BotRegistry:
         return builtin_roster() + [b.public() for b in self._bots.values()]
 
     async def message(self, slug: str, text: str) -> dict:
-        global _router
         b = self.routable(slug)
         if b is None:
             raise LookupError(slug)
-        _router = _router or default_router()
+        router = await get_router()
         announce(slug, "working", bubble=text[:100])
         try:
-            res = await _router.complete(LLMRequest(system=b.prompt, messages=[{"role": "user", "content": text}],
+            res = await router.complete(LLMRequest(system=b.prompt, messages=[{"role": "user", "content": text}],
                                                     tier=b.model_policy.get("default_tier", "standard")))
         except Exception as e:
             announce(slug, "error", reason=str(e))

@@ -12,7 +12,8 @@ def client(monkeypatch):
     monkeypatch.setattr(vault, "get", lambda n: None)
     monkeypatch.setattr(settings, "CLAUDE_API_KEY", "")
     monkeypatch.setattr(settings, "AI_API_KEY", "")
-    reg._router = None
+    from core.llm.registry import invalidate
+    invalidate()
     from main import app
     c = TestClient(app)
     try:

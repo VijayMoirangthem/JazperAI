@@ -120,8 +120,8 @@ def test_default_router_without_key_uses_stub_and_endpoint_works(monkeypatch):
     monkeypatch.setattr(vault, "get", lambda n: None)
     monkeypatch.setattr(settings, "CLAUDE_API_KEY", "")
     monkeypatch.setattr(settings, "AI_API_KEY", "")
-    import api.routes.llm as llm
-    llm._router = None
+    from core.llm.registry import invalidate
+    invalidate()
     from main import app
     r = TestClient(app).post("/api/v1/llm/complete", json={"prompt": "hello"})
     assert r.status_code == 200 and r.json()["usage"]["provider"] == "stub"

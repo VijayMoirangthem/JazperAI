@@ -32,11 +32,11 @@ class SupervisorState(TypedDict, total=False):
 
 async def default_delegate(slug: str, text: str) -> str:
     from agents.registry import registry
-    from core.llm.router import default_router
+    from core.llm.registry import get_router
     from core.llm.types import LLMRequest
     if registry.routable(slug):
         return (await registry.message(slug, text))["reply"]
-    res = await default_router().complete(LLMRequest(system=f"You are the {slug} agent of Sir Jasper AI.",
+    res = await (await get_router()).complete(LLMRequest(system=f"You are the {slug} agent of Sir Jasper AI.",
                                                      messages=[{"role": "user", "content": text}], tier="light"))
     return res.text
 

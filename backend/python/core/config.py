@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "sirjazper"
 
     # LLM tiers (D-6). LIGHT_MODEL is used by legacy OpenAI-compatible call sites until they move to core.llm
-    LIGHT_MODEL: str = "llama-3.1-8b-instant"
+    LIGHT_MODEL: str = "openai/gpt-oss-20b"
     EDGE_MODE: bool = False  # local models only allowed when true
     WS_TOKEN: str = ""  # when set, /ws/rpc requires ?token=
 

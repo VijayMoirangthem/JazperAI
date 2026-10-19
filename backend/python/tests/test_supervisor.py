@@ -52,6 +52,8 @@ def test_directive_endpoint(monkeypatch):
     monkeypatch.setattr(vault, "get", lambda n: None)
     monkeypatch.setattr(settings, "CLAUDE_API_KEY", "")
     monkeypatch.setattr(settings, "AI_API_KEY", "")
+    from core.llm.registry import invalidate
+    invalidate()
     from main import app
     r = TestClient(app).post("/api/v1/directive/", json={"text": "hello there"})
     assert r.status_code == 200 and r.json()["status"] == "complete"

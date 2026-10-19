@@ -36,12 +36,13 @@ def _classify(e: Exception) -> ProviderError:
 class AnthropicProvider(Provider):
     name = "anthropic"
 
-    def __init__(self, api_key: str, base_url: str | None = None, http_client=None):
+    def __init__(self, api_key: str, base_url: str | None = None, http_client=None, models: dict[str, str] | None = None):
+        self.models = models or ANTHROPIC_TIERS
         self.client = anthropic.AsyncAnthropic(api_key=api_key, base_url=base_url, max_retries=0, timeout=60,
                                             **({"http_client": http_client} if http_client else {}))
 
     def _kwargs(self, req: LLMRequest) -> dict:
-        kw: dict = dict(model=ANTHROPIC_TIERS[req.tier], max_tokens=req.max_tokens,  # no temperature: current Claude models reject sampling params
+        kw: dict = dict(model=self.models[req.tier], max_tokens=req.max_tokens,  # no temperature: current Claude models reject sampling params
                         messages=req.messages)
         if req.system:
             block = {"type": "text", "text": req.system}

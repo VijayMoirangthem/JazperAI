@@ -117,6 +117,14 @@
  ],
  [
   "DELETE",
+  "/api/llm/models/{provider}/{model_id:path}"
+ ],
+ [
+  "DELETE",
+  "/api/llm/providers/{slug}"
+ ],
+ [
+  "DELETE",
   "/api/memory/auto"
  ],
  [
@@ -350,6 +358,14 @@
  [
   "DELETE",
   "/api/v1/knowledge/{item_id}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/llm/models/{provider}/{model_id:path}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/llm/providers/{slug}"
  ],
  [
   "DELETE",
@@ -994,6 +1010,14 @@
  [
   "GET",
   "/api/knowledge"
+ ],
+ [
+  "GET",
+  "/api/llm/providers"
+ ],
+ [
+  "GET",
+  "/api/llm/routing"
  ],
  [
   "GET",
@@ -1766,6 +1790,14 @@
  [
   "GET",
   "/api/v1/knowledge"
+ ],
+ [
+  "GET",
+  "/api/v1/llm/providers"
+ ],
+ [
+  "GET",
+  "/api/v1/llm/routing"
  ],
  [
   "GET",
@@ -2805,6 +2837,10 @@
  ],
  [
   "POST",
+  "/api/llm/providers/{slug}/test"
+ ],
+ [
+  "POST",
   "/api/memory/core"
  ],
  [
@@ -3429,6 +3465,10 @@
  ],
  [
   "POST",
+  "/api/v1/llm/providers/{slug}/test"
+ ],
+ [
+  "POST",
   "/api/v1/memory/core"
  ],
  [
@@ -3805,6 +3845,18 @@
  ],
  [
   "PUT",
+  "/api/llm/models"
+ ],
+ [
+  "PUT",
+  "/api/llm/providers"
+ ],
+ [
+  "PUT",
+  "/api/llm/routing/{tier}"
+ ],
+ [
+  "PUT",
   "/api/memory/core/{memory_id}"
  ],
  [
@@ -3834,6 +3886,18 @@
  [
   "PUT",
   "/api/v1/jobs/{job_id}"
+ ],
+ [
+  "PUT",
+  "/api/v1/llm/models"
+ ],
+ [
+  "PUT",
+  "/api/v1/llm/providers"
+ ],
+ [
+  "PUT",
+  "/api/v1/llm/routing/{tier}"
  ],
  [
   "PUT",
