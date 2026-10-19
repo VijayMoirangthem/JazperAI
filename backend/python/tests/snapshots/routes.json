@@ -789,6 +789,10 @@
  ],
  [
   "GET",
+  "/api/finops/summary"
+ ],
+ [
+  "GET",
   "/api/focus/sessions"
  ],
  [
@@ -1578,6 +1582,10 @@
  [
   "GET",
   "/api/v1/export"
+ ],
+ [
+  "GET",
+  "/api/v1/finops/summary"
  ],
  [
   "GET",
@@ -3909,6 +3917,10 @@
  ],
  [
   "PUT",
+  "/api/finops/budgets"
+ ],
+ [
+  "PUT",
   "/api/hitl/levels/{slug}"
  ],
  [
@@ -3954,6 +3966,10 @@
  [
   "PUT",
   "/api/v1/bots/"
+ ],
+ [
+  "PUT",
+  "/api/v1/finops/budgets"
  ],
  [
   "PUT",

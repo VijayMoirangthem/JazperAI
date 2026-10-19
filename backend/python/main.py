@@ -355,6 +355,8 @@ from api.routes import edit as edit_route
 app.include_router(edit_route.router, prefix="/api/edit", tags=["edit"])
 from api.routes import company as company_route
 app.include_router(company_route.router, prefix="/api/company", tags=["company"])
+from api.routes import finops as finops_route
+app.include_router(finops_route.router, prefix="/api/finops", tags=["finops"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

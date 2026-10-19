@@ -6,6 +6,7 @@ without a restart. Built-in persona agents (agents.roster) are exposed through t
 import json
 from dataclasses import dataclass, field
 
+from core import finops
 from core.eventbus import announce
 from core.llm.registry import get_router
 from core.llm.types import LLMRequest
@@ -86,8 +87,9 @@ class BotRegistry:
         router = await get_router()
         announce(slug, "working", bubble=text[:100])
         try:
-            res = await router.complete(LLMRequest(system=b.prompt, messages=[{"role": "user", "content": text}],
-                                                    tier=b.model_policy.get("default_tier", "standard")))
+            with finops.attribute(slug, b.crew):
+                res = await router.complete(LLMRequest(system=b.prompt, messages=[{"role": "user", "content": text}],
+                                                        tier=b.model_policy.get("default_tier", "standard")))
         except Exception as e:
             announce(slug, "error", reason=str(e))
             raise

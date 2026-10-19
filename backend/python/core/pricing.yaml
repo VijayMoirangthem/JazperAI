@@ -1,0 +1,8 @@
+# USD per 1M tokens. null = unknown/free: cost is not computed (token budgets still apply).
+# Fill from the provider's official pricing page and set verified: true with the date; do not guess.
+verified: false
+source: "not verified - fill from official provider pricing pages"
+models:
+  "openai/gpt-oss-20b": { input: null, output: null }
+  "qwen/qwen3.8-27b": { input: null, output: null }
+  "openai/gpt-oss-120b": { input: null, output: null }

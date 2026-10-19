@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from agents.decision import decide
 from agents.registry import registry
-from core import directory
+from core import directory, finops
 from core.eventbus import announce
 from core.llm.registry import get_router
 from core.llm.types import LLMRequest, Usage
@@ -74,11 +74,13 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     yield _line({"t": "speaker", "slug": slug})
     announce(slug, "working", bubble=text[:100])
     try:
-        async for item in r.stream(LLMRequest(system=system, messages=msgs, tier=tier or default_tier, max_tokens=1024)):
-            if isinstance(item, Usage):
-                yield _line({"t": "done", "slug": slug, "usage": item.model_dump()})
-            else:
-                yield _line({"t": "delta", "slug": slug, "text": item})
+        b = registry.routable(slug)
+        with finops.attribute(slug, b.crew if b else None):
+            async for item in r.stream(LLMRequest(system=system, messages=msgs, tier=tier or default_tier, max_tokens=1024)):
+                if isinstance(item, Usage):
+                    yield _line({"t": "done", "slug": slug, "usage": item.model_dump()})
+                else:
+                    yield _line({"t": "delta", "slug": slug, "text": item})
     except Exception as e:
         announce(slug, "error", reason=str(e))
         yield _line({"t": "error", "slug": slug, "message": str(e)[:200]})
