@@ -205,6 +205,9 @@ async def lifespan(app: FastAPI):
     # Start IT Department auto-repair background loop
     asyncio.create_task(_auto_repair_loop(), name="it-auto-repair")
 
+    from core.telemetry import setup_export
+    setup_export()  # OTLP export only when OTEL_EXPORTER_OTLP_ENDPOINT is set
+
     # Plan V2 F1: load hot-pluggable bots and open the durable checkpointer
     try:
         from agents.registry import registry as _bot_registry

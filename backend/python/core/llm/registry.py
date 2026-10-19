@@ -5,6 +5,7 @@ import json
 import structlog
 
 from core import finops, vault
+from core.telemetry import span
 from core.config import settings
 from core.llm.providers import AnthropicProvider, OpenAICompatProvider, Provider, StubProvider
 from core.llm.router import LLMRouter
@@ -51,7 +52,12 @@ class TieredRouter:
     async def complete(self, req: LLMRequest) -> LLMResult:
         tier = await finops.check(req.tier)  # raises BudgetExceeded at a hard cap; steps the tier down at a soft cap
         req = req.model_copy(update={"tier": tier})
-        res = await self._for(req).complete(req)
+        with span("llm.complete", tier=tier) as sp:
+            res = await self._for(req).complete(req)
+            sp.set_attribute("llm.provider", res.usage.provider)
+            sp.set_attribute("llm.model", res.usage.model)
+            sp.set_attribute("llm.tokens.input", res.usage.input_tokens)
+            sp.set_attribute("llm.tokens.output", res.usage.output_tokens)
         await finops.record(res.usage, tier)
         return res
 

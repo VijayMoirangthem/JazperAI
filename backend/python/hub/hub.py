@@ -15,6 +15,7 @@ import structlog
 from jsonschema import Draft7Validator
 
 from core import audit, hitl
+from core.telemetry import span
 from hub.connection import Connection, ConnectionError_
 from memory.db import aio
 
@@ -138,7 +139,8 @@ class Hub:
         for attempt in (1, 2):  # one automatic restart when the connector died
             try:
                 conn = await self.ensure(tool["connector"])
-                res = await asyncio.to_thread(conn.call, tool["tool"], arguments)
+                with span("tool.call", tool=name, tier=tier, agent=agent):
+                    res = await asyncio.to_thread(conn.call, tool["tool"], arguments)
                 await audit.write("create_origins", "mcp-call", {**meta, "status": "error" if res["is_error"] else "ok", "restarted": attempt == 2})
                 return {"blocked": False, **res}
             except (ConnectionError_, ToolError) as e:

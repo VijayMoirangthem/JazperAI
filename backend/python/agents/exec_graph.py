@@ -9,6 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from agents import org
 from agents.registry import registry
 from core.eventbus import announce
+from core.telemetry import span
 
 Ask = "async callable (slug, system_prompt, user_text) -> str"
 
@@ -41,15 +42,16 @@ def build_exec_graph(ask=default_ask, max_members: int = 3):
         spans, results = [], {}
 
         async def one(slug: str):
-            span = uuid4().hex[:16]
+            sid = uuid4().hex[:16]
             announce(slug, "working", bubble=s["directive"][:100])
             try:
-                results[slug] = await ask(slug, s["directive"])
+                with span("crew.member", agent=slug):
+                    results[slug] = await ask(slug, s["directive"])
                 status = "ok"
             except Exception as err:  # a failed member must not sink the whole report
                 results[slug], status = f"[failed: {str(err)[:120]}]", "error"
             announce(slug, "idle")
-            spans.append({"span_id": span, "parent_id": s["exec_span"], "agent": slug, "status": status})
+            spans.append({"span_id": sid, "parent_id": s["exec_span"], "agent": slug, "status": status})
 
         await asyncio.gather(*(one(m) for m in s["members"]))
         return {"crew_results": results, "spans": spans}
@@ -57,6 +59,7 @@ def build_exec_graph(ask=default_ask, max_members: int = 3):
     async def report(s: ExecState):
         e = org.exec_by_slug(s["exec_slug"])
         try:
+          with span("executive.report", agent=s["exec_slug"]):
             own = await ask(s["exec_slug"], f"Directive from Sir Jasper: {s['directive']}\n\nCrew input:\n" +
                             "\n".join(f"- {k}: {v}" for k, v in (s.get("crew_results") or {}).items()))
             ok = True
@@ -84,6 +87,7 @@ async def run_directive(text: str, exec_slug: str | None = None, ask=default_ask
     if org.exec_by_slug(slug) is None:
         raise LookupError(slug)
     announce("jasper", "planning", bubble=f"Delegating to {slug}")
-    out = await build_exec_graph(ask).ainvoke({"directive": text, "exec_slug": slug, "trace_id": uuid4().hex, "parent_span": uuid4().hex[:16]})
+    with span("jasper.directive", executive=slug):
+        out = await build_exec_graph(ask).ainvoke({"directive": text, "exec_slug": slug, "trace_id": uuid4().hex, "parent_span": uuid4().hex[:16]})
     announce("jasper", "idle")
     return out["report"]

@@ -12,6 +12,7 @@ from uuid import uuid4
 from langgraph.graph import END, START, StateGraph
 
 from core.eventbus import announce
+from core.telemetry import traced
 
 Delegate = Callable[[str, str], Awaitable[str]]
 
@@ -44,6 +45,7 @@ async def default_delegate(slug: str, text: str) -> str:
 def build_graph(checkpointer=None, delegate: Delegate = default_delegate, interrupt_before: list[str] | None = None):
     from agents.roster.orchestrator import _keyword_route
 
+    @traced("supervisor.classify")
     async def classify(s: SupervisorState):
         announce("jasper", "planning", bubble=s["directive"][:100])
         agents, _reason, confident = _keyword_route(s["directive"], False)
@@ -53,6 +55,7 @@ def build_graph(checkpointer=None, delegate: Delegate = default_delegate, interr
         steps = [f"{a}: {s['directive'][:80]}" for a in s["agents"]]
         return {"plan": steps, "log": ["plan"]}
 
+    @traced("supervisor.delegate")
     async def delegate_node(s: SupervisorState):
         out = {}
         for a in s["agents"]:
