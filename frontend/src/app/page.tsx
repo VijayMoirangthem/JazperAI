@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { LiveAgentsPanel } from "@/components/panels/LiveAgentsPanel";
 import { DashboardPanel } from "@/components/panels/DashboardPanel";
 import { ChatPanel, type LoadedSession } from "@/components/panels/ChatPanel";
 import { TasksPanel } from "@/components/panels/TasksPanel";
@@ -224,6 +225,7 @@ export default function Home() {
     approvals:      <ApprovalsPanel onNavigate={(v) => navigate(v)} />,
     ide:            <IDEPanel />,
     control_tower:  <ControlTowerPanel />,
+    live_agents:    <LiveAgentsPanel />,
     company:        <CompanyDashboardPanel />,
     pipeline:       <PipelinePanel />,
     evolution:      <EvolutionPanel />,

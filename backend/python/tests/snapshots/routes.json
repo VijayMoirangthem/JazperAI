@@ -3724,6 +3724,10 @@
   "/api/workflows/trigger"
  ],
  [
+  "POST",
+  "/ws/demo"
+ ],
+ [
   "PUT",
   "/api/apply/profile"
  ],

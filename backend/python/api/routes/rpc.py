@@ -76,3 +76,14 @@ async def rpc(ws: WebSocket, token: str = ""):
             bus.unsubscribe(sub)
         if pump:
             pump.cancel()
+
+
+@router.post("/demo")
+async def demo():
+    """Emit a short scripted sequence of agent-state-change events (for the Live Agents panel)."""
+    from core.eventbus import announce
+    for slug, state, bubble in [("jasper", "planning", "Planning the directive"), ("scout", "working", "Searching the web"),
+                                ("forge", "testing", "Running tests"), ("scout", "idle", None), ("jasper", "idle", None)]:
+        announce(slug, state, bubble=bubble)
+        await asyncio.sleep(0.4)
+    return {"ok": True}
