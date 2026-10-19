@@ -205,6 +205,15 @@ async def lifespan(app: FastAPI):
     # Start IT Department auto-repair background loop
     asyncio.create_task(_auto_repair_loop(), name="it-auto-repair")
 
+    # Plan V2 F1: load hot-pluggable bots and open the durable checkpointer
+    try:
+        from agents.registry import registry as _bot_registry
+        await _bot_registry.reload()
+        from core.durable import get_checkpointer
+        await get_checkpointer()
+    except Exception as exc:
+        log.warning("bot registry / checkpointer init failed (non-fatal)", error=str(exc)[:160])
+
     # Phase 7D: start filesystem watcher (daemon thread, auto-triggers npm/pip install)
     from core.system.file_watcher import start as fw_start
     try:

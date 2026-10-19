@@ -6,7 +6,7 @@ $old = Join-Path $root 'backend\infra\docker-compose.yml'
 $new = Join-Path $root 'infra\docker-compose.yml'
 $compose = if (Test-Path $new) { $new } else { $old }
 docker compose -f $compose up -d
-Start-Process $py -WorkingDirectory (Join-Path $root 'backend\python') -ArgumentList '-m','uvicorn','main:app','--reload','--port','8000'
+Start-Process $py -WorkingDirectory (Join-Path $root 'backend\python') -ArgumentList 'run_server.py','--reload','--port','8000'
 Start-Process npm.cmd -WorkingDirectory (Join-Path $root 'frontend') -ArgumentList 'run','dev'
 foreach ($u in 'http://localhost:8000/health/','http://localhost:3001') {
   $ok = $false

@@ -35,7 +35,7 @@ function ping(url) {
 async function ensureBackend() {
   if (await ping(`${API_URL}/health/`)) return;
   const py = path.join(ROOT, "backend", ".venv", "Scripts", "python.exe");
-  backend = spawn(py, ["-m", "uvicorn", "main:app", "--port", new URL(API_URL).port || "8000"], {
+  backend = spawn(py, ["run_server.py", "--port", new URL(API_URL).port || "8000"], {
     cwd: path.join(ROOT, "backend", "python"), stdio: "ignore", windowsHide: true,
   });
   backend.on("exit", () => { backend = null; });

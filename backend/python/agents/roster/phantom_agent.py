@@ -66,7 +66,7 @@ async def _scrape_playwright(url: str) -> tuple[str, str]:
     Returns (raw_text, error).
     """
     try:
-        from mcp.tools.browser_tool import BrowserTool, PLAYWRIGHT_AVAILABLE
+        from hub.tools.browser_tool import BrowserTool, PLAYWRIGHT_AVAILABLE
         if not PLAYWRIGHT_AVAILABLE:
             return "", "Playwright not installed"
 

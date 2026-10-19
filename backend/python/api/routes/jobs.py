@@ -295,8 +295,8 @@ async def approve_matches(job_id: str, run_id: str, body: ApproveMatches):
 
     # Launch the worker in AUTO mode for approved jobs only
     from agents.workers.job_apply_worker import JobApplyWorker
-    from mcp.tools.browser_tool import BrowserTool
-    from mcp.tools.linkedin_tool import LinkedInTool
+    from hub.tools.browser_tool import BrowserTool
+    from hub.tools.linkedin_tool import LinkedInTool
     from core.services.credentials_service import load_credential
 
     li_creds = await _run_sync(lambda: load_credential("linkedin"))
@@ -350,8 +350,8 @@ async def test_credential(portal: str):
     if not li_creds:
         raise HTTPException(404, "No credentials found for this portal")
 
-    from mcp.tools.browser_tool import BrowserTool
-    from mcp.tools.linkedin_tool import LinkedInTool
+    from hub.tools.browser_tool import BrowserTool
+    from hub.tools.linkedin_tool import LinkedInTool
 
     cookies = li_creds.get("cookies", [])
     user_agent = li_creds.get("user_agent")

@@ -91,10 +91,10 @@ class TestReviewDiff:
         assert any(i["severity"] == "HIGH" for i in result["issues"])
 
     @patch("agents.roster.verdict_agent.read_codebase_file",
-           side_effect=__import__("mcp.tools.filesystem_tool", fromlist=["FilesystemError"]))
+           side_effect=__import__("hub.tools.filesystem_tool", fromlist=["FilesystemError"]))
     async def test_unreadable_file_returns_safe_true_fail_open(self, _):
         """If Verdict can't read the file it fails open so Darwin is not permanently blocked."""
-        from mcp.tools.filesystem_tool import FilesystemError
+        from hub.tools.filesystem_tool import FilesystemError
         from agents.roster.verdict_agent import VerdictAgent
         with patch("agents.roster.verdict_agent.read_codebase_file",
                    side_effect=FilesystemError("not found")):

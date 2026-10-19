@@ -10,7 +10,7 @@ Shield tests the result after Forge applies changes.
 """
 
 import structlog
-from mcp.tools.filesystem_tool import (
+from hub.tools.filesystem_tool import (
     write_codebase_diff,
     create_codebase_file,
     backup_file,

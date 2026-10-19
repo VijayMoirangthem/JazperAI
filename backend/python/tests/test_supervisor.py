@@ -58,3 +58,12 @@ def test_directive_endpoint(monkeypatch):
     from main import app
     r = TestClient(app).post("/api/v1/directive/", json={"text": "hello there"})
     assert r.status_code == 200 and r.json()["status"] == "complete"
+
+
+@pytest.mark.db
+async def test_get_checkpointer_is_postgres_backed():
+    from core import durable
+    await durable.close_checkpointer()
+    saver = await durable.get_checkpointer()
+    assert type(saver).__name__ == "AsyncPostgresSaver"
+    await durable.close_checkpointer()

@@ -28,7 +28,7 @@ Severity rules (enforced by Darwin):
 import re
 import json
 import structlog
-from mcp.tools.filesystem_tool import read_codebase_file, FilesystemError
+from hub.tools.filesystem_tool import read_codebase_file, FilesystemError
 
 log = structlog.get_logger()
 

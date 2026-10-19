@@ -36,3 +36,5 @@ anthropic==1.15.0
 langgraph
 langgraph-checkpoint-postgres
 psycopg[binary,pool]
+mcp==1.10.1
+jsonschema
