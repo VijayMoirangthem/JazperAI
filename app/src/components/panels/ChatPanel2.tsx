@@ -12,6 +12,7 @@ import { SentenceSplitter, speakable } from "@/voice/audio";
 import { Speaker } from "@/voice/speaker";
 import { useVoiceMode } from "@/voice/useVoiceMode";
 import { useLiveAgents } from "@/stores/liveAgentsStore";
+import { useChatIntent } from "@/stores/chatIntentStore";
 import { MausAvatar, lookFor, stateFromAgent, useBotLook, voiceOf, type MausMotion, type MausState } from "@/mascot/MausAvatar";
 import { speakAs, stopSpeaking, useTts } from "@/voice/botVoice";
 import { OrgSidebar, ScoreBadge, type OrgGroup } from "@/components/chat/OrgSidebar";
@@ -226,6 +227,12 @@ export function ChatPanel2() {
   const [active, setActive] = useState<Channel>({ id: "dm:jasper", label: "Sir Jasper", kind: "dm" });
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
+  const intent = useChatIntent((st) => st.intent); // "open this chat" requests from other panels (Office 2)
+  useEffect(() => {
+    if (!intent) return;
+    setActive({ id: intent.id, label: intent.label, kind: intent.kind, crew: intent.crew });
+    useChatIntent.getState().consume();
+  }, [intent]);
   const [query, setQuery] = useState("");
   const [customize, setCustomize] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
