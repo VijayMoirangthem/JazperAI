@@ -739,15 +739,20 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>JZ</span>
         </div>
 
-        {/* ── Jazper (the only primary section) ───────────────────────── */}
+        {/* ── Jazper tools, directly on the rail ──────────────────────── */}
         <div className="sj-nav-divider" style={{ width: 28 }} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center", width: "100%", padding: "8px 10px" }}>
-          <SystemButton
-            system={SYSTEM_REGISTRY.find(s => s.id === "jazper")!}
-            isActive={openSystem === "jazper" || PLUGIN_REGISTRY.find(p => p.id === active)?.system === "jazper"}
-            isOsMode={false}
-            onClick={() => handleSystemClick("jazper")}
-          />
+        <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center", width: "100%", padding: "8px 10px", overflowY: "auto", minHeight: 0 }}>
+          {orderJazperTools(getSystemTools("jazper"), "jazper").map(item => (
+            <button
+              key={item.id}
+              className={`sj-nav-icon${active === item.id ? " active" : ""}`}
+              title={item.label}
+              data-testid={"rail-" + item.id}
+              onClick={() => navigate(item.id)}
+            >
+              <item.icon size={16} />
+            </button>
+          ))}
         </div>
 
         {/* ── Spacer ──────────────────────────────────────────────────── */}
