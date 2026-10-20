@@ -9,6 +9,7 @@ export interface ChatMessage {
   status?: "sent" | "delivered" | "read";
   streaming?: boolean;
   attachments?: Attachment[];
+  tool?: { name: string; label: string; status: "running" | "ok" | "error"; result?: string };
   meta?: { route?: { slugs: string[]; source: string; confidence: number }; tokens?: number };
 }
 export type ApprovalLevel = "ask" | "auto_edits" | "approve_for_me" | "full";

@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from agents import orgchart
 from agents.registry import BotDef, registry
 
 router = APIRouter()
@@ -47,3 +48,74 @@ async def message(slug: str, body: MessageIn):
         return await registry.message(slug, body.text)
     except LookupError:
         raise HTTPException(404, "bot not found or disabled")
+
+
+# ── organisation: tree, ID card, placement, prompt, rating ─────────────────────────────────────────────
+class PlaceIn(BaseModel):
+    org_group: str | None = None
+    department: str | None = None
+    position: str | None = None
+    sort_order: int | None = None
+
+
+class OrderItem(PlaceIn):
+    slug: str
+
+
+class PromptIn(BaseModel):
+    prompt: str | None = None  # empty/None resets to the default
+
+
+class RateIn(BaseModel):
+    up: bool
+
+
+class GroupIn(BaseModel):
+    id: str = Field(pattern=r"^[a-z0-9_]{2,40}$")
+    label: str
+    kind: str = "company"
+
+
+@router.get("/tree")
+async def tree():
+    return await orgchart.tree()
+
+
+@router.put("/order")
+async def reorder(items: list[OrderItem]):
+    for it in items:
+        await orgchart.place(it.slug, it.org_group, it.department, it.position, it.sort_order)
+    return {"updated": len(items)}
+
+
+@router.post("/groups")
+async def add_group(body: GroupIn):
+    from memory.db import aio
+    await aio.execute("INSERT INTO shared.org_groups(id,label,kind) VALUES($1,$2,$3) ON CONFLICT (id) DO UPDATE SET label=$2", body.id, body.label, body.kind)
+    return body
+
+
+@router.get("/{slug}/card")
+async def card(slug: str):
+    c = await orgchart.card(slug)
+    if not c:
+        raise HTTPException(404, "unknown bot")
+    return c
+
+
+@router.put("/{slug}/org")
+async def place(slug: str, body: PlaceIn):
+    await orgchart.place(slug, **body.model_dump())
+    return await orgchart.card(slug)
+
+
+@router.put("/{slug}/prompt")
+async def set_prompt(slug: str, body: PromptIn):
+    await orgchart.set_prompt(slug, body.prompt)
+    return {"slug": slug, "override": bool(body.prompt)}
+
+
+@router.post("/{slug}/rate")
+async def rate(slug: str, body: RateIn):
+    await orgchart.rate(slug, body.up)
+    return (await orgchart.card(slug)) or {}

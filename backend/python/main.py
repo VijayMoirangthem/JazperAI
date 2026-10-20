@@ -213,6 +213,8 @@ async def lifespan(app: FastAPI):
         from agents.registry import registry as _bot_registry
         from agents.org import ensure_org
         await ensure_org()  # seeds executives + spec crews once; never overwrites edits
+        from agents.orgchart import ensure_orgchart
+        await ensure_orgchart()  # groups, Jazper Team bots, placements, prompt overrides
         from core.durable import get_checkpointer
         await get_checkpointer()
     except Exception as exc:

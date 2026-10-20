@@ -6,12 +6,14 @@ Room events also start with {"t":"route","slugs":[..],"source":..,"confidence":.
 """
 import asyncio
 import json
+import time
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from agents import jasper_tools, orgchart
 from agents.decision import decide
 from agents.registry import registry
 from core import directory, finops
@@ -54,10 +56,10 @@ class RoomIn(BaseModel):
 def _persona(slug: str) -> tuple[str, str]:
     b = registry.routable(slug)
     if b:
-        return b.prompt, b.model_policy.get("default_tier", "standard")
+        return orgchart.OVERRIDES.get(slug) or b.prompt, b.model_policy.get("default_tier", "standard")
     d = next((x for x in directory.bots() if x.id == slug), None)
     title = d.role_title if d else slug
-    return (f"You are {slug}, {title} at Sir Jasper AI, a personal-to-enterprise agentic OS. Be concise and concrete.", "standard")
+    return (orgchart.OVERRIDES.get(slug) or f"You are {slug}, {title} at Sir Jasper AI, a personal-to-enterprise agentic OS. Be concise and concrete.", "standard")
 
 
 def _user_content(text: str, atts: list[Attachment]) -> str:
@@ -89,20 +91,33 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     yield _line({"t": "speaker", "slug": slug})
     announce(slug, "working", bubble=text[:100])
     reply_parts: list[str] = []
+    t0 = time.monotonic()
     try:
         b = registry.routable(slug)
         with finops.attribute(slug, b.crew if b else None):
-            async for item in r.stream(LLMRequest(system=system, messages=msgs, tier=tier or default_tier, max_tokens=1024)):
-                if isinstance(item, Usage):
-                    yield _line({"t": "done", "slug": slug, "usage": item.model_dump()})
-                else:
-                    reply_parts.append(item)
-                    yield _line({"t": "delta", "slug": slug, "text": item})
+            if slug == "jasper":  # chief orchestrator has system access via the tool loop
+                async for ev in jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier):
+                    if "delta" in ev:
+                        reply_parts.append(ev["delta"])
+                        yield _line({"t": "delta", "slug": slug, "text": ev["delta"]})
+                    elif "tool" in ev:
+                        yield _line({"t": "tool", "slug": slug, **ev["tool"]})
+                    else:
+                        yield _line({"t": "done", "slug": slug, "usage": ev["usage"].model_dump()})
+            else:
+                async for item in r.stream(LLMRequest(system=system, messages=msgs, tier=tier or default_tier, max_tokens=1024)):
+                    if isinstance(item, Usage):
+                        yield _line({"t": "done", "slug": slug, "usage": item.model_dump()})
+                    else:
+                        reply_parts.append(item)
+                        yield _line({"t": "delta", "slug": slug, "text": item})
     except Exception as e:
         announce(slug, "error", reason=str(e))
+        await orgchart.record_call(slug, False, int((time.monotonic() - t0) * 1000))
         yield _line({"t": "error", "slug": slug, "message": str(e)[:200]})
         return
     announce(slug, "idle")
+    await orgchart.record_call(slug, True, int((time.monotonic() - t0) * 1000))
     
     # Memory v2: consolidate the turn after the reply (only for jasper)
     if slug == "jasper" and reply_parts:

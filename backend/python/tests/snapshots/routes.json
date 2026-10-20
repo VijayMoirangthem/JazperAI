@@ -653,6 +653,14 @@
  ],
  [
   "GET",
+  "/api/bots/tree"
+ ],
+ [
+  "GET",
+  "/api/bots/{slug}/card"
+ ],
+ [
+  "GET",
   "/api/briefings/config"
  ],
  [
@@ -1482,6 +1490,14 @@
  [
   "GET",
   "/api/v1/bots/"
+ ],
+ [
+  "GET",
+  "/api/v1/bots/tree"
+ ],
+ [
+  "GET",
+  "/api/v1/bots/{slug}/card"
  ],
  [
   "GET",
@@ -2605,7 +2621,15 @@
  ],
  [
   "POST",
+  "/api/bots/groups"
+ ],
+ [
+  "POST",
   "/api/bots/{slug}/message"
+ ],
+ [
+  "POST",
+  "/api/bots/{slug}/rate"
  ],
  [
   "POST",
@@ -3293,7 +3317,15 @@
  ],
  [
   "POST",
+  "/api/v1/bots/groups"
+ ],
+ [
+  "POST",
   "/api/v1/bots/{slug}/message"
+ ],
+ [
+  "POST",
+  "/api/v1/bots/{slug}/rate"
  ],
  [
   "POST",
@@ -4101,6 +4133,18 @@
  ],
  [
   "PUT",
+  "/api/bots/order"
+ ],
+ [
+  "PUT",
+  "/api/bots/{slug}/org"
+ ],
+ [
+  "PUT",
+  "/api/bots/{slug}/prompt"
+ ],
+ [
+  "PUT",
   "/api/finops/budgets"
  ],
  [
@@ -4162,6 +4206,18 @@
  [
   "PUT",
   "/api/v1/bots/"
+ ],
+ [
+  "PUT",
+  "/api/v1/bots/order"
+ ],
+ [
+  "PUT",
+  "/api/v1/bots/{slug}/org"
+ ],
+ [
+  "PUT",
+  "/api/v1/bots/{slug}/prompt"
  ],
  [
   "PUT",
