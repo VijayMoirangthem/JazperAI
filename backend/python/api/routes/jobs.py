@@ -7,11 +7,17 @@ import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from memory.db.legacy_pg import _pg as _pg_raw
+
+def _open_conn():
+    import psycopg2
+    from core.config import settings
+    return psycopg2.connect(host=settings.POSTGRES_HOST, port=settings.POSTGRES_PORT, user=settings.POSTGRES_USER, password=settings.POSTGRES_PASSWORD, dbname=settings.POSTGRES_DB)
+
 
 def _pg():
     try:
-        return _pg_raw()
+        # _pg_raw is a context manager; callers here own the connection and close it
+        return _open_conn()
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Database unavailable: {e}")
 from core.services.credentials_service import (

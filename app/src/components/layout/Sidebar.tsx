@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Settings, Puzzle, Plus, X, Check, ChevronRight, Bot } from "lucide-react";
+import { Settings, Puzzle, Plus, X, Check, ChevronRight, ChevronDown, Bot, Archive } from "lucide-react";
 import { useApprovals } from "@/hooks/useApprovals";
 import {
   SYSTEM_REGISTRY,
@@ -137,6 +137,85 @@ function SystemButton({
         }} />
       )}
     </button>
+  );
+}
+
+// ── Jazper ordering (by importance) + Setup only until finished ────────────────
+const JAZPER_ORDER = ["team_chat", "live_agents", "office", "org_chart", "dev_loop", "diff_editor", "connections", "mcp_hub", "ai_providers", "finops", "business", "system", "setup"];
+
+function setupDone(): boolean {
+  try { return localStorage.getItem("jasper.setupDone") === "1"; } catch { return false; }
+}
+
+function orderJazperTools(tools: PluginMeta[], systemId: string): PluginMeta[] {
+  if (systemId !== "jazper") return tools;
+  const rank = (id: string) => { const i = JAZPER_ORDER.indexOf(id); return i < 0 ? 99 : i; };
+  return tools.filter(t => !(t.id === "setup" && setupDone())).sort((x, y) => rank(x.id) - rank(y.id));
+}
+
+// ── Legacy flyout: all previous-version panels in collapsed groups ─────────────
+function LegacyFlyout({ active, onNavigate, onClose, badges }: {
+  active: string;
+  onNavigate: (id: string) => void;
+  onClose: () => void;
+  badges: Record<string, number>;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  useEffect(() => {
+    function onDown(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [onClose]);
+
+  const groups: { id: string; label: string; tools: PluginMeta[] }[] = [
+    { id: "core", label: "Core (old)", tools: PLUGIN_REGISTRY.filter(p => p.group === "pinned" || p.group === "bottom" && p.id === "roadmap") },
+    ...SYSTEM_REGISTRY.filter(s => s.id !== "jazper").map(s => ({ id: s.id, label: s.label, tools: getSystemTools(s.id) })),
+  ].filter(g => g.tools.length > 0);
+
+  return (
+    <div ref={ref} data-testid="legacy-flyout" style={{
+      position: "fixed", left: 60, top: 0, bottom: 0, width: 280, zIndex: 200,
+      background: "var(--color-surface)", borderRight: "1px solid var(--color-border)",
+      display: "flex", flexDirection: "column", overflowY: "auto",
+    }}>
+      <div style={{ padding: "14px 14px 8px", fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
+        Legacy
+        <div style={{ fontSize: 11, fontWeight: 400, color: "var(--color-text-muted)" }}>Previous-version panels (kept until the audit is approved)</div>
+      </div>
+      <div style={{ padding: "0 8px 16px" }}>
+        {groups.map(g => (
+          <div key={g.id}>
+            <button
+              onClick={() => setOpenGroup(p => p === g.id ? null : g.id)}
+              data-testid={"legacy-group-" + g.id}
+              style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "7px 8px", background: "transparent", border: "none", color: "var(--color-text-secondary)", fontSize: 12, cursor: "pointer", textAlign: "left" }}
+            >
+              {openGroup === g.id ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              {g.label}
+              <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--color-text-muted)" }}>{g.tools.length}</span>
+            </button>
+            {openGroup === g.id && g.tools.map(t => (
+              <button
+                key={t.id}
+                onClick={() => onNavigate(t.id)}
+                title={t.description}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 8px 6px 26px",
+                  background: active === t.id ? "var(--color-surface-raised)" : "transparent",
+                  border: "none", color: active === t.id ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                  fontSize: 12, cursor: "pointer", textAlign: "left",
+                }}
+              >
+                <t.icon size={13} />
+                {t.label}
+                {t.badge && badges[t.badge] > 0 && <span style={{ marginLeft: "auto", fontSize: 10, color: "#ef4444" }}>{badges[t.badge]}</span>}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -647,8 +726,8 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
 
   // Visible systems — Agent OS (IDE, agents, evolution, etc.) shown inline with the rest
   const userSystems = SYSTEM_REGISTRY;
-  const openSystemMeta = openSystem ? SYSTEM_REGISTRY.find(s => s.id === openSystem) : null;
-  const openSystemTools = openSystem ? getSystemTools(openSystem as Parameters<typeof getSystemTools>[0]) : [];
+  const openSystemMeta = openSystem && openSystem !== "legacy" ? SYSTEM_REGISTRY.find(s => s.id === openSystem) : null;
+  const openSystemTools = openSystem && openSystem !== "legacy" ? orderJazperTools(getSystemTools(openSystem as Parameters<typeof getSystemTools>[0]), openSystem) : [];
 
   return (
     <>
@@ -660,43 +739,15 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>JZ</span>
         </div>
 
-        {/* ── Pinned Strip ────────────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center", width: "100%", padding: "0 10px 8px" }}>
-          {pinnedIds.map(id => {
-            const item = PLUGIN_REGISTRY.find(p => p.id === id);
-            if (!item) return null;
-            return (
-              <PinnedButton
-                key={id}
-                item={item}
-                isActive={active === id}
-                onClick={() => navigate(id)}
-                badge={getBadge(id)}
-                showBadge={mounted}
-                isCore={CORE_PINNED.includes(id as typeof CORE_PINNED[number])}
-                onRemove={() => unpin(id)}
-              />
-            );
-          })}
-        </div>
-
-        {/* ── Divider ─────────────────────────────────────────────────── */}
+        {/* ── Jazper (the only primary section) ───────────────────────── */}
         <div className="sj-nav-divider" style={{ width: 28 }} />
-
-        {/* ── System Icons ────────────────────────────────────────────── */}
-        <div style={{
-          display: "flex", flexDirection: "column", gap: 3,
-          alignItems: "center", width: "100%", padding: "8px 10px",
-        }}>
-          {(osMode ? [SYSTEM_REGISTRY.find(s => s.id === "agent_os")!] : userSystems).map(system => (
-            <SystemButton
-              key={system.id}
-              system={system}
-              isActive={openSystem === system.id || system.id === (PLUGIN_REGISTRY.find(p => p.id === active)?.system)}
-              isOsMode={osMode}
-              onClick={() => handleSystemClick(system.id)}
-            />
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center", width: "100%", padding: "8px 10px" }}>
+          <SystemButton
+            system={SYSTEM_REGISTRY.find(s => s.id === "jazper")!}
+            isActive={openSystem === "jazper" || PLUGIN_REGISTRY.find(p => p.id === active)?.system === "jazper"}
+            isOsMode={false}
+            onClick={() => handleSystemClick("jazper")}
+          />
         </div>
 
         {/* ── Spacer ──────────────────────────────────────────────────── */}
@@ -719,29 +770,16 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
         {/* ── Divider ─────────────────────────────────────────────────── */}
         <div className="sj-nav-divider" style={{ width: 28 }} />
 
-        {/* ── Pin (+) button ──────────────────────────────────────────── */}
+        {/* ── Legacy (everything from the previous version) ───────────── */}
         <div style={{ padding: "4px 10px", display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
           <button
             className="sj-nav-icon"
-            title="Pin a tool to sidebar"
-            onClick={() => { setOpenSystem(null); setShowPinPicker(p => !p); }}
-            style={showPinPicker ? { background: "var(--color-surface-raised)", color: "var(--color-text-secondary)" } : {}}
+            title="Legacy — previous version panels"
+            data-testid="legacy-button"
+            onClick={() => handleSystemClick("legacy")}
+            style={openSystem === "legacy" ? { background: "var(--color-surface-raised)", color: "var(--color-text-secondary)" } : {}}
           >
-            <Plus size={14} />
-          </button>
-
-          {/* ── OS Mode toggle ─────────────────────────────────────────── */}
-          <button
-            className="sj-nav-icon"
-            title={osMode ? "Exit Agent OS mode" : "Enter Agent OS mode"}
-            onClick={() => { setOsMode(m => !m); setOpenSystem(null); }}
-            style={osMode ? {
-              background: "#6366f122",
-              color: "#6366f1",
-              border: "1px solid #6366f133",
-            } : {}}
-          >
-            <Bot size={14} />
+            <Archive size={14} />
           </button>
 
           {/* ── Bottom items (roadmap, settings) ───────────────────────── */}
@@ -762,6 +800,9 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
       </nav>
 
       {/* ── System Flyout ─────────────────────────────────────────────────── */}
+      {openSystem === "legacy" && (
+        <LegacyFlyout active={active} onNavigate={navigate} onClose={() => setOpenSystem(null)} badges={{ notifications: notifBadge, jobs: jobsBadge, approvals: approvalBadge }} />
+      )}
       {openSystemMeta && (
         <SystemFlyout
           system={openSystemMeta}

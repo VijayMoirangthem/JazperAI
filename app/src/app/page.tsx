@@ -112,7 +112,7 @@ function getClientView(): View {
   if (VALID_VIEWS.has(resolved)) return resolved;
   const stored = localStorage.getItem("sj-active-view");
   if (stored && VALID_VIEWS.has(stored)) return stored;
-  return "dashboard";
+  return "team_chat";
 }
 
 const TITLES = VIEW_TITLES;
@@ -129,7 +129,7 @@ function PlaceholderPanel({ label }: { label: string }) {
 }
 
 export default function Home() {
-  const [view, setView] = useState<View>("dashboard");
+  const [view, setView] = useState<View>("team_chat");
   const [sessionToLoad, setSessionToLoad] = useState<LoadedSession | null>(null);
   const [studioMode, setStudioMode] = useState(false);
   const didInit = useRef(false);
@@ -164,7 +164,7 @@ export default function Home() {
     if (!didInit.current) {
       didInit.current = true;
       const v = getClientView();
-      if (v !== "dashboard") {
+      if (v !== "team_chat") {
         setView(v);
         return; // will re-run this effect with the correct view, then fall through to sync
       }
