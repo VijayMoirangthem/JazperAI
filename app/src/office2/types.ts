@@ -17,6 +17,7 @@ export interface MapModel {
   roomAt(x: number, y: number): string | null;
 }
 
-export interface Look { skin: number; outfit: number; hair: number; hairColor: number; accessory: number; shirtColor: string }
+/** Indices into app/public/office2/woka/manifest.json lists. hat and accessory use -1 for none. */
+export interface Look { body: number; eyes: number; hair: number; clothes: number; hat: number; accessory: number; shirtColor: string }
 
 export interface Person { slug: string; name: string; role: string; crew: string; kind: "human" | "bot"; lifecycle?: string }

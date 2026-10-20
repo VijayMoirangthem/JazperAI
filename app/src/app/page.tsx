@@ -112,7 +112,7 @@ const VALID_VIEWS = new Set([
 ]);
 
 function getClientView(): View {
-  const hash = window.location.hash.slice(1);
+  const hash = window.location.hash.slice(1).split("?")[0];
   const resolved = hash === "munderdifflin" ? "cooshq" : hash;
   if (VALID_VIEWS.has(resolved)) return resolved;
   const stored = localStorage.getItem("sj-active-view");
@@ -185,7 +185,7 @@ export default function Home() {
   // Handle browser back/forward buttons
   useEffect(() => {
     function onHashChange() {
-      const raw = window.location.hash.slice(1);
+      const raw = window.location.hash.slice(1).split("?")[0];
       const hash = raw === "munderdifflin" ? "cooshq" : raw;
       if (VALID_VIEWS.has(hash)) setView(hash as View);
     }

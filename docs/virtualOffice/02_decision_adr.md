@@ -43,8 +43,8 @@ I did **not** start the WorkAdventure stack: with 0.3 GB free RAM it would have 
 
 ## Guard rails (apply to every prompt)
 
-1. Never copy or paste code from `Project_References/workadventure/play`, `back`, `map-storage`, `desktop`, `uploader`. Read for ideas only. (`libs/*` are ISC and could be used with attribution, but we add no dependency on them in this plan.)
-2. No WorkAdventure artwork (tilesets are CC-BY-SA 3.0/GPL 3.0; pipoya and customisation layers have no licence text). See `04_asset_plan.md`.
+1. Founder decision: personal local use only, so WorkAdventure code may be copied or adapted. Log each copy.
+2. Personal-use decision (founder, 2026-10-21): copying WorkAdventure code and art is allowed. Every copy is logged in `COPIED_FROM_WORKADVENTURE.md`. Caveat kept on record: AGPL-3.0 + Commons Clause and CC-BY-SA 3.0/GPL 3.0 art apply if the app is ever distributed or sold (spin-off); the log tells us exactly what to replace.
 3. Keep the old office reachable until the founder approves the switch.
 
 ## Fallback criteria (when to change course)
