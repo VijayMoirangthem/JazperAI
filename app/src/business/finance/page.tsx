@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { Loader2, Plus, Trash2, Receipt } from "lucide-react";
 
 const API = "http://localhost:8000";
@@ -79,84 +80,30 @@ function invoiceBadgeClass(status: InvoiceStatus) {
 }
 
 export default function FinancePage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [summary, setSummary] = useState<Summary | null>(null);
   const [summaryClientId, setSummaryClientId] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"invoices" | "expenses">("invoices");
   const [error, setError] = useState<string | null>(null);
 
-  const [tab, setTab] = useState<"invoices" | "expenses">("invoices");
+  const { data: clients, refresh: refreshClients, loading: clientsLoading } = useApi<Client[]>(`${API}/api/business/clients`, { ttl: 30000, poll: 30000 });
+  const { data: projects, refresh: refreshProjects, loading: projectsLoading } = useApi<Project[]>(`${API}/api/business/projects`, { ttl: 30000, poll: 30000 });
+  const { data: summary, refresh: refreshSummary, loading: summaryLoading } = useApi<Summary>(`${API}/api/business/finance/summary${summaryClientId ? `?client_id=${encodeURIComponent(summaryClientId)}` : ""}`, { ttl: 10000, poll: 30000 });
+  const { data: invoices, refresh: refreshInvoices, loading: invoicesLoading } = useApi<Invoice[]>(`${API}/api/business/finance/invoices`, { ttl: 10000, poll: 30000 });
+  const { data: expenses, refresh: refreshExpenses, loading: expensesLoading } = useApi<Expense[]>(`${API}/api/business/finance/expenses`, { ttl: 10000, poll: 30000 });
 
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const clientList = clients ?? [];
+  const projectList = projects ?? [];
+  const invoiceList = invoices ?? [];
+  const expenseList = expenses ?? [];
 
-  const clientNameById = (id: string) => clients.find(c => c.id === id)?.name || "Unknown client";
+  const clientNameById = (id: string) => clientList.find(c => c.id === id)?.name || "Unknown client";
 
-  async function loadClients() {
-    try {
-      const res = await fetch(`${API}/api/business/clients`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setClients(await res.json());
-    } catch {
-      // non-fatal
-    }
-  }
-
-  async function loadProjects() {
-    try {
-      const res = await fetch(`${API}/api/business/projects`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setProjects(await res.json());
-    } catch {
-      // non-fatal
-    }
-  }
-
-  async function loadSummary(clientId: string) {
-    try {
-      const url = clientId
-        ? `${API}/api/business/finance/summary?client_id=${encodeURIComponent(clientId)}`
-        : `${API}/api/business/finance/summary`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setSummary(await res.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load summary");
-    }
-  }
-
-  async function loadInvoices() {
-    try {
-      const res = await fetch(`${API}/api/business/finance/invoices`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setInvoices(await res.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load invoices");
-    }
-  }
-
-  async function loadExpenses() {
-    try {
-      const res = await fetch(`${API}/api/business/finance/expenses`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setExpenses(await res.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load expenses");
-    }
-  }
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await Promise.all([loadClients(), loadProjects(), loadSummary(""), loadInvoices(), loadExpenses()]);
-      setLoading(false);
-    })();
-  }, []);
-
-  function handleSummaryClientChange(id: string) {
+  async function handleSummaryClientChange(id: string) {
     setSummaryClientId(id);
-    loadSummary(id);
+    await refreshSummary();
+  }
+
+  async function refreshAll() {
+    await Promise.all([refreshInvoices(), refreshExpenses(), refreshSummary()]);
   }
 
   return (
@@ -168,7 +115,7 @@ export default function FinancePage() {
         </div>
         <select className="biz-select" style={{ width: 220 }} value={summaryClientId} onChange={e => handleSummaryClientChange(e.target.value)}>
           <option value="">All Clients</option>
-          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {clientList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
@@ -206,24 +153,24 @@ export default function FinancePage() {
         <button className={`biz-btn ${tab === "expenses" ? "biz-btn-primary" : "biz-btn-ghost"}`} onClick={() => setTab("expenses")}>Expenses</button>
       </div>
 
-      {loading ? (
+      {(clientsLoading || projectsLoading || summaryLoading || invoicesLoading || expensesLoading) && invoiceList.length === 0 && expenseList.length === 0 ? (
         <div style={{ padding: 40, textAlign: "center", color: "var(--biz-text-muted)" }}>
           <Loader2 size={18} className="biz-spin" />
         </div>
       ) : tab === "invoices" ? (
         <InvoicesTab
-          clients={clients}
-          projects={projects}
-          invoices={invoices}
+          clients={clientList}
+          projects={projectList}
+          invoices={invoiceList}
           clientNameById={clientNameById}
-          onMutate={async () => { await Promise.all([loadInvoices(), loadSummary(summaryClientId)]); }}
+          onMutate={refreshAll}
           setError={setError}
         />
       ) : (
         <ExpensesTab
-          projects={projects}
-          expenses={expenses}
-          onMutate={async () => { await Promise.all([loadExpenses(), loadSummary(summaryClientId)]); }}
+          projects={projectList}
+          expenses={expenseList}
+          onMutate={refreshAll}
           setError={setError}
         />
       )}

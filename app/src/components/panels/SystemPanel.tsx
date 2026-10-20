@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { Activity, DatabaseBackup, KeyRound } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -8,37 +9,44 @@ const base = `${API}/api/v1/system`;
 
 interface Check { ok: boolean; detail: string; ms: number }
 interface Secret { name: string; set: boolean }
+interface HealthResponse { checks: Record<string, Check> }
+interface SecretsResponse { secrets: Secret[] }
 
 /** Health of every dependency, the OS-vault secret manager (write-only), and one-click encrypted backup. */
 export function SystemPanel() {
-  const [checks, setChecks] = useState<Record<string, Check>>({});
   const [secrets, setSecrets] = useState<Secret[]>([]);
   const [msg, setMsg] = useState("");
   const [draft, setDraft] = useState({ name: "", value: "" });
   const [busy, setBusy] = useState(false);
   const [logName, setLogName] = useState("backend");
   const [logLines, setLogLines] = useState<string[]>([]);
-  useEffect(() => { const f = () => fetch(`${base}/logs?name=${logName}&lines=150`).then((r) => r.json()).then((d) => setLogLines(d.lines ?? [])).catch(() => undefined); f(); const t = setInterval(f, 4000); return () => clearInterval(t); }, [logName]);
 
-  const load = useCallback(async () => {
-    try {
-      setChecks((await fetch(`${base}/health`).then((r) => r.json())).checks);
-      setSecrets((await fetch(`${base}/secrets`).then((r) => r.json())).secrets ?? []);
-    } catch { setMsg("Backend unreachable"); }
+  const { data: health, refresh: refreshHealth, loading: healthLoading } = useApi<HealthResponse>(`${base}/health`, { ttl: 15000, poll: 15000 });
+  const checks = health?.checks ?? {};
+
+  useEffect(() => {
+    const f = () => fetch(`${base}/logs?name=${logName}&lines=150`).then((r) => r.json()).then((d) => setLogLines(d.lines ?? [])).catch(() => undefined);
+    f();
+    const t = setInterval(f, 4000);
+    return () => clearInterval(t);
+  }, [logName]);
+
+  useEffect(() => {
+    fetch(`${base}/secrets`).then((r) => r.json()).then((d) => setSecrets(d.secrets ?? [])).catch(() => undefined);
   }, []);
-  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load]);
 
   const save = async (name: string, value: string) => {
     const r = await fetch(`${base}/secrets`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, value }) });
     setMsg(r.ok ? `${name} saved to the OS vault` : (await r.json().catch(() => ({}))).detail ?? "failed");
     setDraft({ name: "", value: "" });
-    load();
+    fetch(`${base}/secrets`).then((r) => r.json()).then((d) => setSecrets(d.secrets ?? [])).catch(() => undefined);
   };
+
   const backup = async () => {
     setBusy(true); setMsg("Backing up…");
     const r = await fetch(`${base}/backup`, { method: "POST" });
     setMsg(r.ok ? "Backup written to storage/backups (encrypted)" : "Backup failed");
-    setBusy(false); load();
+    setBusy(false);
   };
 
   return (
@@ -55,6 +63,9 @@ export function SystemPanel() {
             <div className="mt-1 text-xs opacity-70">{c.detail}</div>
           </div>
         ))}
+        {healthLoading && Object.keys(checks).length === 0 && (
+          <div className="col-span-2 text-center text-xs opacity-50 py-4">Loading…</div>
+        )}
       </section>
 
       <section className="space-y-2 rounded border p-3">
@@ -64,7 +75,7 @@ export function SystemPanel() {
             <span className="font-mono text-xs">{s.name}</span>
             <span className="text-xs" style={{ color: s.set ? "#22c55e" : "#f59e0b" }}>{s.set ? "set" : "not set"}</span>
             <button className="ml-auto text-xs underline" onClick={() => setDraft({ name: s.name, value: "" })}>{s.set ? "replace" : "set"}</button>
-            {s.set && <button className="text-xs underline" onClick={() => fetch(`${base}/secrets/${s.name}`, { method: "DELETE" }).then(load)}>remove</button>}
+            {s.set && <button className="text-xs underline" onClick={() => fetch(`${base}/secrets/${s.name}`, { method: "DELETE" }).then(() => fetch(`${base}/secrets`).then((r) => r.json()).then((d) => setSecrets(d.secrets ?? [])).catch(() => undefined))}>remove</button>}
           </div>
         ))}
         <div className="flex gap-2 pt-2">

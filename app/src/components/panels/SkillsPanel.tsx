@@ -1,32 +1,44 @@
 "use client";
 
-// The shared skill library: procedures bots learned (or you wrote), with usage, win/loss and version history.
-// Bots create and patch skills themselves after tool-using turns (Hermes-style background review); you can edit or disable any of them.
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useApi } from "@/lib/swr";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 interface Skill { name: string; description: string; version: number; uses: number; wins: number; losses: number; created_by: string; enabled: boolean; updated_at: string }
 interface Detail extends Skill { body: string; history: { version: number; changed_by: string; reason: string; ts: string }[] }
 
 export function SkillsPanel() {
-  const [skills, setSkills] = useState<Skill[]>([]);
   const [sel, setSel] = useState<Detail | null>(null);
   const [body, setBody] = useState("");
-  const load = () => fetch(`${API}/api/v1/skills/`).then((r) => r.json()).then((d) => setSkills(d.skills ?? [])).catch(() => undefined);
-  useEffect(() => { void load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, []);
-  const open = async (n: string) => { const d: Detail = await fetch(`${API}/api/v1/skills/${n}`).then((r) => r.json()); setSel(d); setBody(d.body); };
+
+  const { data, refresh, loading } = useApi<{ skills: Skill[] }>(`${API}/api/v1/skills/`, { ttl: 5000, poll: 10000 });
+  const skills = data?.skills ?? [];
+
+  const open = async (n: string) => {
+    const d: Detail = await fetch(`${API}/api/v1/skills/${n}`).then((r) => r.json());
+    setSel(d);
+    setBody(d.body);
+  };
+
   const save = async () => {
     if (!sel) return;
     await fetch(`${API}/api/v1/skills/`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: sel.name, description: sel.description, body }) });
-    await open(sel.name); await load();
+    await open(sel.name);
+    await refresh();
   };
-  const toggle = async (s: Skill) => { await fetch(`${API}/api/v1/skills/${s.name}/enabled?enabled=${!s.enabled}`, { method: "POST" }); await load(); };
+
+  const toggle = async (s: Skill) => {
+    await fetch(`${API}/api/v1/skills/${s.name}/enabled?enabled=${!s.enabled}`, { method: "POST" });
+    await refresh();
+  };
+
   return (
     <div className="flex h-full min-h-[500px]" data-testid="skills-panel">
       <div className="w-[360px] shrink-0 overflow-y-auto border-r border-white/10 p-3">
         <h1 className="mb-1 text-lg font-semibold">Skills</h1>
         <p className="mb-3 text-xs opacity-60">Procedures the team has learned. Bots load a skill only when they need it, so it costs almost no tokens.</p>
-        {skills.length === 0 && <div className="text-sm opacity-50">No skills yet. They appear after bots finish multi-step work.</div>}
+        {loading && <div className="text-xs opacity-50 mb-3">Loading…</div>}
+        {skills.length === 0 && !loading && <div className="text-sm opacity-50">No skills yet. They appear after bots finish multi-step work.</div>}
         {skills.map((s) => (
           <button key={s.name} onClick={() => void open(s.name)} className="mb-1.5 block w-full rounded-xl px-3 py-2 text-left" style={{ background: sel?.name === s.name ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)", opacity: s.enabled ? 1 : 0.5 }}>
             <div className="flex items-center gap-2"><span className="text-sm font-semibold">{s.name}</span><span className="ml-auto text-[10px] opacity-60">v{s.version}</span></div>

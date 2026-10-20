@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { UserPlus, X } from "lucide-react";
 import { bfs, near, pickSpot, placeFor, type Place, type Pt } from "@/office/behavior";
 import { CREW_COLOR, DIRS, FRAME_H, FRAME_W, drawStrip, portrait } from "@/office/sprites";
@@ -16,6 +17,9 @@ const STATE_RING: Record<string, number> = { idle: 0x64748b, working: 0x22c55e, 
 interface Person { slug: string; name: string; role: string; crew: string; kind: "human" | "bot"; lifecycle?: string }
 interface Rooms { [k: string]: { name: string; rect: number[]; desks?: number[][]; spots?: number[][] } }
 
+interface DirectoryResponse { humans: { id: string; display_name: string }[] }
+interface BotsResponse { bots: { slug: string; display_name: string; role_title: string; crew: string; lifecycle?: string; enabled: boolean }[] }
+
 declare global { interface Window { __officeFps?: number; __officePeople?: number } }
 
 export function OfficePanel() {
@@ -27,6 +31,9 @@ export function OfficePanel() {
   const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => connect(WS_URL), [connect]);
 
+  const { data: directory, loading: dirLoading } = useApi<DirectoryResponse>(`${API}/api/v1/directory/`, { ttl: 30000, poll: 30000 });
+  const { data: roster, loading: rosterLoading } = useApi<BotsResponse>(`${API}/api/v1/bots/`, { ttl: 5000, poll: 5000 });
+
   useEffect(() => {
     let game: import("phaser").Game | null = null;
     let unsub: (() => void) | null = null;
@@ -34,15 +41,14 @@ export function OfficePanel() {
 
     (async () => {
       const Phaser = (await import("phaser")).default;
-      const [rooms, dir, roster] = await Promise.all([
+      const [rooms] = await Promise.all([
         fetch("/office/rooms.json").then((r) => r.json() as Promise<Rooms>),
-        fetch(`${API}/api/v1/directory/`).then((r) => r.json()).catch(() => ({ humans: [] })),
-        fetch(`${API}/api/v1/bots/`).then((r) => r.json()).catch(() => ({ bots: [] })),
       ]);
       if (cancelled || !host.current) return;
+
       const people: Person[] = [
-        ...(dir.humans ?? []).map((h: { id: string; display_name: string }) => ({ slug: h.id, name: h.display_name, role: "Founder", crew: "human", kind: "human" as const })),
-        ...(roster.bots ?? []).filter((b: { enabled: boolean }) => b.enabled)
+        ...(directory?.humans ?? []).map((h: { id: string; display_name: string }) => ({ slug: h.id, name: h.display_name, role: "Founder", crew: "human", kind: "human" as const })),
+        ...(roster?.bots ?? []).filter((b: { enabled: boolean }) => b.enabled)
           .map((b: { slug: string; display_name: string; role_title: string; crew: string; lifecycle?: string }) => ({ slug: b.slug, name: b.display_name, role: b.role_title, crew: b.crew, kind: "bot" as const, lifecycle: b.lifecycle })),
       ];
       const byCrew = (p: Person) => (OPS_CREWS.has(p.crew) ? rooms.operations : rooms.engineering);
@@ -101,7 +107,6 @@ export function OfficePanel() {
             sprite.on("pointerdown", () => setSelected({ ...p, state: this.agents.get(p.slug)!.state }));
           });
 
-          // click the floor: the founder (first human) walks there
           const me = people.find((p) => p.kind === "human");
           this.input.on("pointerdown", (ptr: Phaser.Input.Pointer, over: unknown[]) => {
             if (!me || over.length) return;
@@ -121,7 +126,7 @@ export function OfficePanel() {
           };
           apply(useLiveAgents.getState().agents);
           unsub = useLiveAgents.subscribe((st) => apply(st.agents));
-          this.time.addEvent({ delay: 60_000, loop: true, callback: () => apply(useLiveAgents.getState().agents) }); // lunch schedule tick
+          this.time.addEvent({ delay: 60_000, loop: true, callback: () => apply(useLiveAgents.getState().agents) });
           this.time.addEvent({ delay: 400, loop: true, callback: () => this.proximity() });
           this.time.addEvent({ delay: 1000, loop: true, callback: () => { window.__officeFps = Math.round(this.game.loop.actualFps); window.__officePeople = this.agents.size; } });
         }
@@ -176,7 +181,7 @@ export function OfficePanel() {
     })();
 
     return () => { cancelled = true; unsub?.(); game?.destroy(true); };
-  }, [reloadKey]);
+  }, [reloadKey, directory, roster]);
 
   const addEmployee = async () => {
     if (!form.slug || !form.name) return;
@@ -195,6 +200,7 @@ export function OfficePanel() {
         <span className="text-xs opacity-60">Agents walk to rooms by what they are doing · click a person for their ID card · click the floor to walk the founder</span>
         <button onClick={() => setAdding(true)} className="ml-auto flex items-center gap-1 rounded border px-3 py-1 text-sm"><UserPlus size={14} />Add employee</button>
       </div>
+      {(dirLoading || rosterLoading) && <div className="text-xs opacity-50 mb-2">Loading office data…</div>}
       <div ref={host} className="min-h-0 flex-1" />
       {selected && (
         <div className="absolute right-6 top-14 w-64 rounded-2xl bg-black/80 p-4 ring-1 ring-white/20">

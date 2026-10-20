@@ -1,8 +1,7 @@
 "use client";
 
-// Connections: one card per connector with status, what it needs, scopes -> approval tiers, Connect / Test / Disconnect.
-// Secrets are entered in a password field and go to the OS vault only. Pattern: Project_References/OpenMausBot connected-apps cards.
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useApi } from "@/lib/swr";
 import { CredentialCard, OAuthCard } from "@/components/chat/ChatCards";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -22,21 +21,29 @@ interface Workspace { id: number; org_group: string; path: string; label: string
 const GROUPS = [["baeit", "Baeit"], ["boardmint", "Boardmint"], ["create_origins", "Create Origins"], ["jazper_team", "Jazper Team"]];
 
 function Workspaces() {
-  const [list, setList] = useState<Workspace[]>([]);
   const [group, setGroup] = useState("baeit");
   const [mode, setMode] = useState("read-write");
   const [path, setPath] = useState("");
   const [browse, setBrowse] = useState<{ path: string; parent: string | null; dirs: string[] } | null>(null);
   const [err, setErr] = useState("");
-  const load = () => fetch(`${API}/api/v1/workspaces/`).then((r) => r.json()).then((d) => setList(d.workspaces ?? [])).catch(() => undefined);
-  useEffect(() => { void load(); }, []);
+
+  const { data, refresh, loading } = useApi<{ workspaces: Workspace[] }>(`${API}/api/v1/workspaces/`, { ttl: 10000, poll: 10000 });
+  const list = data?.workspaces ?? [];
+
   const open = (p: string) => fetch(`${API}/api/v1/workspaces/browse?path=${encodeURIComponent(p)}`).then((r) => r.json()).then((d) => { if (d.dirs) setBrowse(d); });
+
   const add = async () => {
     setErr("");
     const r = await fetch(`${API}/api/v1/workspaces/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_group: group, path, mode }) });
     if (!r.ok) { setErr((await r.json()).detail ?? "could not add"); return; }
-    setPath(""); setBrowse(null); await load();
+    setPath(""); setBrowse(null); await refresh();
   };
+
+  const remove = async (id: number) => {
+    await fetch(`${API}/api/v1/workspaces/${id}`, { method: "DELETE" });
+    await refresh();
+  };
+
   return (
     <div className="mt-8" data-testid="workspaces">
       <h2 className="text-lg font-semibold">Workspaces</h2>
@@ -47,7 +54,7 @@ function Workspaces() {
             <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">{GROUPS.find((g) => g[0] === w.org_group)?.[1] ?? w.org_group}</span>
             <span className="min-w-0 flex-1 truncate font-mono text-xs">{w.path}</span>
             <span className="text-xs opacity-60">{w.mode}</span>
-            <button aria-label={`Remove ${w.path}`} onClick={() => void fetch(`${API}/api/v1/workspaces/${w.id}`, { method: "DELETE" }).then(load)} className="text-xs opacity-60 hover:opacity-100">Remove</button>
+            <button aria-label={`Remove ${w.path}`} onClick={() => void remove(w.id)} className="text-xs opacity-60 hover:opacity-100">Remove</button>
           </div>
         ))}
       </div>
@@ -70,19 +77,22 @@ function Workspaces() {
 }
 
 export function ConnectionsPanel() {
-  const [conns, setConns] = useState<Conn[]>([]);
   const [busy, setBusy] = useState("");
   const [open, setOpen] = useState("");
-  const load = () => fetch(`${API}/api/v1/connections/`).then((r) => r.json()).then((d) => setConns(d.connections ?? [])).catch(() => undefined);
-  useEffect(() => { void load(); }, []);
+
+  const { data, refresh, loading } = useApi<{ connections: Conn[] }>(`${API}/api/v1/connections/`, { ttl: 5000, poll: 5000 });
+  const conns = data?.connections ?? [];
+
   const act = async (id: string, verb: "connect" | "test" | "disconnect") => {
     setBusy(id + verb);
-    try { await fetch(`${API}/api/v1/connections/${id}${verb === "disconnect" ? "" : "/" + verb}`, { method: verb === "disconnect" ? "DELETE" : "POST" }); } finally { setBusy(""); await load(); }
+    try { await fetch(`${API}/api/v1/connections/${id}${verb === "disconnect" ? "" : "/" + verb}`, { method: verb === "disconnect" ? "DELETE" : "POST" }); } finally { setBusy(""); await refresh(); }
   };
+
   return (
     <div className="h-full overflow-y-auto p-6" data-testid="connections-panel">
       <h1 className="text-xl font-semibold">Connections</h1>
       <p className="mb-4 mt-1 text-sm opacity-60">Say “connect Gmail” in Chat and Jasper will do this for you. Reads are Tier 1 (automatic), writes Tier 2 (notify, 5 s veto), destructive actions Tier 3 (you approve).</p>
+      {loading && <div className="text-xs opacity-50 mb-4">Loading…</div>}
       <div className="grid gap-3 md:grid-cols-2">
         {conns.map((c) => {
           const b = badge(c);
@@ -106,8 +116,8 @@ export function ConnectionsPanel() {
                 <button onClick={() => void act(c.id, "test")} disabled={!!busy || !c.ready} className="rounded-full bg-white/10 px-3 py-1 text-xs disabled:opacity-40">{busy === c.id + "test" ? "Testing…" : "Test"}</button>
                 <button onClick={() => void act(c.id, "disconnect")} disabled={!!busy} className="rounded-full bg-white/10 px-3 py-1 text-xs">Disconnect</button>
               </div>
-              {open === c.id && c.missing.length > 0 && <CredentialCard req={{ kind: "credentials", connector: c.id, secrets: c.secrets.filter((s) => c.missing.includes(s.name)) }} onDone={() => { setOpen(""); void load(); }} />}
-              {open === c.id && c.oauth && !c.oauth.connected && c.missing.length === 0 && <OAuthCard req={{ kind: "oauth", connector: c.id, url: c.oauth.authorize_url }} onDone={() => { setOpen(""); void load(); }} />}
+              {open === c.id && c.missing.length > 0 && <CredentialCard req={{ kind: "credentials", connector: c.id, secrets: c.secrets.filter((s) => c.missing.includes(s.name)) }} onDone={() => { setOpen(""); void refresh(); }} />}
+              {open === c.id && c.oauth && !c.oauth.connected && c.missing.length === 0 && <OAuthCard req={{ kind: "oauth", connector: c.id, url: c.oauth.authorize_url }} onDone={() => { setOpen(""); void refresh(); }} />}
             </div>
           );
         })}

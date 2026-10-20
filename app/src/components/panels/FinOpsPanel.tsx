@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { Gauge } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -34,27 +35,28 @@ function Bars({ title, rows }: { title: string; rows: Row[] }) {
 
 /** Token usage by division/agent/model, burn-rate forecast, and daily budgets (soft = step the model tier down, hard = stop). */
 export function FinOpsPanel() {
-  const [s, setS] = useState<Summary | null>(null);
   const [b, setB] = useState({ scope: "global", soft: "", hard: "" });
   const [msg, setMsg] = useState("");
   const [pr, setPr] = useState({ model: "", input: "", output: "" });
-  const load = useCallback(() => fetch(`${base}/summary`).then((r) => r.json()).then(setS).catch(() => setMsg("Backend unreachable")), []);
-  useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [load]);
+
+  const { data, refresh, loading } = useApi<Summary>(`${base}/summary`, { ttl: 10000, poll: 10000 });
+  const s = data;
 
   const save = async () => {
     const num = (v: string) => (v.trim() ? Number(v) : null);
     const r = await fetch(`${base}/budgets`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: b.scope, daily_soft: num(b.soft), daily_hard: num(b.hard) }) });
-    setMsg(r.ok ? `Budget saved for ${b.scope}` : "Failed"); load();
+    setMsg(r.ok ? `Budget saved for ${b.scope}` : "Failed"); await refresh();
   };
 
   const savePrice = async (model: string, i: number, o: number, source: string) => {
     const r = await fetch(base + "/prices", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, input_per_m: i, output_per_m: o, source }) });
-    setMsg(r.ok ? "Price saved for " + model : "Failed"); setPr({ model: "", input: "", output: "" }); load();
+    setMsg(r.ok ? "Price saved for " + model : "Failed"); setPr({ model: "", input: "", output: "" }); await refresh();
   };
 
   return (
     <div className="max-w-4xl space-y-6 p-6">
       <div className="flex items-center gap-3"><Gauge size={20} /><h2 className="text-lg font-semibold">FinOps</h2>{msg && <span className="text-xs opacity-70">{msg}</span>}</div>
+      {loading && !s && <div className="text-xs opacity-50">Loading…</div>}
       {s && (<>
         <section className="grid grid-cols-4 gap-3 text-sm">
           {[["Calls today", fmt(s.today.calls)], ["Input tokens", fmt(s.today.input_tokens)], ["Output tokens", fmt(s.today.output_tokens)],

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { Cpu } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -12,6 +13,8 @@ interface Provider {
   enabled: boolean; local: boolean; has_key: boolean; models: Model[];
 }
 type Routing = Record<string, { provider: string; model: string }[]>;
+interface ProvidersResponse { providers: Provider[] }
+interface RoutingResponse { routing: Routing }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`${API}/api/v1/llm${path}`, { headers: { "Content-Type": "application/json" }, ...init });
@@ -21,23 +24,19 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 /** Add any AI provider (OpenAI-compatible, Anthropic, local CLI), its models, and per-tier fallback routing. Keys are write-only. */
 export function AiProvidersPanel() {
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [routing, setRouting] = useState<Routing>({});
   const [msg, setMsg] = useState("");
   const [form, setForm] = useState({ slug: "", name: "", kind: "openai_compat", base_url: "", api_key: "" });
   const [newModel, setNewModel] = useState<Record<string, string>>({});
 
-  const load = useCallback(async () => {
-    try {
-      setProviders((await api<{ providers: Provider[] }>("/providers")).providers);
-      setRouting(await api<Routing>("/routing"));
-    } catch (e) { setMsg(String(e)); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
+  const { data: providersData, refresh: refreshProviders } = useApi<ProvidersResponse>(`${API}/api/v1/llm/providers`, { ttl: 30000, poll: 30000 });
+  const { data: routingData, refresh: refreshRouting } = useApi<RoutingResponse>(`${API}/api/v1/llm/routing`, { ttl: 30000, poll: 30000 });
+  const providers = providersData?.providers ?? [];
+  const routing = routingData?.routing ?? {};
 
-  const run = async (fn: () => Promise<unknown>, ok: string) => {
-    try { await fn(); setMsg(ok); await load(); } catch (e) { setMsg(String(e)); }
-  };
+  const run = useCallback(async (fn: () => Promise<unknown>, ok: string) => {
+    try { await fn(); setMsg(ok); await Promise.all([refreshProviders(), refreshRouting()]); } catch (e) { setMsg(String(e)); }
+  }, [refreshProviders, refreshRouting]);
+
   const allModels = providers.flatMap((p) => p.models.map((m) => ({ provider: p.slug, model: m.model_id })));
   const label = (e: { provider: string; model: string }) => `${e.provider} / ${e.model}`;
 

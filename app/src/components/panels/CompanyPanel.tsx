@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { Background, Controls, ReactFlow, type Edge, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Building2, Send } from "lucide-react";
@@ -18,7 +19,6 @@ interface Report { executive: string; title: string; status: string; summary: st
 
 /** Live org chart (Jasper → executives → crews → bots) coloured by agent state, plus a directive box that returns the executive's report. */
 export function CompanyPanel() {
-  const [s, setS] = useState<Structure | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
@@ -26,7 +26,9 @@ export function CompanyPanel() {
   const live = useLiveAgents((x) => x.agents);
   const connect = useLiveAgents((x) => x.connect);
   useEffect(() => connect(WS_URL), [connect]);
-  useEffect(() => { fetch(`${API}/api/v1/company/structure`).then((r) => r.json()).then(setS).catch(() => setErr("Backend unreachable")); }, []);
+
+  const { data: structure, loading } = useApi<Structure>(`${API}/api/v1/company/structure`, { ttl: 30000, poll: 30000 });
+  const s = structure;
 
   const { nodes, edges } = useMemo(() => {
     const nodes: Node[] = [], edges: Edge[] = [];
@@ -79,6 +81,7 @@ export function CompanyPanel() {
         <button disabled={busy} onClick={send} className="rounded border p-2 disabled:opacity-40"><Send size={16} /></button>
         {err && <span className="text-xs text-red-400">{err}</span>}
       </div>
+      {loading && !s && <div className="text-xs opacity-50 px-3 py-2">Loading org structure…</div>}
       <div className="flex min-h-0 flex-1">
         <div className="flex-1"><ReactFlow nodes={nodes} edges={edges} fitView nodesDraggable={false} proOptions={{ hideAttribution: true }}><Background /><Controls showInteractive={false} /></ReactFlow></div>
         {(report || busy) && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { Plug } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -8,28 +9,35 @@ const base = `${API}/api/v1/mcp-hub`;
 
 interface Connector { id: string; name: string; command: string[]; running: boolean }
 interface Tool { name: string; connector: string; description: string; schema: { properties?: Record<string, { type?: string }>; required?: string[] }; action: string }
+interface ConnectorsResponse { connectors: Connector[] }
+interface ToolsResponse { tools: Tool[] }
+interface PresetsResponse { presets: { id: string; name: string; needs: string }[] }
 const tierOf = (a: string) => (a === "mcp.read" ? 1 : a === "mcp.write" ? 2 : 3);
 const TIER_COLOR: Record<number, string> = { 1: "#16a34a", 2: "#d97706", 3: "#dc2626" };
 
 /** Connected MCP servers and the tools they expose (agents reach them through find_tool/use_tool). Try a tool with JSON arguments. */
 export function McpHubPanel() {
-  const [connectors, setConnectors] = useState<Connector[]>([]);
-  const [tools, setTools] = useState<Tool[]>([]);
   const [msg, setMsg] = useState("");
   const [sel, setSel] = useState<Tool | null>(null);
   const [args, setArgs] = useState("{}");
   const [out, setOut] = useState("");
-  const [presets, setPresets] = useState<{ id: string; name: string; needs: string }[]>([]);
-  useEffect(() => { fetch(base + "/presets").then((r) => r.json()).then((d) => setPresets(d.presets ?? [])).catch(() => undefined); }, []);
   const [draft, setDraft] = useState({ id: "", name: "", command: "" });
 
+  const { data: connectorsData, refresh: refreshConnectors } = useApi<ConnectorsResponse>(`${base}/connectors`, { ttl: 5000, poll: 5000 });
+  const { data: toolsData, refresh: refreshTools } = useApi<ToolsResponse>(`${base}/tools`, { ttl: 10000, poll: 10000 });
+  const connectors = connectorsData?.connectors ?? [];
+  const tools = toolsData?.tools ?? [];
+
+  const { data: presetsData } = useApi<PresetsResponse>(`${base}/presets`, { ttl: 300000, poll: false });
+  const presets = presetsData?.presets ?? [];
+
   const load = useCallback(async () => {
-    try {
-      setConnectors((await fetch(`${base}/connectors`).then((r) => r.json())).connectors ?? []);
-      setTools((await fetch(`${base}/tools`).then((r) => r.json())).tools ?? []);
-    } catch { setMsg("Backend unreachable"); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
+    await Promise.all([refreshConnectors(), refreshTools()]);
+  }, [refreshConnectors, refreshTools]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const call = async () => {
     if (!sel) return;
@@ -39,10 +47,11 @@ export function McpHubPanel() {
       setOut(JSON.stringify(await r.json(), null, 2));
     } catch (e) { setOut(String(e)); }
   };
+
   const addConnector = async () => {
     const r = await fetch(`${base}/connectors`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: draft.id, name: draft.name || draft.id, command: draft.command.split(" ").filter(Boolean) }) });
     setMsg(r.ok ? "Connector saved" : (await r.json().catch(() => ({}))).detail ?? "failed");
-    setDraft({ id: "", name: "", command: "" }); load();
+    setDraft({ id: "", name: "", command: "" }); await load();
   };
 
   return (

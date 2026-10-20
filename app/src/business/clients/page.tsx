@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { Loader2, Pencil, Trash2, Users } from "lucide-react";
 
 const API = "http://localhost:8000";
@@ -57,10 +58,6 @@ function statusBadgeClass(status: ClientStatus): string {
 }
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
   const [filter, setFilter] = useState<"all" | ClientStatus>("all");
 
   const [showCreate, setShowCreate] = useState(false);
@@ -76,33 +73,17 @@ export default function ClientsPage() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  async function loadClients() {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await fetch(`${API}/api/business/clients`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setClients(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Failed to load clients");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadClients();
-  }, []);
+  const { data: clients, refresh, loading, error: loadError } = useApi<Client[]>(`${API}/api/business/clients`, { ttl: 10000, poll: 30000 });
+  const clientList = clients ?? [];
 
   const counts = {
-    prospect: clients.filter(c => c.status === "prospect").length,
-    active: clients.filter(c => c.status === "active").length,
-    paused: clients.filter(c => c.status === "paused").length,
-    churned: clients.filter(c => c.status === "churned").length,
+    prospect: clientList.filter(c => c.status === "prospect").length,
+    active: clientList.filter(c => c.status === "active").length,
+    paused: clientList.filter(c => c.status === "paused").length,
+    churned: clientList.filter(c => c.status === "churned").length,
   };
 
-  const filtered = filter === "all" ? clients : clients.filter(c => c.status === filter);
+  const filtered = filter === "all" ? clientList : clientList.filter(c => c.status === filter);
 
   function openCreate() {
     setCreateForm(EMPTY_FORM);
@@ -124,7 +105,7 @@ export default function ClientsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setShowCreate(false);
       setCreateForm(EMPTY_FORM);
-      await loadClients();
+      await refresh();
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : "Failed to create client");
     } finally {
@@ -158,7 +139,7 @@ export default function ClientsPage() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setEditingId(null);
-      await loadClients();
+      await refresh();
     } catch (e) {
       setEditError(e instanceof Error ? e.message : "Failed to save client");
     } finally {
@@ -172,7 +153,7 @@ export default function ClientsPage() {
     try {
       const res = await fetch(`${API}/api/business/clients/${id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
-      await loadClients();
+      await refresh();
     } catch (e) {
       console.error("Failed to delete client", e);
     } finally {
@@ -294,7 +275,7 @@ export default function ClientsPage() {
       )}
 
       <div className="biz-card" style={{ padding: 0 }}>
-        {loading ? (
+        {loading && clientList.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center", color: "var(--biz-text-muted)" }}>
             <Loader2 size={18} className="biz-spin" />
           </div>
@@ -302,7 +283,7 @@ export default function ClientsPage() {
           <div className="biz-empty">
             <div className="biz-empty-icon">!</div>
             <p className="biz-empty-title">Could not load clients</p>
-            <p className="biz-empty-body">{loadError}</p>
+            <p className="biz-empty-body">{loadError?.message}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="biz-empty">
@@ -310,10 +291,10 @@ export default function ClientsPage() {
               <Users size={34} style={{ opacity: 0.6 }} />
             </div>
             <p className="biz-empty-title">
-              {clients.length === 0 ? "No clients yet" : "No clients match this filter"}
+              {clientList.length === 0 ? "No clients yet" : "No clients match this filter"}
             </p>
             <p className="biz-empty-body">
-              {clients.length === 0
+              {clientList.length === 0
                 ? "Add your first client to start tracking work for them."
                 : "Try a different status filter, or add a new client."}
             </p>

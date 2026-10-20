@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { GitBranch } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -10,27 +11,32 @@ interface Run {
   id: string; task: string; files: string[]; test: string; status: string; attempt: number; branch?: string; diff?: string;
   history?: { attempt: number; exit: number }[]; merge?: string; merge_sha?: string; error?: string; isolated?: boolean;
 }
+interface RunsResponse { runs: Run[] }
 const COLOR: Record<string, string> = { running: "#0284c7", verified: "#16a34a", rolled_back_escalated: "#dc2626", error: "#dc2626" };
 
 /** Ask the model to change files on a throw-away agent-patch branch; tests verify (max 3 attempts); you review the diff and approve the merge. */
 export function DevLoopPanel() {
-  const [runs, setRuns] = useState<Run[]>([]);
   const [task, setTask] = useState("");
   const [files, setFiles] = useState("");
   const [test, setTest] = useState("pytest-backend");
   const [sel, setSel] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
-  const load = useCallback(() => fetch(`${base}/runs`).then((r) => r.json()).then((d) => setRuns(d.runs ?? [])).catch(() => setMsg("Backend unreachable")), []);
-  useEffect(() => { load(); const t = setInterval(load, 3000); return () => clearInterval(t); }, [load]);
+  const { data, refresh, loading } = useApi<RunsResponse>(`${base}/runs`, { ttl: 3000, poll: 3000 });
+  const runs = data?.runs ?? [];
 
   const start = async () => {
     const r = await fetch(`${base}/runs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task, files: files.split(/[\n,]+/).map((f) => f.trim()).filter(Boolean), test }) });
     if (!r.ok) { setMsg((await r.json().catch(() => ({}))).detail?.toString() ?? "failed"); return; }
-    setMsg(""); setTask(""); const run = await r.json(); setSel(run.id); load();
+    setMsg(""); setTask(""); const run = await r.json(); setSel(run.id); await refresh();
   };
-  const act = (id: string, verb: "merge" | "discard") =>
-    fetch(`${base}/runs/${id}${verb === "merge" ? "/merge" : ""}`, { method: verb === "merge" ? "POST" : "DELETE" }).then(() => { if (verb === "discard") setSel(null); load(); });
+
+  const act = async (id: string, verb: "merge" | "discard") => {
+    await fetch(`${base}/runs/${id}${verb === "merge" ? "/merge" : ""}`, { method: verb === "merge" ? "POST" : "DELETE" });
+    if (verb === "discard") setSel(null);
+    await refresh();
+  };
+
   const cur = runs.find((r) => r.id === sel);
 
   return (
@@ -46,6 +52,7 @@ export function DevLoopPanel() {
           <button disabled={task.length < 5 || !files.trim()} onClick={start} className="rounded border px-3 py-1 text-sm disabled:opacity-40">Run</button>
         </div>
         <div className="text-[11px] opacity-60">Runs on a separate branch in a worktree; the Docker option isolates the tests (no network, read-only copy). Nothing reaches your current branch without your approval.</div>
+        {loading && runs.length === 0 && <div className="text-xs opacity-50">Loading…</div>}
         {runs.map((r) => (
           <button key={r.id} onClick={() => setSel(r.id)} className="block w-full rounded border p-2 text-left text-sm" style={{ background: sel === r.id ? "rgba(255,255,255,0.08)" : "transparent" }}>
             <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: COLOR[r.status] ?? "#64748b" }} /><span className="truncate">{r.task}</span></div>

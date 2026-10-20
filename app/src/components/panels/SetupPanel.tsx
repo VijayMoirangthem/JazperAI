@@ -1,25 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { CheckCircle2, Circle } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface Check { ok: boolean; detail: string }
+interface HealthResponse { checks: Record<string, Check> }
 
 /** First-run checklist: services healthy, a model key saved, a test answer received, backups ready. Opens automatically on first launch. */
 export function SetupPanel({ onNavigate }: { onNavigate?: (v: string) => void }) {
-  const [checks, setChecks] = useState<Record<string, Check>>({});
   const [reply, setReply] = useState<{ ok: boolean; text: string } | null>(null);
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
-  const load = useCallback(() => fetch(`${API}/api/v1/system/health`).then((r) => r.json()).then((d) => setChecks(d.checks)).catch(() => undefined), []);
-  useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
+
+  const { data: health, refresh, loading } = useApi<HealthResponse>(`${API}/api/v1/system/health`, { ttl: 5000, poll: 5000 });
+  const checks = health?.checks ?? {};
 
   const saveKey = async () => {
     await fetch(`${API}/api/v1/system/secrets`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "ANTHROPIC_API_KEY", value: key }) });
-    setKey(""); load();
+    setKey(""); await refresh();
   };
+
   const testChat = async () => {
     setBusy(true);
     try {
@@ -29,6 +32,7 @@ export function SetupPanel({ onNavigate }: { onNavigate?: (v: string) => void })
     } catch { setReply({ ok: false, text: "Backend unreachable" }); }
     setBusy(false);
   };
+
   const done = () => { try { localStorage.setItem("jasper.setupDone", "1"); } catch { /* ignore */ } onNavigate?.("dashboard"); };
 
   const steps: { title: string; ok: boolean; body: React.ReactNode }[] = [
@@ -48,6 +52,7 @@ export function SetupPanel({ onNavigate }: { onNavigate?: (v: string) => void })
     <div className="max-w-2xl space-y-4 p-6">
       <h2 className="text-lg font-semibold">Welcome to Jazper</h2>
       <p className="text-sm opacity-70">A quick check that everything is ready. You can reopen this any time from the sidebar (Setup).</p>
+      {loading && Object.keys(checks).length === 0 && <div className="text-xs opacity-50 mb-4">Loading…</div>}
       {steps.map((s, i) => (
         <div key={i} className="flex gap-3 rounded border p-3">
           {s.ok ? <CheckCircle2 className="mt-0.5 shrink-0 text-green-500" size={18} /> : <Circle className="mt-0.5 shrink-0 opacity-40" size={18} />}

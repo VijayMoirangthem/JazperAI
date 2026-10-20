@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { Loader2, Plus, Trash2, UserCog } from "lucide-react";
 
 const API = "http://localhost:8000";
@@ -76,11 +77,6 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function TeamPage() {
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<FormState>(EMPTY_FORM);
   const [adding, setAdding] = useState(false);
@@ -97,33 +93,11 @@ export default function TeamPage() {
   const [assigning, setAssigning] = useState(false);
   const [assignMsg, setAssignMsg] = useState<{ id: string; text: string; ok: boolean } | null>(null);
 
-  async function loadMembers() {
-    try {
-      const res = await fetch(`${API}/api/business/team`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setMembers(await res.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load team members");
-    }
-  }
+  const { data: members, refresh: refreshMembers, loading: membersLoading, error } = useApi<TeamMember[]>(`${API}/api/business/team`, { ttl: 10000, poll: 30000 });
+  const { data: projects, refresh: refreshProjects, loading: projectsLoading } = useApi<Project[]>(`${API}/api/business/projects`, { ttl: 30000, poll: 30000 });
 
-  async function loadProjects() {
-    try {
-      const res = await fetch(`${API}/api/business/projects`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setProjects(await res.json());
-    } catch {
-      // non-fatal — assignment picker just stays empty
-    }
-  }
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await Promise.all([loadMembers(), loadProjects()]);
-      setLoading(false);
-    })();
-  }, []);
+  const memberList = members ?? [];
+  const projectList = projects ?? [];
 
   function toRateNumber(v: string) {
     const n = parseFloat(v);
@@ -133,7 +107,6 @@ export default function TeamPage() {
   async function handleAdd() {
     if (!addForm.name.trim()) return;
     setAdding(true);
-    setError(null);
     try {
       const res = await fetch(`${API}/api/business/team`, {
         method: "POST",
@@ -152,9 +125,9 @@ export default function TeamPage() {
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail || `HTTP ${res.status}`);
       setAddForm(EMPTY_FORM);
       setShowAddForm(false);
-      await loadMembers();
+      await refreshMembers();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add team member");
+      // error handled by useApi
     } finally {
       setAdding(false);
     }
@@ -166,9 +139,9 @@ export default function TeamPage() {
       const res = await fetch(`${API}/api/business/team/${id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
       if (expandedId === id) setExpandedId(null);
-      await loadMembers();
+      await refreshMembers();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete team member");
+      // error handled by useApi
     }
   }
 
@@ -197,7 +170,6 @@ export default function TeamPage() {
   async function handleSaveEdit(id: string) {
     if (!editForm) return;
     setSavingEdit(true);
-    setError(null);
     try {
       const res = await fetch(`${API}/api/business/team/${id}`, {
         method: "PATCH",
@@ -213,9 +185,9 @@ export default function TeamPage() {
         }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail || `HTTP ${res.status}`);
-      await loadMembers();
+      await refreshMembers();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save changes");
+      // error handled by useApi
     } finally {
       setSavingEdit(false);
     }
@@ -229,9 +201,9 @@ export default function TeamPage() {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await loadMembers();
+      await refreshMembers();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update status");
+      // error handled by useApi
     }
   }
 
@@ -258,14 +230,14 @@ export default function TeamPage() {
     }
   }
 
-  const filtered = members.filter(m => {
+  const filtered = memberList.filter(m => {
     if (typeFilter !== "all" && m.member_type !== typeFilter) return false;
     if (statusFilter !== "all" && m.status !== statusFilter) return false;
     return true;
   });
 
   const counts = MEMBER_TYPES.reduce<Record<MemberType, number>>((acc, t) => {
-    acc[t] = members.filter(m => m.member_type === t).length;
+    acc[t] = memberList.filter(m => m.member_type === t).length;
     return acc;
   }, { employee: 0, freelancer: 0, intern: 0, contractor: 0 });
 
@@ -292,7 +264,7 @@ export default function TeamPage() {
 
       {error && (
         <div className="biz-card" style={{ marginBottom: 16, borderColor: "var(--biz-danger)", color: "var(--biz-danger)", fontSize: 13 }}>
-          {error}
+          {error?.message}
         </div>
       )}
 
@@ -367,7 +339,7 @@ export default function TeamPage() {
       </div>
 
       <div className="biz-card" style={{ padding: 0 }}>
-        {loading ? (
+        {membersLoading && memberList.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center", color: "var(--biz-text-muted)" }}>
             <Loader2 size={18} className="biz-spin" />
           </div>
@@ -457,7 +429,7 @@ export default function TeamPage() {
                         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           <select className="biz-select" style={{ flex: 2 }} value={assignProjectId} onChange={e => setAssignProjectId(e.target.value)}>
                             <option value="">Select a project…</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                            {projectList.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                           </select>
                           <input className="biz-input" style={{ flex: 1 }} placeholder="Role on project" value={assignRole} onChange={e => setAssignRole(e.target.value)} />
                           <button className="biz-btn biz-btn-sm" disabled={assigning || !assignProjectId} onClick={() => handleAssign(m.id)}>

@@ -1,54 +1,68 @@
 "use client";
 
-// Live map of everything happening in the background: bots by group, who is talking to whom right now, what each bot is doing,
-// connector health, pending approvals and SLO status. Data: /bots/tree (Postgres, cached in Redis), /comms/recent (Redis stream),
-// /comms/agents (live states in Redis), /connections, /hitl/pending, /slo.
 import { useEffect, useMemo, useState } from "react";
+import { useApi } from "@/lib/swr";
 import type { OrgGroup } from "@/components/chat/OrgSidebar";
 import { useViewActive } from "@/lib/viewActive";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 interface Msg { id: number; ts: string; thread: string; from_slug: string; to_slug: string; kind: string; text: string }
 interface Conn { id: string; connected: boolean; ready: boolean; missing: string[]; oauth?: { connected: boolean } | null }
+interface BotsTreeResponse { groups: OrgGroup[] }
+interface ConnectionsResponse { connections: Conn[] }
+interface HitlPendingResponse { requests: unknown[] }
+interface SloResponse { slos: { slo: string; status: string; budget_remaining: number | null }[] }
+interface CommsRecentResponse { messages: Msg[] }
+interface CommsAgentsResponse { agents: Record<string, { state: string; bubble?: string }> }
+
 const W = 1000, H = 640, CX = W / 2, CY = H / 2;
 const GROUP_COLOR: Record<string, string> = { chief: "#6366f1", jazper_team: "#22c55e", create_origins: "#f59e0b", baeit: "#ec4899", boardmint: "#06b6d4", legacy: "#64748b" };
 const STATE_COLOR: Record<string, string> = { working: "#f59e0b", planning: "#a78bfa", idle: "#94a3b8", error: "#ef4444", blocked: "#ef4444" };
 
-const j = (path: string) => fetch(`${API}${path}`).then((r) => r.json());
-
 export function MindMapPanel() {
   const active = useViewActive();
-  const [groups, setGroups] = useState<OrgGroup[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [states, setStates] = useState<Record<string, { state: string; bubble?: string }>>({});
-  const [conns, setConns] = useState<Conn[]>([]);
-  const [pending, setPending] = useState(0);
-  const [slo, setSlo] = useState<{ slo: string; status: string; budget_remaining: number | null }[]>([]);
   const [showLegacy, setShowLegacy] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [lastMsgId, setLastMsgId] = useState(0);
+
+  const { data: botsTree, loading: botsLoading } = useApi<BotsTreeResponse>(`${API}/api/v1/bots/tree`, { ttl: 8000, poll: active ? 8000 : false });
+  const { data: connections, loading: connsLoading } = useApi<ConnectionsResponse>(`${API}/api/v1/connections/`, { ttl: 5000, poll: active ? 5000 : false });
+  const { data: hitl, loading: hitlLoading } = useApi<HitlPendingResponse>(`${API}/api/v1/hitl/pending`, { ttl: 5000, poll: active ? 5000 : false });
+  const { data: slo, loading: sloLoading } = useApi<SloResponse>(`${API}/api/v1/slo/`, { ttl: 5000, poll: active ? 5000 : false });
+
+  const groups = botsTree?.groups ?? [];
+  const conns = connections?.connections ?? [];
+  const pending = hitl?.requests?.length ?? 0;
+  const slos = slo?.slos ?? [];
 
   useEffect(() => {
-    let last = 0, stop = false;
-    const slow = async () => {
-      try {
-        const [t, c, h, s] = await Promise.all([j("/api/v1/bots/tree"), j("/api/v1/connections/"), j("/api/v1/hitl/pending"), j("/api/v1/slo/")]);
-        if (stop) return;
-        setGroups(t.groups ?? []); setConns(c.connections ?? []); setPending((h.requests ?? []).length); setSlo(s.slos ?? []);
-      } catch { /* backend busy */ }
-    };
+    if (!active) return;
+    let stop = false;
+    let last = lastMsgId;
+
     const fast = async () => {
       try {
-        const [m, a] = await Promise.all([j(`/api/v1/comms/recent?since_id=${last}&limit=120`), j("/api/v1/comms/agents")]);
+        const [m, a] = await Promise.all([
+          fetch(`${API}/api/v1/comms/recent?since_id=${last}&limit=120`).then(r => r.json()),
+          fetch(`${API}/api/v1/comms/agents`).then(r => r.json()),
+        ]);
         if (stop) return;
         const fresh: Msg[] = m.messages ?? [];
-        if (fresh.length) { last = fresh[fresh.length - 1].id; setMsgs((x) => [...x, ...fresh].slice(-150)); }
-        setStates(a.agents ?? {}); setNow(Date.now());
+        if (fresh.length) {
+          last = fresh[fresh.length - 1].id;
+          setLastMsgId(last);
+          setMsgs((x) => [...x, ...fresh].slice(-150));
+        }
+        setStates(a.agents ?? {});
+        setNow(Date.now());
       } catch { /* backend busy */ }
     };
-    void slow(); void fast();
-    if (!active) return;  // hidden tab: no polling
-    const a = setInterval(slow, 8000), b = setInterval(fast, 2000);
-    return () => { stop = true; clearInterval(a); clearInterval(b); };
+
+    void fast();
+    const b = setInterval(fast, 2000);
+    return () => { stop = true; clearInterval(b); };
   }, [active]);
 
   const layout = useMemo(() => {
@@ -87,7 +101,7 @@ export function MindMapPanel() {
           className="rounded-full border border-white/10 px-2 py-0.5" style={{ color: c.connected ? "#22c55e" : c.ready ? "#eab308" : "#94a3b8" }}>● {c.id}</span>)}
         <span className="ml-auto flex items-center gap-3 opacity-80">
           <span style={{ color: pending ? "#f59e0b" : undefined }}>approvals pending: {pending}</span>
-          {slo.map((s) => <span key={s.slo} style={{ color: s.status === "breached" ? "#ef4444" : undefined }}>SLO {s.slo}: {s.status}{s.budget_remaining !== null ? ` (${Math.round(s.budget_remaining * 100)}%)` : ""}</span>)}
+          {slos.map((s) => <span key={s.slo} style={{ color: s.status === "breached" ? "#ef4444" : undefined }}>SLO {s.slo}: {s.status}{s.budget_remaining !== null ? ` (${Math.round(s.budget_remaining * 100)}%)` : ""}</span>)}
           <label className="flex items-center gap-1"><input type="checkbox" checked={showLegacy} onChange={(e) => setShowLegacy(e.target.checked)} />legacy/inactive</label>
         </span>
       </div>

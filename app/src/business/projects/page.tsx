@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useApi } from "@/lib/swr";
 import { ChevronDown, ChevronRight, FolderKanban, Loader2, Trash2 } from "lucide-react";
 
 const API = "http://localhost:8000";
@@ -89,11 +90,6 @@ function formatDueDate(dueDate: string | null): string | null {
 }
 
 export default function ProjectsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>("all");
 
@@ -110,38 +106,27 @@ export default function ProjectsPage() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const { data: clients, refresh: refreshClients, loading: clientsLoading } = useApi<Client[]>(`${API}/api/business/clients`, { ttl: 30000, poll: 30000 });
+  const { data: projects, refresh: refreshProjects, loading: projectsLoading, error: loadError } = useApi<Project[]>(`${API}/api/business/projects`, { ttl: 10000, poll: 30000 });
+
+  const clientList = clients ?? [];
+  const projectList = projects ?? [];
+
+  const clientMap = new Map(clientList.map(c => [c.id, c.name]));
+
+  const filtered = projectList.filter(p => {
+    if (clientFilter !== "all" && p.client_id !== clientFilter) return false;
+    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    return true;
+  });
+
   async function loadAll() {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const [clientsRes, projectsRes] = await Promise.all([
-        fetch(`${API}/api/business/clients`),
-        fetch(`${API}/api/business/projects`),
-      ]);
-      if (!clientsRes.ok) throw new Error(`HTTP ${clientsRes.status} (clients)`);
-      if (!projectsRes.ok) throw new Error(`HTTP ${projectsRes.status} (projects)`);
-      const clientsData = await clientsRes.json();
-      const projectsData = await projectsRes.json();
-      setClients(Array.isArray(clientsData) ? clientsData : []);
-      setProjects(Array.isArray(projectsData) ? projectsData : []);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Failed to load projects");
-    } finally {
-      setLoading(false);
-    }
+    await Promise.all([refreshClients(), refreshProjects()]);
   }
 
   useEffect(() => {
     loadAll();
   }, []);
-
-  const clientMap = new Map(clients.map(c => [c.id, c.name]));
-
-  const filtered = projects.filter(p => {
-    if (clientFilter !== "all" && p.client_id !== clientFilter) return false;
-    if (statusFilter !== "all" && p.status !== statusFilter) return false;
-    return true;
-  });
 
   function openCreate() {
     setCreateForm(EMPTY_FORM);
@@ -254,7 +239,7 @@ export default function ProjectsPage() {
           onChange={e => setClientFilter(e.target.value)}
         >
           <option value="all">All Clients</option>
-          {clients.map(c => (
+          {clientList.map(c => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
@@ -277,7 +262,7 @@ export default function ProjectsPage() {
 
       {showCreate && (
         <div className="biz-card" style={{ marginBottom: 20 }}>
-          {clients.length === 0 ? (
+          {clientList.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--biz-text-muted)" }}>
               No clients yet — add one on the Clients page first.
             </p>
@@ -291,7 +276,7 @@ export default function ProjectsPage() {
                   onChange={e => setCreateForm({ ...createForm, client_id: e.target.value })}
                 >
                   <option value="">Select a client…</option>
-                  {clients.map(c => (
+                  {clientList.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -357,7 +342,7 @@ export default function ProjectsPage() {
             <button
               className="biz-btn biz-btn-primary"
               onClick={submitCreate}
-              disabled={creating || clients.length === 0 || !createForm.client_id || !createForm.title.trim()}
+              disabled={creating || clientList.length === 0 || !createForm.client_id || !createForm.title.trim()}
             >
               {creating ? <Loader2 size={14} className="biz-spin" /> : "Save"}
             </button>
@@ -366,7 +351,7 @@ export default function ProjectsPage() {
       )}
 
       <div className="biz-card" style={{ padding: 0 }}>
-        {loading ? (
+        {(clientsLoading || projectsLoading) && projectList.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center", color: "var(--biz-text-muted)" }}>
             <Loader2 size={18} className="biz-spin" />
           </div>
@@ -374,7 +359,7 @@ export default function ProjectsPage() {
           <div className="biz-empty">
             <div className="biz-empty-icon">!</div>
             <p className="biz-empty-title">Could not load projects</p>
-            <p className="biz-empty-body">{loadError}</p>
+            <p className="biz-empty-body">{loadError?.message}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="biz-empty">
@@ -382,10 +367,10 @@ export default function ProjectsPage() {
               <FolderKanban size={34} style={{ opacity: 0.6 }} />
             </div>
             <p className="biz-empty-title">
-              {projects.length === 0 ? "No projects yet" : "No projects match these filters"}
+              {projectList.length === 0 ? "No projects yet" : "No projects match these filters"}
             </p>
             <p className="biz-empty-body">
-              {projects.length === 0
+              {projectList.length === 0
                 ? "Add your first project to start tracking work."
                 : "Try a different client or status filter, or add a new project."}
             </p>
