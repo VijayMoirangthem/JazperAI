@@ -3,6 +3,7 @@
 Works for every bot regardless of source (built-in persona, spec stub, dynamic) because it is keyed by slug in shared.bot_org.
 Seeding is idempotent and never overwrites a placement the founder changed.
 """
+import json
 from datetime import datetime, timezone
 
 from agents.registry import BotDef, registry
@@ -60,7 +61,9 @@ SRE_BOTS = [
            model_policy={"default_tier": "standard"}),
 ]
 
-OVERRIDES: dict[str, str] = {}  # slug -> prompt override, read synchronously by the chat path
+OVERRIDES: dict[str, str] = {}
+SETTINGS: dict[str, dict] = {}  # slug -> {model, tier, temperature, max_tokens, memory}
+TIERS = ("light", "standard", "frontier")  # slug -> prompt override, read synchronously by the chat path
 
 
 def home_for(slug: str, crew: str, source: str) -> tuple[str, str]:
@@ -101,6 +104,9 @@ async def load_overrides() -> None:
     workspaces.GROUP_OF.clear()
     workspaces.GROUP_OF.update({r["slug"]: r["org_group"] for r in await aio.fetch("SELECT slug, org_group FROM shared.bot_org")})
     OVERRIDES.clear()
+    SETTINGS.clear()
+    for r in await aio.fetch("SELECT slug, settings FROM shared.bot_org WHERE settings <> '{}'::jsonb"):
+        SETTINGS[r["slug"]] = json.loads(r["settings"]) if isinstance(r["settings"], str) else dict(r["settings"])
     for r in await aio.fetch("SELECT slug, prompt_override FROM shared.bot_org WHERE prompt_override IS NOT NULL AND prompt_override <> ''"):
         OVERRIDES[r["slug"]] = r["prompt_override"]
 
@@ -167,7 +173,7 @@ async def card(slug: str) -> dict | None:
                 d = registry.get(slug)
                 prompt = OVERRIDES.get(slug) or (d.prompt if d else "")
                 return {**b, "group": g["id"], "group_label": g["label"], "prompt": prompt, "prompt_is_default": not d and slug not in OVERRIDES,
-                        "memory_namespace": d.memory_namespace if d else f"bot.{slug}"}
+                        "memory_namespace": d.memory_namespace if d else f"bot.{slug}", "settings": SETTINGS.get(slug, {})}
     return None
 
 
@@ -185,3 +191,42 @@ async def set_prompt(slug: str, prompt: str | None) -> None:
     await aio.execute("INSERT INTO shared.bot_org(slug) VALUES($1) ON CONFLICT DO NOTHING", slug)
     await aio.execute("UPDATE shared.bot_org SET prompt_override=$2, updated_at=now() WHERE slug=$1", slug, prompt or None)
     await load_overrides()
+
+
+def llm_kwargs(slug: str) -> dict:
+    """LLMRequest overrides chosen for this bot in its settings (model pin, tier, temperature, max_tokens)."""
+    st = SETTINGS.get(slug, {})
+    out: dict = {}
+    if st.get("model"):
+        out["pin"] = st["model"]
+    if st.get("tier") in TIERS:
+        out["tier"] = st["tier"]
+    if isinstance(st.get("temperature"), (int, float)):
+        out["temperature"] = float(st["temperature"])
+    if isinstance(st.get("max_tokens"), int):
+        out["max_tokens"] = st["max_tokens"]
+    return out
+
+
+async def set_settings(slug: str, patch: dict) -> dict:
+    """Validated merge into the bot's settings. A value of None/'' removes that key (back to default)."""
+    cur = dict(SETTINGS.get(slug, {}))
+    for k, v in patch.items():
+        if k not in ("model", "tier", "temperature", "max_tokens", "memory"):
+            continue
+        if v in (None, ""):
+            cur.pop(k, None)
+        elif k == "tier" and v in TIERS:
+            cur[k] = v
+        elif k == "model" and isinstance(v, str) and ":" in v and len(v) < 160:
+            cur[k] = v
+        elif k == "temperature" and isinstance(v, (int, float)) and 0 <= v <= 1.5:
+            cur[k] = float(v)
+        elif k == "max_tokens" and isinstance(v, int) and 64 <= v <= 8192:
+            cur[k] = v
+        elif k == "memory" and isinstance(v, bool):
+            cur[k] = v
+    await aio.execute("INSERT INTO shared.bot_org(slug) VALUES($1) ON CONFLICT DO NOTHING", slug)
+    await aio.execute("UPDATE shared.bot_org SET settings=$2::jsonb, updated_at=now() WHERE slug=$1", slug, json.dumps(cur))
+    SETTINGS[slug] = cur
+    return cur

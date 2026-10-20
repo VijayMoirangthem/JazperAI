@@ -44,7 +44,7 @@ async def stream(router, group: str, topic: str, rounds: int = 2) -> AsyncIterat
         yield {"t": "speaker", "slug": slug}
         buf = ""
         with finops.attribute(slug, group):
-            async for item in router.stream(LLMRequest(system=f"{system}\n\n{rule}", messages=[{"role": "user", "content": task}], tier="standard", max_tokens=260, temperature=0.6)):
+            async for item in router.stream(LLMRequest(**{"system": f"{system}\n\n{rule}", "messages": [{"role": "user", "content": task}], "tier": "standard", "max_tokens": 260, "temperature": 0.6, **orgchart.llm_kwargs(slug)})):
                 if isinstance(item, Usage):
                     yield {"t": "done", "slug": slug, "usage": item.model_dump()}
                 else:

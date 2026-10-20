@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ExternalLink, KeyRound, Loader2 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-export interface UiRequest { kind: "credentials" | "oauth"; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean }
+export interface Suggestion { id: string; name: string; why: string; status: string; connectable: boolean; untested?: boolean }
+export interface UiRequest { kind: "credentials" | "oauth" | "suggestions"; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean }
 
 export function CredentialCard({ req, onDone }: { req: UiRequest; onDone: (summary: string) => void }) {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -79,6 +80,47 @@ export function OAuthCard({ req, onDone }: { req: UiRequest; onDone: (summary: s
           {state === "waiting" ? <span className="inline-flex items-center gap-2"><Loader2 size={14} className="animate-spin" />Waiting for sign-in…</span> : "Sign in with Google"}
         </button>
       )}
+    </div>
+  );
+}
+
+const STATUS_COLOR: Record<string, string> = { connected: "#22c55e", "ready to connect": "#60a5fa", "needs credentials": "#f59e0b", "needs sign-in": "#f59e0b", planned: "#94a3b8" };
+
+/** One-click connector suggestions: each connectable item has a Connect button that runs the same flow Jasper would
+ *  (vault/.env check, then an inline credentials or Google sign-in card if something is needed). */
+export function SuggestionCard({ items, onDone }: { items: Suggestion[]; onDone: (summary: string) => void }) {
+  const [state, setState] = useState<Record<string, { status?: string; busy?: boolean; req?: UiRequest; detail?: string }>>({});
+  const connect = async (id: string) => {
+    setState((s) => ({ ...s, [id]: { ...s[id], busy: true } }));
+    try {
+      const t = await fetch(`${API}/api/v1/connections/${id}/connect`, { method: "POST" }).then((r) => r.json());
+      if (t.request) setState((s) => ({ ...s, [id]: { req: t.request as UiRequest } }));
+      else {
+        setState((s) => ({ ...s, [id]: { status: t.connected ? "connected" : "ready to connect", detail: t.detail } }));
+        if (t.connected) onDone(`${id} is now connected (${t.detail}).`);
+      }
+    } catch { setState((s) => ({ ...s, [id]: { detail: "could not reach the backend" } })); }
+  };
+  return (
+    <div role="group" aria-label="Connector suggestions" data-testid="suggestion-card" className="w-full max-w-[640px] space-y-2 rounded-3xl bg-white/5 px-4 py-3 ring-1 ring-blue-400/30">
+      <div className="text-sm font-semibold">Connect more tools</div>
+      {items.map((it) => {
+        const st = state[it.id]; const status = st?.status ?? it.status;
+        return (
+          <div key={it.id} className="space-y-1.5 rounded-2xl bg-white/5 p-2.5" data-testid={"sug-" + it.id}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{it.name}</span>
+              {it.untested && <span className="rounded-full border border-white/15 px-1.5 text-[10px] opacity-60">untested</span>}
+              <span className="ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: (STATUS_COLOR[status] ?? "#94a3b8") + "22", color: STATUS_COLOR[status] ?? "#94a3b8" }}>{status}</span>
+              {it.connectable && status !== "connected" && <button onClick={() => void connect(it.id)} disabled={st?.busy} className="rounded-full bg-blue-600 px-3 py-1 text-xs disabled:opacity-50">{st?.busy ? "Connecting…" : "Connect"}</button>}
+            </div>
+            <div className="text-xs opacity-65">{it.why}</div>
+            {st?.detail && <div className="text-xs opacity-70">{st.detail}</div>}
+            {st?.req?.kind === "credentials" && <CredentialCard req={st.req} onDone={(t) => { setState((s) => ({ ...s, [it.id]: { status: "connected" } })); onDone(t); }} />}
+            {st?.req?.kind === "oauth" && <OAuthCard req={st.req} onDone={(t) => { setState((s) => ({ ...s, [it.id]: { status: "connected" } })); onDone(t); }} />}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -24,6 +24,7 @@ class LLMRequest(BaseModel):
     tier: Tier = "standard"
     max_tokens: int = 1024
     temperature: float = 0.7
+    pin: str | None = None  # 'provider:model' chosen for this bot; the tier chain stays as fallback
     cache_system: bool = True  # prompt-cache marker on the static system prompt
 
 

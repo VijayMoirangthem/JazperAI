@@ -78,6 +78,8 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     # Memory layers, embedded once: founder facts (shared by all bots), this bot's own lessons, its group's memory, company-wide memory. Never blocks the chat.
     try:
         grp = workspaces.GROUP_OF.get(slug)
+        if orgchart.SETTINGS.get(slug, {}).get("memory") is False:
+            raise LookupError  # this bot has memory switched off
         spec = {"fact": 4, f"bot.{slug}": 3, "org": 2}
         if grp and grp not in ("legacy", "chief"):
             spec[f"group.{grp}"] = 3
@@ -108,7 +110,7 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
                     else:
                         yield _line({"t": "done", "slug": slug, "usage": ev["usage"].model_dump()})
             else:
-                async for item in r.stream(LLMRequest(system=system, messages=msgs, tier=tier or default_tier, max_tokens=1024)):
+                async for item in r.stream(LLMRequest(**{"system": system, "messages": msgs, "tier": tier or default_tier, "max_tokens": 1024, **orgchart.llm_kwargs(slug)})):
                     if isinstance(item, Usage):
                         yield _line({"t": "done", "slug": slug, "usage": item.model_dump()})
                     else:

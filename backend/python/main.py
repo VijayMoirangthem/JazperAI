@@ -250,6 +250,8 @@ class NoCacheMunderMiddleware(BaseHTTPMiddleware):
 app.add_middleware(NoCacheMunderMiddleware)
 from core.metrics import MetricsMiddleware
 app.add_middleware(MetricsMiddleware)  # G4: Prometheus counters + SLO window
+from core.http_cache import HttpCacheMiddleware
+app.add_middleware(HttpCacheMiddleware)  # Redis read-through cache for the rail panels (invalidated on writes)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=sorted({settings.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3001", "http://127.0.0.1:3001"}),

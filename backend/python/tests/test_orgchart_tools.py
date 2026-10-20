@@ -87,3 +87,9 @@ def test_workspace_rules(tmp_path):
     finally:
         workspaces._cache.pop("baeit", None)
         workspaces.GROUP_OF.pop("t-bot", None)
+
+
+def test_parse_call_variants_seen_in_the_wild():
+    from agents.jasper_tools import parse_call
+    assert parse_call("<tool_call><function=list_connections></function></tool_call>")[:2] == ("list_connections", {})
+    assert parse_call('<tool_call>{"name":"tool","args":{"name":"suggest_connectors"}}</tool_call>')[:2] == ("suggest_connectors", {})

@@ -8,8 +8,10 @@ import { speakAs, stopSpeaking } from "@/voice/botVoice";
 import { ScoreBadge, ago, type OrgBot, type OrgGroup } from "./OrgSidebar";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-type Card = OrgBot & { group: string; group_label: string; prompt: string; prompt_is_default: boolean; memory_namespace: string; has_prompt_override: boolean };
-const TABS = ["ID card", "Prompt", "Appearance", "Voice", "Organisation"] as const;
+type Card = OrgBot & { settings?: Settings; group: string; group_label: string; prompt: string; prompt_is_default: boolean; memory_namespace: string; has_prompt_override: boolean };
+const TABS = ["ID card", "Prompt", "Model", "Appearance", "Voice", "Organisation"] as const;
+interface Prov { slug: string; name: string; enabled: boolean; has_key: boolean; models: { model_id: string; enabled: boolean }[] }
+interface Settings { model?: string; tier?: string; temperature?: number; max_tokens?: number; memory?: boolean }
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
 
 export function BotSettings({ slug, groups, onClose, onChanged }: { slug: string; groups: OrgGroup[]; onClose: () => void; onChanged: () => void }) {
@@ -23,6 +25,16 @@ export function BotSettings({ slug, groups, onClose, onChanged }: { slug: string
   const [voices, setVoices] = useState<{ name: string; gender: string; locale: string; label: string }[]>([]);
   useEffect(() => { fetch(`${API}/api/v1/voice2/voices`).then((r) => r.json()).then((d) => setVoices(d.voices ?? [])).catch(() => undefined); }, []);
   const voice = voiceOf(looks, slug);
+  const [provs, setProvs] = useState<Prov[]>([]);
+  const [st, setSt] = useState<Settings>({});
+  const [stMsg, setStMsg] = useState("");
+  useEffect(() => { fetch(`${API}/api/v1/llm/providers`).then((r) => r.json()).then((d) => setProvs(d.providers ?? [])).catch(() => undefined); }, []);
+  useEffect(() => { if (card?.settings) setSt(card.settings); }, [card]);
+  const saveSettings = async () => {
+    const body = { model: st.model ?? null, tier: st.tier ?? null, temperature: st.temperature ?? null, max_tokens: st.max_tokens ?? null, memory: st.memory ?? null };
+    const r = await fetch(`${API}/api/v1/bots/${slug}/settings`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setStMsg(r.ok ? "Saved — applies from the next message" : "Could not save"); await load(); onChanged();
+  };
 
   const load = () => fetch(`${API}/api/v1/bots/${slug}/card`).then((r) => r.json()).then((c: Card) => { setCard(c); setPrompt(c.prompt); }).catch(() => undefined);
   useEffect(() => { void load(); }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -80,6 +92,39 @@ export function BotSettings({ slug, groups, onClose, onChanged }: { slug: string
                 <button onClick={() => void savePrompt(null)} className="rounded-full bg-white/10 px-4 py-1.5">Reset to default</button>
                 <span className="text-xs text-green-400">{saved}</span>
               </div>
+            </div>
+          ) : tab === "Model" ? (
+            <div className="space-y-3" data-testid="model-tab">
+              <div className="text-xs opacity-60">Choose which AI model this bot uses. “Automatic” follows the tier routing (with failover). A pinned model is tried first; if it fails, the tier chain takes over.</div>
+              <label className="block text-xs opacity-60">Model</label>
+              <select value={st.model ?? ""} onChange={(e) => setSt((s) => ({ ...s, model: e.target.value || undefined }))} aria-label="Model" className="w-full rounded-lg bg-white/10 px-2 py-1.5 outline-none">
+                <option value="" className="bg-[#1b1b1b]">Automatic (tier routing)</option>
+                {provs.filter((p) => p.enabled && p.has_key).map((p) => (
+                  <optgroup key={p.slug} label={p.name} className="bg-[#1b1b1b]">
+                    {p.models.filter((m) => m.enabled).map((m) => <option key={p.slug + m.model_id} value={`${p.slug}:${m.model_id}`} className="bg-[#1b1b1b]">{m.model_id}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-xs opacity-80">Tier (when automatic)
+                  <select value={st.tier ?? ""} onChange={(e) => setSt((s) => ({ ...s, tier: e.target.value || undefined }))} aria-label="Tier" className="mt-1 w-full rounded-lg bg-white/10 px-2 py-1.5 text-sm outline-none">
+                    <option value="" className="bg-[#1b1b1b]">Default ({card.tier})</option><option value="light" className="bg-[#1b1b1b]">light (fast, cheap)</option><option value="standard" className="bg-[#1b1b1b]">standard</option><option value="frontier" className="bg-[#1b1b1b]">frontier (strongest)</option>
+                  </select>
+                </label>
+                <label className="text-xs opacity-80">Max reply tokens
+                  <input type="number" min={64} max={8192} step={64} value={st.max_tokens ?? ""} placeholder="default" onChange={(e) => setSt((s) => ({ ...s, max_tokens: e.target.value ? Number(e.target.value) : undefined }))} aria-label="Max tokens" className="mt-1 w-full rounded-lg bg-white/10 px-2 py-1.5 text-sm outline-none" />
+                </label>
+              </div>
+              <label className="block text-xs opacity-80">Creativity (temperature): {st.temperature ?? "default"}
+                <input type="range" min={0} max={1.5} step={0.1} value={st.temperature ?? 0.7} onChange={(e) => setSt((s) => ({ ...s, temperature: Number(e.target.value) }))} aria-label="Temperature" className="w-full" />
+              </label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={st.memory !== false} onChange={(e) => setSt((s) => ({ ...s, memory: e.target.checked ? undefined : false }))} aria-label="Use memory" />Use memory (founder, own, group and company)</label>
+              <div className="flex items-center gap-2">
+                <button onClick={() => void saveSettings()} className="rounded-full bg-blue-600 px-4 py-1.5">Save</button>
+                <button onClick={() => { setSt({}); setStMsg(""); }} className="rounded-full bg-white/10 px-4 py-1.5">Reset to default</button>
+                <span className="text-xs text-green-400">{stMsg}</span>
+              </div>
+              <div className="text-xs opacity-50">Only providers with a key appear here. Add providers and keys in AI Providers.</div>
             </div>
           ) : tab === "Voice" ? (
             <div className="space-y-3" data-testid="voice-tab">

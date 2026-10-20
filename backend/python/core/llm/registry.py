@@ -45,15 +45,30 @@ class TieredRouter:
 
     def __init__(self, routers: dict[str, LLMRouter]):
         self.routers = routers
+        self._pins: dict[str, LLMRouter] = {}
 
     def _for(self, req: LLMRequest) -> LLMRouter:
         return self.routers.get(req.tier) or self.routers["standard"]
+
+    async def _route(self, req: LLMRequest) -> LLMRouter:
+        """Tier chain, or [pinned model] + tier chain when the bot has a model chosen (unknown/disabled pin falls back silently)."""
+        if not req.pin or ":" not in req.pin:
+            return self._for(req)
+        key = f"{req.pin}|{req.tier}"
+        if key not in self._pins:
+            prov, _, model = req.pin.partition(":")
+            rows = await aio.fetch("SELECT slug, kind, base_url, secret_name, secret_env, local FROM shared.llm_providers WHERE slug=$1 AND enabled", prov)
+            if not rows:
+                return self._for(req)
+            base = self._for(req)
+            self._pins[key] = LLMRouter([_make(rows[0], model, req.tier), *base.chain], attempts=2)
+        return self._pins[key]
 
     async def complete(self, req: LLMRequest) -> LLMResult:
         tier = await finops.check(req.tier)  # raises BudgetExceeded at a hard cap; steps the tier down at a soft cap
         req = req.model_copy(update={"tier": tier})
         with span("llm.complete", tier=tier) as sp:
-            res = await self._for(req).complete(req)
+            res = await (await self._route(req)).complete(req)
             sp.set_attribute("llm.provider", res.usage.provider)
             sp.set_attribute("llm.model", res.usage.model)
             sp.set_attribute("llm.tokens.input", res.usage.input_tokens)
@@ -64,7 +79,7 @@ class TieredRouter:
     async def stream(self, req: LLMRequest):
         tier = await finops.check(req.tier)
         req = req.model_copy(update={"tier": tier})
-        async for item in self._for(req).stream(req):
+        async for item in (await self._route(req)).stream(req):
             if isinstance(item, Usage):
                 await finops.record(item, tier)
             yield item

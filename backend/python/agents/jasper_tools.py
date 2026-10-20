@@ -37,6 +37,7 @@ HELP = {
     "use_tool": "use_tool {name,arguments} : run an MCP tool by full name (writes need approval)",
     "list_connections": "list_connections {} : every connector with status (connected / missing secrets / needs sign-in)",
     "connect": "connect {connector} : connect a service (gmail, calendar, github, slack, notion, filesystem, memory). Uses secrets found in the vault or .env; otherwise shows the founder a secure card",
+    "suggest_connectors": "suggest_connectors {} : recommended connectors with live status; shows the founder one-click Connect cards. Use it for any question about what to connect or how to become more capable",
     "test_connection": "test_connection {connector} : run the harmless read check on a connector",
     "hold_meeting": "hold_meeting {group,topic} : the bots of a group (create_origins, baeit, boardmint, jazper_team) discuss a topic and their lead concludes; returns the conclusion",
     "fs_roots": "fs_roots {} : folders on this PC you may work in",
@@ -53,15 +54,15 @@ HELP = {
 FS = ["fs_roots", "fs_list", "fs_read", "fs_search", "fs_write"]
 LEADS = {"ceo-create-origins", "ceo-baeit", "lead-boardmint", "vp-tech-ops"}
 TOOLS_FOR: dict[str, list[str]] = {
-    "jasper": ["list_org", "find_bot", "remember", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "hold_meeting", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
-    "connector": ["list_connections", "connect", "test_connection", "find_tool", "list_skills", "view_skill", "save_skill"],
+    "jasper": ["list_org", "find_bot", "remember", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "hold_meeting", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
+    "connector": ["list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "list_skills", "view_skill", "save_skill"],
     "messenger": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
     "bot-reviewer": ["list_org", "bot_stats", "list_skills", "view_skill"],
     "bot-creator": ["list_org", "list_skills"],
     "chaosbot": ["slo", "run_chaos"],
 }
 INTRO = 'You have system access. To use a tool reply with ONLY one line: <tool>{"name":"NAME","args":{...}}</tool> and wait for the result, then continue. Tools:\n'
-RULES = ("\nHierarchy: Jasper delegates to group leads; leads delegate to their members, hold meetings for decisions and record lasting decisions with remember. Use find_bot to pick the right owner. Routing: anything about email goes to `messenger` (it checks Gmail and asks `connector` itself); connections go to `connector`. One tool call at a time. Delegate to the right specialist instead of doing everything yourself. If a service is not connected, ask `connector` to connect it "
+RULES = ("\nHierarchy: Jasper delegates to group leads; leads delegate to their members, hold meetings for decisions and record lasting decisions with remember. Use find_bot to pick the right owner. Questions about what to connect or how to get smarter: call suggest_connectors, then give a short prioritised answer (top 3 and why for THIS founder) and mention the cards. Routing: anything about email goes to `messenger` (it checks Gmail and asks `connector` itself); connections go to `connector`. One tool call at a time. Delegate to the right specialist instead of doing everything yourself. If a service is not connected, ask `connector` to connect it "
          "(it checks the vault/.env and asks the founder only if something is missing). Never ask the founder to paste secrets into chat: a secure card is shown for that. "
          "Answer the founder concisely when done.")
 
@@ -188,6 +189,11 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
             return f"error: {str(e)[:300]}"
     if name == "list_connections":
         return _clip([_conn_line(c) for c in await connector.overview()], 3000)
+    if name == "suggest_connectors":
+        items = await connector.recommendations()
+        _push_ui({"kind": "suggestions", "items": items})
+        lines = [f"{i + 1}. {x['name']} [{x['status']}]: {x['why']}" for i, x in enumerate(items)]
+        return "One-click cards are shown to the founder. Recommendations in priority order (tailor your answer to what you know about them, say what each unlocks, and which to do first):\n" + "\n".join(lines)
     if name in ("connect", "test_connection"):
         cid = connector.resolve(str(args.get("connector", "")))
         if not cid:
@@ -291,6 +297,9 @@ def parse_call(buf: str):
                 return str(obj["name"]), (args if isinstance(args, dict) else {}), len(buf) - len(t), len(buf) - len(t) + end
         return None
     i = buf.find("{", m.end())
+    if m.group(1) and (i < 0 or buf.find("</function>", m.end()) in range(m.end(), i + 1)):  # named call with no arguments
+        close = re.compile(r"\s*(?:</function>\s*)?(?:</tool(?:_call)?>)?").match(buf, m.end())
+        return m.group(1), {}, m.start(), close.end() if close else m.end()
     if i < 0:
         return None
     try:
@@ -301,8 +310,14 @@ def parse_call(buf: str):
         name, args = m.group(1), obj
     else:
         name, args = str(obj.get("name", "")), obj.get("args") or obj.get("arguments") or obj.get("parameters") or {}
+    if isinstance(obj, dict) and not m.group(1) and not name and isinstance(obj.get("tool"), str):  # {"tool": "x", "args": {...}}
+        name = obj["tool"]
+    args = args if isinstance(args, dict) else {}
+    if name in ("tool", "function", "call", "tool_call", "use") and isinstance(args.get("name"), str):  # {"name":"tool","args":{"name":"x",...}}
+        inner = args.get("arguments") or args.get("args") or {k: v for k, v in args.items() if k != "name"}
+        name, args = args["name"], (inner if isinstance(inner, dict) else {})
     close = re.compile(r"\s*(?:</function>\s*)?(?:</tool(?:_call)?>)?").match(buf, end)
-    return name, (args if isinstance(args, dict) else {}), m.start(), close.end() if close else end
+    return name, args, m.start(), close.end() if close else end
 
 
 async def _stream_retry(r, req):
@@ -330,7 +345,7 @@ async def _rounds(r, slug: str, system: str, msgs: list[dict], tier: str, trace:
     tier = "standard" if tier == "light" else tier  # the light model returns empty text for tool-call prompts
     for rnd in range(MAX_ROUNDS + 1):
         buf, emitted, mode, last_usage = "", 0, "text", None
-        stream = _stream_retry(r, LLMRequest(system=system, messages=msgs, tier=tier, max_tokens=1024 if rnd < MAX_ROUNDS else 700))
+        stream = _stream_retry(r, LLMRequest(**{"system": system, "messages": msgs, "tier": tier, "max_tokens": 1024 if rnd < MAX_ROUNDS else 700, **orgchart.llm_kwargs(slug)}))
         async for item in stream:
             if isinstance(item, Usage):
                 last_usage = item
@@ -442,7 +457,7 @@ async def run_bot(slug: str, text: str, asker: str = "jasper") -> str:
                 out = "".join([ev["delta"] async for ev in _rounds(r, slug, system, [{"role": "user", "content": text}], tier, trace) if "delta" in ev])
                 _spawn_review(r, slug, text, trace, out)
                 return out
-            res = await r.complete(LLMRequest(system=system, messages=[{"role": "user", "content": text}], tier=tier, max_tokens=900))
+            res = await r.complete(LLMRequest(**{"system": system, "messages": [{"role": "user", "content": text}], "tier": tier, "max_tokens": 900, **orgchart.llm_kwargs(slug)}))
             return res.text
     finally:
         _depth.reset(tok)

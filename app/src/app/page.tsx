@@ -87,6 +87,7 @@ import { PortfolioPanel } from "@/components/panels/PortfolioPanel";
 import { SalaryCoachPanel } from "@/components/panels/SalaryCoachPanel";
 import { StandupPanel } from "@/components/panels/StandupPanel";
 import { QuickActionsBar } from "@/components/QuickActionsBar";
+import { ViewActiveContext } from "@/lib/viewActive";
 import { MindMapPanel } from "@/components/panels/MindMapPanel";
 import { ConnectionsPanel } from "@/components/panels/ConnectionsPanel";
 import { SkillsPanel } from "@/components/panels/SkillsPanel";
@@ -135,6 +136,9 @@ export default function Home() {
   const [view, setView] = useState<View>("team_chat");
   const [sessionToLoad, setSessionToLoad] = useState<LoadedSession | null>(null);
   const [studioMode, setStudioMode] = useState(false);
+  // keep-alive: panels you have opened stay mounted (hidden) so switching tabs is instant and nothing reloads; the 8 most recent are kept
+  const [visited, setVisited] = useState<View[]>([]);
+  useEffect(() => { setVisited((v) => (v.includes(view) ? v : [...v.slice(-7), view])); }, [view]);
   const didInit = useRef(false);
   const { pending, approve, deny } = useApprovals();
   const { settings, save } = useSettings();
@@ -372,8 +376,14 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            {singlePanel[view] ?? <PlaceholderPanel label={view} />}
+          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+            {[...new Set([...visited, view])].map((v) => (
+              <div key={v} data-keepalive={v} style={{ display: v === view ? "block" : "none", height: "100%" }}>
+                <ViewActiveContext.Provider value={v === view}>
+                  {singlePanel[v] ?? <PlaceholderPanel label={v} />}
+                </ViewActiveContext.Provider>
+              </div>
+            ))}
           </div>
         )}
       </div>

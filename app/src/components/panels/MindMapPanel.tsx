@@ -5,6 +5,7 @@
 // /comms/agents (live states in Redis), /connections, /hitl/pending, /slo.
 import { useEffect, useMemo, useState } from "react";
 import type { OrgGroup } from "@/components/chat/OrgSidebar";
+import { useViewActive } from "@/lib/viewActive";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 interface Msg { id: number; ts: string; thread: string; from_slug: string; to_slug: string; kind: string; text: string }
@@ -16,6 +17,7 @@ const STATE_COLOR: Record<string, string> = { working: "#f59e0b", planning: "#a7
 const j = (path: string) => fetch(`${API}${path}`).then((r) => r.json());
 
 export function MindMapPanel() {
+  const active = useViewActive();
   const [groups, setGroups] = useState<OrgGroup[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [states, setStates] = useState<Record<string, { state: string; bubble?: string }>>({});
@@ -44,9 +46,10 @@ export function MindMapPanel() {
       } catch { /* backend busy */ }
     };
     void slow(); void fast();
+    if (!active) return;  // hidden tab: no polling
     const a = setInterval(slow, 8000), b = setInterval(fast, 2000);
     return () => { stop = true; clearInterval(a); clearInterval(b); };
-  }, []);
+  }, [active]);
 
   const layout = useMemo(() => {
     const pos: Record<string, { x: number; y: number; group: string; name: string; enabled: boolean }> = {};

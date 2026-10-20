@@ -97,6 +97,22 @@ async def add_group(body: GroupIn):
     return body
 
 
+class SettingsIn(BaseModel):
+    model: str | None = None
+    tier: str | None = None
+    temperature: float | None = None
+    max_tokens: int | None = None
+    memory: bool | None = None
+
+
+@router.put("/{slug}/settings")
+async def put_settings(slug: str, body: SettingsIn):
+    """Per-bot runtime settings. Fields sent as null/empty are reset to default (so the UI sends the whole form)."""
+    st = await orgchart.set_settings(slug, body.model_dump())
+    await cache.invalidate("org_tree")
+    return {"slug": slug, "settings": st}
+
+
 @router.get("/{slug}/card")
 async def card(slug: str):
     c = await orgchart.card(slug)

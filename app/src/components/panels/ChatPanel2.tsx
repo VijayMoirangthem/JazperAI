@@ -16,7 +16,7 @@ import { MausAvatar, lookFor, stateFromAgent, useBotLook, voiceOf, type MausMoti
 import { speakAs, stopSpeaking, useTts } from "@/voice/botVoice";
 import { OrgSidebar, ScoreBadge, type OrgGroup } from "@/components/chat/OrgSidebar";
 import { BotSettings } from "@/components/chat/BotSettings";
-import { CredentialCard, OAuthCard } from "@/components/chat/ChatCards";
+import { CredentialCard, OAuthCard, SuggestionCard } from "@/components/chat/ChatCards";
 import { CommsView, useCommsThreads } from "@/components/chat/CommsView";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -68,7 +68,7 @@ function Bubble({ m, onAnswer, onRate, onCard, onDelete, onEdit, onSpeak, onRege
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(m.text);
   if (m.phase) return <div className="my-1 flex items-center gap-2 text-xs opacity-60" data-testid="phase"><span className="h-px flex-1 bg-white/15" />{m.text}<span className="h-px flex-1 bg-white/15" /></div>;
-  if (m.ui) return <div className="flex justify-start">{m.ui.kind === "credentials" ? <CredentialCard req={m.ui} onDone={(t) => onCard?.(t)} /> : <OAuthCard req={m.ui} onDone={(t) => onCard?.(t)} />}</div>;
+  if (m.ui) return <div className="flex justify-start">{m.ui.kind === "suggestions" ? <SuggestionCard items={m.ui.items ?? []} onDone={(t) => onCard?.(t)} /> : m.ui.kind === "credentials" ? <CredentialCard req={m.ui} onDone={(t) => onCard?.(t)} /> : <OAuthCard req={m.ui} onDone={(t) => onCard?.(t)} />}</div>;
   const system = m.from === "system";
   const [rated, setRated] = useState<boolean | null>(null);
   if (m.tool) {
@@ -316,7 +316,7 @@ export function ChatPanel2() {
         if (ev.t === "route") route = ev as never;
         else if (ev.t === "speaker") { startMsg(slug); patch(ch, mine.id, { status: "read" }); }
         else if (ev.t === "phase") push(ch, { id: uid(), from: "system", text: String(ev.text), ts: Date.now(), phase: true });
-        else if (ev.t === "ui") { push(ch, { id: uid(), from: slug, text: "", ts: Date.now(), ui: { kind: ev.kind as "credentials" | "oauth", connector: String(ev.connector), secrets: ev.secrets as { name: string; label: string }[] | undefined, url: ev.url as string | undefined, provider: ev.provider as string | undefined } }); ids.delete(slug); }
+        else if (ev.t === "ui") { push(ch, { id: uid(), from: slug, text: "", ts: Date.now(), ui: { kind: ev.kind as "credentials" | "oauth" | "suggestions", items: ev.items as never, connector: String(ev.connector ?? ""), secrets: ev.secrets as { name: string; label: string }[] | undefined, url: ev.url as string | undefined, provider: ev.provider as string | undefined } }); ids.delete(slug); }
         else if (ev.t === "tool") {
           const label = String(ev.label ?? ev.name); const status = ev.status as "running" | "ok" | "error";
           const open = [...(useChat.getState().threads[ch] ?? [])].reverse().find((x) => x.tool && x.tool.status === "running" && x.tool.label === label);

@@ -21,10 +21,14 @@ EXTRA = {
     "slack": {"name": "Slack (official MCP server)", "command": [hub_presets.NPX, "-y", "@modelcontextprotocol/server-slack"],
               "env_secrets": {"SLACK_BOT_TOKEN": "SLACK_BOT_TOKEN", "SLACK_TEAM_ID": "SLACK_TEAM_ID"}, "needs": "Slack bot token (xoxb-...) and team id.",
               "tool_tiers": {"slack_post_message": "mcp.write", "slack_reply_to_thread": "mcp.write", "slack_add_reaction": "mcp.write"}, "untested": True},
+    "brave-search": {"name": "Brave Search (official MCP server)", "command": [hub_presets.NPX, "-y", "@modelcontextprotocol/server-brave-search"],
+                     "env_secrets": {"BRAVE_API_KEY": "BRAVE_API_KEY"}, "needs": "Brave Search API key (free tier available).", "tool_tiers": {}, "untested": True},
+    "playwright": {"name": "Playwright browser (official MCP server)", "command": [hub_presets.NPX, "-y", "@playwright/mcp@latest", "--headless"],
+                   "env_secrets": {}, "needs": "", "tool_tiers": {"browser_click": "mcp.write", "browser_type": "mcp.write", "browser_navigate": "mcp.write"}, "untested": True},
     "notion": {"name": "Notion (official MCP server)", "command": [hub_presets.NPX, "-y", "@notionhq/notion-mcp-server"],
                "env_secrets": {"NOTION_TOKEN": "NOTION_TOKEN"}, "needs": "Notion internal integration token.", "tool_tiers": {}, "untested": True},
 }
-LABELS = {"GITHUB_TOKEN": "GitHub personal access token (fine-grained)", "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)", "SLACK_TEAM_ID": "Slack team id",
+LABELS = {"BRAVE_API_KEY": "Brave Search API key", "GITHUB_TOKEN": "GitHub personal access token (fine-grained)", "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)", "SLACK_TEAM_ID": "Slack team id",
           "NOTION_TOKEN": "Notion integration token"}
 # harmless read used to prove a connection works: (tool, arguments)
 TESTS = {"google-workspace": ("gmail_search", {"query": "newer_than:1d", "max_results": 1}), "github": ("search_repositories", {"query": "repo:modelcontextprotocol/servers", "perPage": 1}),
@@ -184,6 +188,37 @@ async def autoconnect() -> None:
                 await test(cid)
         except Exception:
             pass
+
+
+# Recommended capabilities, most valuable first. `id` is a connectable preset; `planned` ones are ideas we do not have a verified server for yet.
+RECOMMENDED = [
+    {"id": "google-workspace", "why": "Gmail, Calendar and Drive: answers like 'did my incorporation email arrive' and scheduling. Highest value for a founder."},
+    {"id": "github", "why": "Read repos, issues and PRs; lets the Baeit and Boardmint bots review code and open branches/PRs (writes need approval)."},
+    {"id": "filesystem", "why": "Project files for the dev bots (workspaces already give folder access; this adds the standard MCP file tools)."},
+    {"id": "memory", "why": "A knowledge-graph memory other MCP clients can share; optional because Jasper already has pgvector memory."},
+    {"id": "slack", "why": "Notify you and the team, and take approvals from Slack instead of only in the app."},
+    {"id": "notion", "why": "Company docs, specs and meeting notes as readable context."},
+    {"id": "brave-search", "why": "Live web search so Jasper can answer current questions (needs a Brave Search API key)."},
+    {"id": "playwright", "why": "Drive a real browser: check a website, fill forms, test the Baeit web flows (no key needed)."},
+    {"id": "linear", "why": "Issue tracking for engineering work.", "planned": True},
+    {"id": "jira", "why": "Issue tracking if you use Jira.", "planned": True},
+    {"id": "discord", "why": "Team or community notifications.", "planned": True},
+    {"id": "cashfree", "why": "Payment and payout status for Baeit (read-only first; payments would be Tier 3).", "planned": True},
+    {"id": "google-sheets", "why": "Spreadsheets for finance and reporting.", "planned": True},
+]
+
+
+async def recommendations() -> list[dict]:
+    """What to connect next, with live status. Connectable items carry what is missing so the chat can offer a one-click Connect."""
+    out = []
+    for r in RECOMMENDED:
+        if r.get("planned") or r["id"] not in catalogue():
+            out.append({"id": r["id"], "name": r["id"].replace("-", " ").title(), "why": r["why"], "status": "planned", "connectable": False})
+            continue
+        st = await check(r["id"])
+        status = "connected" if st["connected"] else "needs credentials" if st["missing"] else "needs sign-in" if st.get("oauth") and not st["oauth"]["connected"] else "ready to connect"
+        out.append({"id": r["id"], "name": st["name"], "why": r["why"], "status": status, "connectable": True, "untested": st.get("untested", False)})
+    return out
 
 
 async def overview() -> list[dict]:
