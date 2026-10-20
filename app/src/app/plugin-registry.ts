@@ -64,6 +64,7 @@ export type BadgeType = "jobs" | "notifications" | "approvals";
 
 /** System ID — the 8 top-level categories */
 export type SystemId =
+  | "jazper"
   | "personal"
   | "career"
   | "communications"
@@ -110,6 +111,15 @@ export interface PluginMeta {
 // ── System Registry ───────────────────────────────────────────────────────────
 
 export const SYSTEM_REGISTRY: SystemMeta[] = [
+  {
+    id: "jazper",
+    label: "Jazper",
+    description: "Sir Jasper AI: chat, office, agents, tools, memory, dev loop and system",
+    icon: Zap,
+    color: "#6366f1",
+    coordinatorAgent: "jasper",
+    primaryAgents: ["jasper"],
+  },
   {
     id: "personal",
     label: "Personal",
@@ -287,18 +297,18 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
   { id: "qa",            label: "QA Center",       description: "Quality assurance and testing",             icon: ShieldCheck, group: "agent_os", system: "agent_os" },
   { id: "observatory",   label: "Observatory",     description: "Live agent feed and session monitor",       icon: Radio,       group: "agent_os", system: "agent_os" },
   { id: "company",       label: "Company",         description: "Company-level KPIs and dept scorecards",    icon: Building2,   group: "agent_os", system: "agent_os" },
-  { id: "team_chat",     label: "Team Chat",      description: "Chat with Sir Jasper, agents and department channels", icon: Radio,   group: "agent_os", system: "agent_os" },
-  { id: "office",        label: "Virtual Office", description: "2D office with live agent bubbles", icon: Building2, group: "agent_os", system: "agent_os" },
-  { id: "ai_providers",  label: "AI Providers",  description: "Add AI providers, models and tier routing", icon: Server, group: "agent_os", system: "agent_os" },
-  { id: "business",      label: "Business",      description: "Clients, projects, team and finance", icon: Building2, group: "agent_os", system: "agent_os" },
-  { id: "diff_editor",   label: "AI Diff Editor", description: "Streamed AI edits with per-hunk accept/reject", icon: GitBranch, group: "agent_os", system: "agent_os" },
-  { id: "finops", label: "FinOps", description: "Token usage, budgets and forecast", icon: DollarSign, group: "agent_os", system: "agent_os" },
-  { id: "mcp_hub", label: "Tool Hub", description: "MCP connectors and tools", icon: Server, group: "agent_os", system: "agent_os" },
-  { id: "system", label: "System", description: "Health, secrets and backups", icon: ShieldCheck, group: "agent_os", system: "agent_os" },
-  { id: "org_chart", label: "Org Chart", description: "Live org chart and executive directives", icon: Building2, group: "agent_os", system: "agent_os" },
-  { id: "dev_loop", label: "Dev Loop", description: "AI code changes on a branch, with tests and approved merge", icon: GitBranch, group: "agent_os", system: "agent_os" },
-  { id: "setup", label: "Setup", description: "First-run checklist", icon: ShieldCheck, group: "agent_os", system: "agent_os" },
-  { id: "live_agents",   label: "Live Agents",    description: "Real-time agent states from the event bus", icon: Radio,       group: "agent_os", system: "agent_os" },
+  { id: "team_chat",     label: "Team Chat",      description: "Chat with Sir Jasper, agents and department channels", icon: Radio,   group: "agent_os", system: "jazper" },
+  { id: "office",        label: "Virtual Office", description: "2D office with live agent bubbles", icon: Building2, group: "agent_os", system: "jazper" },
+  { id: "ai_providers",  label: "AI Providers",  description: "Add AI providers, models and tier routing", icon: Server, group: "agent_os", system: "jazper" },
+  { id: "business",      label: "Business",      description: "Clients, projects, team and finance", icon: Building2, group: "agent_os", system: "jazper" },
+  { id: "diff_editor",   label: "AI Diff Editor", description: "Streamed AI edits with per-hunk accept/reject", icon: GitBranch, group: "agent_os", system: "jazper" },
+  { id: "finops", label: "FinOps", description: "Token usage, budgets and forecast", icon: DollarSign, group: "agent_os", system: "jazper" },
+  { id: "mcp_hub", label: "Tool Hub", description: "MCP connectors and tools", icon: Server, group: "agent_os", system: "jazper" },
+  { id: "system", label: "System", description: "Health, secrets and backups", icon: ShieldCheck, group: "agent_os", system: "jazper" },
+  { id: "org_chart", label: "Org Chart", description: "Live org chart and executive directives", icon: Building2, group: "agent_os", system: "jazper" },
+  { id: "dev_loop", label: "Dev Loop", description: "AI code changes on a branch, with tests and approved merge", icon: GitBranch, group: "agent_os", system: "jazper" },
+  { id: "setup", label: "Setup", description: "First-run checklist", icon: ShieldCheck, group: "agent_os", system: "jazper" },
+  { id: "live_agents",   label: "Live Agents",    description: "Real-time agent states from the event bus", icon: Radio,       group: "agent_os", system: "jazper" },
   { id: "control_tower", label: "Control Tower",   description: "System control and monitoring",             icon: Server,      group: "agent_os", system: "agent_os" },
   { id: "plans",         label: "Plans",           description: "Multi-step agent plan tracker",             icon: GitBranch,   group: "agent_os", system: "agent_os" },
 

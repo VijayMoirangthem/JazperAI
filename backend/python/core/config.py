@@ -5,11 +5,11 @@ class Settings(BaseSettings):
     ENV: str = "development"
 
     # AI Provider
-    AI_BASE_URL: str = "http://localhost:1234/v1"
+    AI_BASE_URL: str = "https://api.groq.com/openai/v1"  # Groq free tier by default; any OpenAI-compatible URL works
     AI_API_KEY: str = ""
     AI_API_KEY2: str = ""
     AI_API_KEY3: str = ""
-    AI_MODEL: str = "qwen/qwen3.5-9b"
+    AI_MODEL: str = "qwen/qwen3.8-27b"
 
     # PostgreSQL
     POSTGRES_HOST: str = "127.0.0.1"
