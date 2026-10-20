@@ -165,6 +165,10 @@
  ],
  [
   "DELETE",
+  "/api/memory2/facts/{memory_id}"
+ ],
+ [
+  "DELETE",
   "/api/notifications/"
  ],
  [
@@ -418,6 +422,10 @@
  [
   "DELETE",
   "/api/v1/memory/topics/{topic}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/memory2/facts/{memory_id}"
  ],
  [
   "DELETE",
@@ -1106,6 +1114,10 @@
  [
   "GET",
   "/api/memory/topics"
+ ],
+ [
+  "GET",
+  "/api/memory2/facts"
  ],
  [
   "GET",
@@ -1934,6 +1946,10 @@
  [
   "GET",
   "/api/v1/memory/topics"
+ ],
+ [
+  "GET",
+  "/api/v1/memory2/facts"
  ],
  [
   "GET",
@@ -3021,6 +3037,14 @@
  ],
  [
   "POST",
+  "/api/memory2/facts"
+ ],
+ [
+  "POST",
+  "/api/memory2/sweep"
+ ],
+ [
+  "POST",
   "/api/model-costs/classify"
  ],
  [
@@ -3698,6 +3722,14 @@
  [
   "POST",
   "/api/v1/memory/topics"
+ ],
+ [
+  "POST",
+  "/api/v1/memory2/facts"
+ ],
+ [
+  "POST",
+  "/api/v1/memory2/sweep"
  ],
  [
   "POST",

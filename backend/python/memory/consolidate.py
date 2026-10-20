@@ -21,7 +21,7 @@ from memory.sanitizer import sanitize
 log = structlog.get_logger()
 TENANT = "create_origins"
 NS = "fact"
-DUPLICATE_SIM = 0.93  # above: same fact, no LLM needed
+DUPLICATE_SIM = 0.88  # above: same fact, no LLM needed
 RELATED_SIM = 0.55    # below: unrelated to anything stored, plain ADD without asking the model
 PIN_IMPORTANCE = 0.9
 
