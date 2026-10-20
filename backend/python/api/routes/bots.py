@@ -190,6 +190,28 @@ async def import_bot(body: ImportIn):
     return await orgchart.card(slug)
 
 
+class EvalIn(BaseModel):
+    kind: str = Field(pattern="^(clearance|pip)$")
+
+
+@router.post("/{slug}/evaluate")
+async def evaluate(slug: str, body: EvalIn):
+    """Start a clearance (interview + benchmark) or a performance-improvement plan in the background; results land in the evaluation history."""
+    import asyncio
+
+    from agents import lifecycle
+    if not any(r["slug"] == slug for r in registry.roster()):
+        raise HTTPException(404, "unknown bot")
+    asyncio.create_task(lifecycle.clear(slug) if body.kind == "clearance" else lifecycle.pip(slug))
+    return {"started": body.kind, "slug": slug, "note": "takes a few minutes; watch the ID card history"}
+
+
+@router.get("/{slug}/evaluations")
+async def evaluations(slug: str):
+    from agents import lifecycle
+    return {"evaluations": await lifecycle.history(slug, 20)}
+
+
 @router.get("/{slug}/card")
 async def card(slug: str):
     c = await orgchart.card(slug)

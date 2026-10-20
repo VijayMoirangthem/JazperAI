@@ -91,8 +91,8 @@ function Bubble({ m, onAnswer, onRate, onCard, onDelete, onEdit, onSpeak, onRege
       <div className="max-w-[78%] rounded-[20px] px-4 py-2.5 text-[15px] leading-snug"
         style={{ background: mine ? "#5c5c5c" : system ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.08)" }}>
         {!mine && !system && m.meta?.route && <div className="mb-0.5 text-[11px] opacity-50">{m.from} · routed by {m.meta.route.source}</div>}
-        {m.attachments?.map((a) => a.dataUrl && a.mime.startsWith("image/")
-          ? <img key={a.name} src={a.dataUrl} alt={a.name} className="mb-1 max-h-48 rounded-lg" />
+        {m.attachments?.map((a) => (a.dataUrl || a.url) && a.mime.startsWith("image/")
+          ? <img key={a.name} src={a.dataUrl ?? a.url} alt={a.name} className="mb-1 max-h-48 rounded-lg" />
           : a.dataUrl && a.mime.startsWith("audio/")
             ? <audio key={a.name} controls src={a.dataUrl} className="mb-1 h-8" />
             : <div key={a.name} className="mb-1 inline-flex items-center gap-1 rounded-full bg-black/30 px-2 py-0.5 text-xs"><Paperclip size={11} />{a.name}</div>)}
@@ -158,13 +158,15 @@ function Composer({ channel, label, members, onSend, onMeeting, busy, onStop, le
       if (f.type.startsWith("text/") || /\.(md|json|py|ts|tsx|js|css|html|txt|csv|yml|yaml|toml|sql|sh)$/i.test(f.name)) a.text = (await f.text()).slice(0, 200_000);
       if (f.type.startsWith("image/") || f.type.startsWith("audio/")) a.dataUrl = await new Promise<string>((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result)); fr.readAsDataURL(f); });
       out.push(a);
+      void fetch(`${API}/api/v1/files/`, { method: "POST", body: (() => { const fd = new FormData(); fd.append("file", f); return fd; })() })
+        .then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setAtts((x) => x.map((y) => (y.name === a.name && y.size === a.size ? { ...y, key: d.key, url: `${API}${d.url}` } : y))); }).catch(() => undefined);
     }
     setAtts((x) => [...x, ...out]);
   };
   const submit = () => {
     if (!text.trim() && !atts.length) return;
     if (text.trim() === "/clear") { useChat.getState().clear(channel); setText(""); return; }
-    onSend(text.trim(), atts); setText(""); setAtts([]);
+    onSend(text.trim(), atts.map((a) => (a.url && a.dataUrl ? { ...a, dataUrl: undefined } : a))); setText(""); setAtts([]);
   };
   const [dragOver, setDragOver] = useState(false);
   const onDrop = (e: DragEvent) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) void addFiles(e.dataTransfer.files); };
@@ -225,14 +227,14 @@ function Composer({ channel, label, members, onSend, onMeeting, busy, onStop, le
 export function ChatPanel2() {
   const [groups, setGroups] = useState<OrgGroup[]>([]);
   const [active, setActive] = useState<Channel>({ id: "dm:jasper", label: "Sir Jasper", kind: "dm" });
-  const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<Pending[]>([]);
   const intent = useChatIntent((st) => st.intent); // "open this chat" requests from other panels (Office 2)
   useEffect(() => {
     if (!intent) return;
     setActive({ id: intent.id, label: intent.label, kind: intent.kind, crew: intent.crew });
     useChatIntent.getState().consume();
   }, [intent]);
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<Pending[]>([]);
   const [query, setQuery] = useState("");
   const [customize, setCustomize] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

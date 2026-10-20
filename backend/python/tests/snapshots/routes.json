@@ -77,6 +77,10 @@
  ],
  [
   "DELETE",
+  "/api/features/runs/{rid}"
+ ],
+ [
+  "DELETE",
   "/api/goals/{goal_id}"
  ],
  [
@@ -221,6 +225,10 @@
  ],
  [
   "DELETE",
+  "/api/remote/devices/{device_id}"
+ ],
+ [
+  "DELETE",
   "/api/resume"
  ],
  [
@@ -338,6 +346,10 @@
  [
   "DELETE",
   "/api/v1/direct/dept/{dept_id}/history"
+ ],
+ [
+  "DELETE",
+  "/api/v1/features/runs/{rid}"
  ],
  [
   "DELETE",
@@ -485,6 +497,10 @@
  ],
  [
   "DELETE",
+  "/api/v1/remote/devices/{device_id}"
+ ],
+ [
+  "DELETE",
   "/api/v1/resume"
  ],
  [
@@ -613,6 +629,14 @@
  ],
  [
   "GET",
+  "/api/alerts/"
+ ],
+ [
+  "GET",
+  "/api/alerts/incidents"
+ ],
+ [
+  "GET",
   "/api/apply/applications"
  ],
  [
@@ -674,6 +698,10 @@
  [
   "GET",
   "/api/bots/{slug}/card"
+ ],
+ [
+  "GET",
+  "/api/bots/{slug}/evaluations"
  ],
  [
   "GET",
@@ -874,6 +902,18 @@
  [
   "GET",
   "/api/export"
+ ],
+ [
+  "GET",
+  "/api/features/runs"
+ ],
+ [
+  "GET",
+  "/api/features/runs/{rid}"
+ ],
+ [
+  "GET",
+  "/api/files/{key:path}"
  ],
  [
   "GET",
@@ -1297,6 +1337,10 @@
  ],
  [
   "GET",
+  "/api/remote/devices"
+ ],
+ [
+  "GET",
   "/api/resume"
  ],
  [
@@ -1497,6 +1541,14 @@
  ],
  [
   "GET",
+  "/api/v1/alerts/"
+ ],
+ [
+  "GET",
+  "/api/v1/alerts/incidents"
+ ],
+ [
+  "GET",
   "/api/v1/apply/applications"
  ],
  [
@@ -1558,6 +1610,10 @@
  [
   "GET",
   "/api/v1/bots/{slug}/card"
+ ],
+ [
+  "GET",
+  "/api/v1/bots/{slug}/evaluations"
  ],
  [
   "GET",
@@ -1758,6 +1814,18 @@
  [
   "GET",
   "/api/v1/export"
+ ],
+ [
+  "GET",
+  "/api/v1/features/runs"
+ ],
+ [
+  "GET",
+  "/api/v1/features/runs/{rid}"
+ ],
+ [
+  "GET",
+  "/api/v1/files/{key:path}"
  ],
  [
   "GET",
@@ -2181,6 +2249,10 @@
  ],
  [
   "GET",
+  "/api/v1/remote/devices"
+ ],
+ [
+  "GET",
   "/api/v1/resume"
  ],
  [
@@ -2438,6 +2510,42 @@
  [
   "GET",
   "/redoc"
+ ],
+ [
+  "GET",
+  "/remote/v1/approvals"
+ ],
+ [
+  "GET",
+  "/remote/v1/bots"
+ ],
+ [
+  "GET",
+  "/remote/v1/bots/{slug}/card"
+ ],
+ [
+  "GET",
+  "/remote/v1/comms/thread"
+ ],
+ [
+  "GET",
+  "/remote/v1/comms/threads"
+ ],
+ [
+  "GET",
+  "/remote/v1/me"
+ ],
+ [
+  "GET",
+  "/remote/v1/notifications"
+ ],
+ [
+  "GET",
+  "/remote/v1/status"
+ ],
+ [
+  "GET",
+  "/remote/v1/voice/speak"
  ],
  [
   "PATCH",
@@ -2725,6 +2833,14 @@
  ],
  [
   "POST",
+  "/api/alerts/run"
+ ],
+ [
+  "POST",
+  "/api/alerts/{alert_id}/ack"
+ ],
+ [
+  "POST",
   "/api/apply/cover-letters"
  ],
  [
@@ -2766,6 +2882,10 @@
  [
   "POST",
   "/api/bots/{slug}/enable"
+ ],
+ [
+  "POST",
+  "/api/bots/{slug}/evaluate"
  ],
  [
   "POST",
@@ -2938,6 +3058,18 @@
  [
   "POST",
   "/api/edit/stream"
+ ],
+ [
+  "POST",
+  "/api/features/runs"
+ ],
+ [
+  "POST",
+  "/api/features/runs/{rid}/merge"
+ ],
+ [
+  "POST",
+  "/api/files/"
  ],
  [
   "POST",
@@ -3333,6 +3465,10 @@
  ],
  [
   "POST",
+  "/api/remote/pair/start"
+ ],
+ [
+  "POST",
   "/api/resume/text"
  ],
  [
@@ -3465,6 +3601,14 @@
  ],
  [
   "POST",
+  "/api/v1/alerts/run"
+ ],
+ [
+  "POST",
+  "/api/v1/alerts/{alert_id}/ack"
+ ],
+ [
+  "POST",
   "/api/v1/apply/cover-letters"
  ],
  [
@@ -3506,6 +3650,10 @@
  [
   "POST",
   "/api/v1/bots/{slug}/enable"
+ ],
+ [
+  "POST",
+  "/api/v1/bots/{slug}/evaluate"
  ],
  [
   "POST",
@@ -3678,6 +3826,18 @@
  [
   "POST",
   "/api/v1/edit/stream"
+ ],
+ [
+  "POST",
+  "/api/v1/features/runs"
+ ],
+ [
+  "POST",
+  "/api/v1/features/runs/{rid}/merge"
+ ],
+ [
+  "POST",
+  "/api/v1/files/"
  ],
  [
   "POST",
@@ -4073,6 +4233,10 @@
  ],
  [
   "POST",
+  "/api/v1/remote/pair/start"
+ ],
+ [
+  "POST",
   "/api/v1/resume/text"
  ],
  [
@@ -4345,6 +4509,30 @@
  ],
  [
   "POST",
+  "/remote/v1/approvals/{request_id}/respond"
+ ],
+ [
+  "POST",
+  "/remote/v1/auth/refresh"
+ ],
+ [
+  "POST",
+  "/remote/v1/chat/stream"
+ ],
+ [
+  "POST",
+  "/remote/v1/pair/complete"
+ ],
+ [
+  "POST",
+  "/remote/v1/push/register"
+ ],
+ [
+  "POST",
+  "/remote/v1/voice/transcribe"
+ ],
+ [
+  "POST",
   "/ws/demo"
  ],
  [
@@ -4422,6 +4610,10 @@
  [
   "PUT",
   "/api/profile/"
+ ],
+ [
+  "PUT",
+  "/api/remote/public-url"
  ],
  [
   "PUT",
@@ -4510,6 +4702,10 @@
  [
   "PUT",
   "/api/v1/profile/"
+ ],
+ [
+  "PUT",
+  "/api/v1/remote/public-url"
  ],
  [
   "PUT",

@@ -47,6 +47,12 @@ HELP = {
     "fs_write": "fs_write {path,content} : create or overwrite a file (needs approval; a .jasper-bak backup is kept)",
     "find_bot": "find_bot {need} : which bot is the right owner for a job (best 3 with fit), or says none fits",
     "remember": "remember {scope,fact} : store a lasting fact for your group (scope group) or the whole company (scope org)",
+    "build_feature": "build_feature {group,task} : have a group's team build a feature in its project on a safe branch (lead plans, dev + QA bots write code and tests, tests run in a Docker sandbox); returns a run id",
+    "feature_status": "feature_status {id} : progress, report and test result of a feature run",
+    "merge_feature": "merge_feature {id} : ask the founder to approve merging a verified feature run (explicit approval card)",
+    "evaluate_bot": "evaluate_bot {slug} : run the interview + benchmark (clearance from probation) in the background; results appear in the bot ID card",
+    "improve_bot": "improve_bot {slug} : performance-improvement plan: propose a better prompt, benchmark it, apply only if it scores clearly higher (asks approval)",
+    "alerts": "alerts {} : open alerts and recent incidents with their runbook (what is wrong now and how to fix it)",
     "list_skills": "list_skills {} : the shared skill library (name: when to use)",
     "view_skill": "view_skill {name} : load a skill's step-by-step procedure before doing that kind of task",
     "save_skill": "save_skill {name,description,body} : create or improve a reusable skill (numbered steps, no secrets)",
@@ -54,12 +60,12 @@ HELP = {
 FS = ["fs_roots", "fs_list", "fs_read", "fs_search", "fs_write"]
 LEADS = {"ceo-create-origins", "ceo-baeit", "lead-boardmint", "vp-tech-ops"}
 TOOLS_FOR: dict[str, list[str]] = {
-    "jasper": ["list_org", "find_bot", "remember", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "hold_meeting", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
+    "jasper": ["list_org", "find_bot", "remember", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
     "connector": ["list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "list_skills", "view_skill", "save_skill"],
     "messenger": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
-    "bot-reviewer": ["list_org", "bot_stats", "list_skills", "view_skill"],
-    "bot-creator": ["list_org", "list_skills"],
-    "chaosbot": ["slo", "run_chaos"],
+    "bot-reviewer": ["list_org", "bot_stats", "evaluate_bot", "improve_bot", "alerts", "list_skills", "view_skill"],
+    "bot-creator": ["list_org", "evaluate_bot", "list_skills"],
+    "chaosbot": ["slo", "run_chaos", "alerts"],
 }
 INTRO = 'You have system access. To use a tool reply with ONLY one line: <tool>{"name":"NAME","args":{...}}</tool> and wait for the result, then continue. Tools:\n'
 RULES = ("\nHierarchy: Jasper delegates to group leads; leads delegate to their members, hold meetings for decisions and record lasting decisions with remember. Use find_bot to pick the right owner. Questions about what to connect or how to get smarter: call suggest_connectors, then give a short prioritised answer (top 3 and why for THIS founder) and mention the cards. Routing: anything about email goes to `messenger` (it checks Gmail and asks `connector` itself); connections go to `connector`. One tool call at a time. Delegate to the right specialist instead of doing everything yourself. If a service is not connected, ask `connector` to connect it "
@@ -73,7 +79,7 @@ def tools_for(slug: str) -> list[str]:
     if slug in TOOLS_FOR:
         base = TOOLS_FOR[slug]
     elif slug in LEADS:
-        base = ["list_org", "find_bot", "ask_bot", "hold_meeting", "remember", "list_skills", "view_skill", *(FS if workspaces.has_workspace(slug) else [])]
+        base = ["list_org", "find_bot", "ask_bot", "hold_meeting", "feature_status", "remember", "list_skills", "view_skill", *(FS if workspaces.has_workspace(slug) else [])]
     elif workspaces.has_workspace(slug):
         base = [*FS, "ask_bot", "remember", "list_skills", "view_skill"]
     else:
@@ -171,7 +177,9 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
                    prompt=str(args.get("prompt", "")), model_policy={"default_tier": args.get("tier", "standard")}, lifecycle="probation")
         await registry.upsert(b)
         await orgchart.place(slug, str(args.get("group", "jazper_team")), str(args.get("department", "")), b.role_title)
-        return f"created {slug} (probation) in {args.get('group', 'jazper_team')}"
+        from agents import lifecycle
+        asyncio.create_task(_later(lifecycle.clear(slug), 30.0))  # onboarding: interview + benchmark before the bot is cleared
+        return f"created {slug} (probation) in {args.get('group', 'jazper_team')}; its interview and benchmark start shortly"
     if name == "edit_bot_prompt":
         slug = str(args.get("slug", ""))
         if not any(r["slug"] == slug for r in registry.roster()):
@@ -267,6 +275,45 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
             return "error: scope must be group or org (founder only for jasper) and fact is required"
         r = await consolidate.learn(await get_router(), fact, 0.7, ns)
         return f"remembered in {ns}: {r['action']}"
+    if name in ("evaluate_bot", "improve_bot"):
+        from agents import lifecycle
+        slug = str(args.get("slug", ""))
+        if not any(r["slug"] == slug for r in registry.roster()):
+            return f"error: unknown bot {slug}"
+        asyncio.create_task(lifecycle.clear(slug) if name == "evaluate_bot" else lifecycle.pip(slug))
+        return f"{'clearance' if name == 'evaluate_bot' else 'improvement plan'} started for {slug}; it takes a few minutes and the result is added to its ID card history."
+    if name == "alerts":
+        from core import alerts
+        a, inc = await alerts.list_alerts(10), await alerts.list_incidents(8)
+        return _clip({"open_alerts": [f"{x['severity']}: {x['title']} (runbook {x['runbook']})" for x in a["open"]] or "none",
+                      "recent_incidents": [f"{x['kind']} from {x['source']}: {x['summary'][:90]}" for x in inc]}, 2500)
+    if name == "build_feature":
+        from agents import feature_flow
+        group, task = str(args.get("group", "")), str(args.get("task", ""))
+        repo = next((w["path"] for w in workspaces._cache.get(group, [])), None)
+        if not repo or len(task) < 8:
+            return "error: give a group with a workspace (baeit, boardmint, create_origins) and a task description"
+        if not await _gate("git.create_branch", f"Start a feature run in {group}: {task[:160]}", agent):
+            return "blocked: founder did not approve"
+        try:
+            run = await feature_flow.start(group, task, repo, agent)
+        except ValueError as e:
+            return f"error: {e}"
+        return f"started run {run['id']} for {group} (lead {run['lead']}); it works in the background. Use feature_status {run['id']} to follow it."
+    if name == "feature_status":
+        from agents import feature_flow
+        r = feature_flow.RUNS.get(str(args.get("id", "")))
+        if not r:
+            return "error: unknown run id"
+        return _clip({"status": r["status"], "attempt": r.get("attempt"), "plan": r.get("plan", {}).get("summary"), "events": [e["who"] + ": " + e["text"] for e in r["events"][-6:]],
+                      "report": r.get("report"), "merge": r.get("merge"), "error": r.get("error")}, 2500)
+    if name == "merge_feature":
+        from agents import feature_flow
+        r = feature_flow.RUNS.get(str(args.get("id", "")))
+        if not r or r.get("status") != "verified" or r.get("merge") in ("awaiting-approval", "merged"):
+            return "error: only a verified, not-yet-merged run can be merged"
+        r["merge_handle"] = asyncio.create_task(feature_flow.merge(r["id"]))
+        return "an approval card was sent to the founder; the merge happens only if they approve it"
     if name == "list_skills":
         return _clip(await skills.catalogue(40) or "(no skills yet)", 3000)
     if name == "view_skill":
@@ -352,6 +399,9 @@ async def _stream_retry(r, req):
             return
         except Exception as e:
             await comms.log("system", "llm", "event", f"provider error (attempt {attempt}, {'mid-stream' if got else 'before output'}): {type(e).__name__}: {str(e)[:300]}")
+            if attempt == 3 or got:
+                from core import alerts
+                await alerts.incident("llm", f"{type(e).__name__}: {str(e)[:200]}", {"attempt": attempt})
             if got or attempt == 3:
                 yield "(The model provider is busy or rate-limited right now - " + str(e)[:80] + ". Please try again in a minute.)"
                 return

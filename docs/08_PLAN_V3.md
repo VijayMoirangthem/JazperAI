@@ -114,21 +114,21 @@ Priority order and why: Google Workspace (done) → GitHub (needs `GITHUB_TOKEN`
 - Fix or explain `test_memory_v2`, `test_sanitizer_memory`, redis p95; add Playwright specs for cards, comms view, Mind Map, voice tab, model tab, meetings, tab keep-alive.
 - Add OpenCode credit; then run the model catalogue test (W2-a) so every model is marked usable or not.
 
-## STATUS (2026-10-21)
+## STATUS (2026-10-21, end of day)
 | Item | Status |
 |---|---|
-| W0 baseline (tests, hygiene) | **Done**: 3 failing tests fixed (sanitizer fell back to regex-only because numpy 2 broke spaCy: email/phone/IP/IBAN regex rules added; memory tests isolated in their own namespace; redis latency bound relaxed). 98 backend tests in the touched areas pass |
-| W1 speed | **Done**: see `docs/ops/performance.md` (lazy panels -82% bundle, keep-alive, SWR with a render fix, Office rebuild fix, `/slo` 6.8 s to 31 ms, Redis HTTP cache) |
-| W2 models and per-bot controls | **Done**: model catalogue (prices from opencode.ai/docs/zen, usage, Test, compare + votes), header picker, Model and Behaviour tabs (style, language, daily token cap, memory scopes, tool switches, duplicate/export/import/archive), readable provider errors |
-| W3 prompt-injection guard | **Done**: `docs/ops/prompt_injection.md`, 33 red-team tests, live check |
-| W7 MinIO + backups | **Mostly done**: MinIO, object-locked backups, scheduled daily job, WAL shipping, restore and PITR drills pass (`docs/ops/dr.md`). **Open:** offsite replica, `archive_timeout`, moving chat attachments into MinIO |
-| W4 Flow 1 (Baeit feature on a branch) | Not started |
-| W5 bot lifecycle / PIP | Not started |
-| W6 staffing the company | Not started |
-| W8 remote access + React Native app | Plan only |
-| W9 more connectors | GitHub token, Slack, Notion, Brave, Playwright declared; none verified live except Google |
-| W10 alerts / RCA / runbooks | Not started (backup freshness is recorded in Redis for it) |
-| W11 hygiene | Legacy panel approval, duplicate bots, more Playwright specs |
+| W0 baseline (tests, hygiene) | **Done** (details in the table row history: sanitizer regex fallback, isolated memory tests, relaxed redis bound) |
+| W1 speed | **Done**: `docs/ops/performance.md` |
+| W2 models and per-bot controls | **Done**: catalogue with OpenCode prices and Groq at $0, compare + votes, header picker, Model and Behaviour tabs, readable provider errors |
+| W3 prompt-injection guard | **Done**: `docs/ops/prompt_injection.md`, 33 red-team tests |
+| W4 Flow 1 (Baeit feature on a branch) | **Pipeline verified, model quality not**: `scripts/flow1_acceptance.py` passes (scripted dev: wrong first attempt caught by Node tests in the Docker sandbox, repair, commit with agent trailers, merge request default-denied, project untouched). Live free-model runs reach the tests but did not produce a passing change in 3 attempts (weak edits); the retry/format fixes are in, but a stronger model (paid OpenCode Zen credit) is the real fix |
+| W5 bot lifecycle / PIP | **Built and unit-tested** (`agents/lifecycle.py`, append-only `bot_evaluations`, ID card history, weekly review). Not yet run live end to end (each clearance is about 25 model calls; free-tier limits) |
+| W6 staffing | **Done**: CFO, COO, General Counsel prompts, Finance & Treasury, group HR, and HR/Legal/Secretary/CA for Baeit, HR/CA for Boardmint; `docs/org/roles.md`. A Boardmint filing scenario with a real model was **not** run |
+| W7 MinIO + backups | **Done except offsite**: MinIO (data in `D:\Projects\COOS\data\minio`), object-locked backups, daily scheduled verified job, WAL shipping with `archive_timeout=60`, restore and PITR drills, chat attachments stored in MinIO. **Open:** offsite replica (needs your R2/B2 account), Docker's own disk image is on C: |
+| W8 remote + mobile | **Backend done and tested** (pairing, tokens, revocation, guard, comms/voice/push endpoints, Phones UI, push sender); `docs/ops/remote_access.md`; **mobile app: spec + 14 milestone prompts written** (`docs/mobile/version1/`), the app itself is for OpenCode to build; no Cloudflare account set up yet |
+| W9 connectors | Google Workspace and Playwright verified live; GitHub, Brave, Slack, Notion declared with exact scopes in `docs/ops/connectors.md`, **waiting for your tokens**; OAuth for Slack/Notion needs apps registered under your account |
+| W10 alerts / RCA / runbooks | **Done**: alerts every 2 minutes (SLO burn, backup age, approvals waiting, connectors, providers, MinIO, disk, bot scores), incident records with failure taxonomy and bursts, 16 runbooks, weekly sandbox chaos, push. Slack delivery not wired |
+| W11 hygiene | Playwright specs added for panels, model picker, org, Behaviour tab, catalogue + compare, phones. **Pending your decision:** legacy panel removal and duplicate-bot merge (I will not delete without approval) |
 
 ## Suggested order
 1. W3 (safety) → 2. W1-a/b (tabs, speed) → 3. W2-a/b (models, bot options) → 4. W4 (Flow 1) → 5. W7 (MinIO + backups) → 6. W8 (remote + mobile) → 7. W5/W6 (lifecycle, staffing) → 8. W9/W10 (connectors, alerts) → 9. W11 (continuous).

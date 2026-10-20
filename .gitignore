@@ -53,3 +53,5 @@ desktop/*.png
 
 app/public/vad/
 storage/spinoffs/
+
+data/

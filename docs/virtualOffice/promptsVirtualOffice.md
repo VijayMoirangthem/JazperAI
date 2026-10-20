@@ -1540,7 +1540,7 @@ test("[P11] demo events move agents and the bubble stays glued to its avatar", a
       }
     }, 50);
   });
-  void fetch("http://127.0.0.1:8000/ws/rpc/demo", { method: "POST" });
+  void fetch("http://127.0.0.1:8000/ws/demo", { method: "POST" });
   await page.waitForTimeout(6000);
   const seen = await page.evaluate(() => (window as unknown as { __seen: string[] }).__seen);
   expect(seen).toContain("jasper:meeting");

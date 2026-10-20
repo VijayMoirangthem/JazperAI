@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Jasper Mobile",
+    "slug": "mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "jasper",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b0b0b",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-local-authentication",
+      "expo-camera",
+      "expo-image-picker",
+      "expo-document-picker",
+      "expo-av",
+      "expo-notifications",
+      "expo-screen-capture"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

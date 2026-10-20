@@ -48,7 +48,7 @@ Flows and assertions (one `test()` each, added by the prompt named in brackets):
 
 1. [P05] panel mounts, `canvas` visible, `__officePeople` > 5, no console errors, screenshot `test-results/office2/p05.png`.
 2. [P10] fps >= 30 while 40 synthetic bots are present (`#office2?bots=60&wander=1`), tightened to 55 in P16.
-3. [P11] `POST http://127.0.0.1:8000/ws/rpc/demo` -> `jasper` ends in the meeting room area, bubble text equals the demo bubble.
+3. [P11] `POST http://127.0.0.1:8000/ws/demo` -> `jasper` ends in the meeting room area, bubble text equals the demo bubble.
 4. [P08] name tags: with `?bots=40`, no two visible tags intersect (`__officeDebug.tags()`).
 5. [P09] camera: wheel changes zoom within [0.5, 3]; `Home` restores follow.
 6. [P12] proximity chip appears when founder is moved next to a bot (`__officeDebug` teleport helper only in `JASPER_E2E`), disappears when moved away.

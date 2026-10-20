@@ -215,7 +215,16 @@ async def lifespan(app: FastAPI):
         await ensure_org()  # seeds executives + spec crews once; never overwrites edits
         from agents.orgchart import ensure_orgchart
         await ensure_orgchart()  # groups, Jazper Team bots, placements, prompt overrides
+        from agents.staffing import ensure_staffing
+        await ensure_staffing()  # W6: executives and per-company HR/Legal/Secretary/CA bots
         from agents.connector import autoconnect
+        from apscheduler.triggers.interval import IntervalTrigger
+        from core import alerts as alerts_mod
+        from core.scheduler.scheduler import scheduler as _sched
+        _sched.add_job(alerts_mod.run_checks, IntervalTrigger(minutes=2), id="__alerts__", name="Alert checks", replace_existing=True, misfire_grace_time=60)
+        from agents import lifecycle as lifecycle_mod
+        _sched.add_job(lifecycle_mod.weekly_review, IntervalTrigger(days=7), id="__bot_review__", name="Weekly bot review / PIP", replace_existing=True, misfire_grace_time=3600)
+        _sched.add_job(alerts_mod.weekly_chaos, IntervalTrigger(days=7), id="__chaos__", name="Weekly sandbox chaos", replace_existing=True, misfire_grace_time=3600)
         asyncio.create_task(autoconnect())  # reconnect already-authorised connectors in the background
         from core.durable import get_checkpointer
         await get_checkpointer()
@@ -251,7 +260,9 @@ app.add_middleware(NoCacheMunderMiddleware)
 from core.metrics import MetricsMiddleware
 app.add_middleware(MetricsMiddleware)  # G4: Prometheus counters + SLO window
 from core.http_cache import HttpCacheMiddleware
-app.add_middleware(HttpCacheMiddleware)  # Redis read-through cache for the rail panels (invalidated on writes)
+app.add_middleware(HttpCacheMiddleware)
+from core.remote_guard import RemoteGuardMiddleware
+app.add_middleware(RemoteGuardMiddleware)  # W8: through a tunnel only /remote/v1/* is reachable (added last = outermost)  # Redis read-through cache for the rail panels (invalidated on writes)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=sorted({settings.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3001", "http://127.0.0.1:3001"}),
@@ -374,6 +385,15 @@ from api.routes import system as system_route
 app.include_router(system_route.router, prefix="/api/system", tags=["system"])
 from api.routes import devloop as devloop_route
 app.include_router(devloop_route.router, prefix="/api/devloop", tags=["devloop"])
+from api.routes import files as files_route
+app.include_router(files_route.router, prefix="/api/files", tags=["files"])
+from api.routes import alerts as alerts_route
+app.include_router(alerts_route.router, prefix="/api/alerts", tags=["alerts"])
+from api.routes import features as features_route
+app.include_router(features_route.router, prefix="/api/features", tags=["features"])
+from api.routes import remote as remote_route
+app.include_router(remote_route.local_router, prefix="/api/remote", tags=["remote-local"])
+app.include_router(remote_route.router, prefix="/remote/v1", tags=["remote"])
 from api.routes import observability as observability_route
 app.include_router(observability_route.router, prefix="/api/slo", tags=["slo"])
 app.include_router(observability_route.metrics_router)

@@ -11,7 +11,7 @@ Everything lives in a **new panel `office2`** until the founder approves the swi
 | Pure logic | `app/src/office/behavior.ts` (`placeFor`, `pickSpot`, `bfs`, `near`), `app/src/office/sprites.ts` (`CREW_COLOR`, `drawStrip`, `portrait`) | Tested by `app/tests/office.test.mjs` (node `--test`, imports `.ts` directly). |
 | Map | `scripts/gen_office_map.mjs` -> `app/public/office/{map.json,rooms.json}` | Tile ids 1-9, collision by id set `{2,3,5,6,8,9}`, tiles drawn at runtime on a canvas. |
 | Live events | `app/src/stores/liveAgentsStore.ts` + `app/src/lib/rpcClient.ts` | Zustand store `useLiveAgents`: `agents[slug] = {slug,state,bubble,reason,seq,ts}`; topic `agent-state-change` on `/ws/rpc`. |
-| Backend | `backend/python/api/routes/directory.py` (`GET /api/v1/directory/` -> `{humans:[{id,display_name,...}], bots:[...]}`), `bots.py` (see section 6), `rpc.py` (`/ws/rpc`, `POST /ws/rpc/demo` emits a scripted sequence for jasper/scout/forge) | `AgentState` values (`core/contracts.py`): idle, planning, working, waiting_tool, waiting_human, testing, repairing, rolled_back, escalated, error, deprecated. The old ring table covers only the first seven plus error. |
+| Backend | `backend/python/api/routes/directory.py` (`GET /api/v1/directory/` -> `{humans:[{id,display_name,...}], bots:[...]}`), `bots.py` (see section 6), `rpc.py` (`/ws/rpc`, `POST /ws/demo` emits a scripted sequence for jasper/scout/forge) | `AgentState` values (`core/contracts.py`): idle, planning, working, waiting_tool, waiting_human, testing, repairing, rolled_back, escalated, error, deprecated. The old ring table covers only the first seven plus error. |
 | Registration | `app/src/app/plugin-registry.ts` line ~301 (`id: "office"`), `app/src/app/page.tsx` line 7 (lazy import) and 256 (`office: <OfficePanel />`), `app/src/components/layout/Sidebar.tsx` line 145 (`JAZPER_ORDER`) | Navigation is by `window.location.hash` = panel id. |
 | Test hooks | `e2e/tests/app.spec.ts` "virtual office runs above 30 fps": reads `window.__officePeople` (>5) and `window.__officeFps` (>30) | The new panel must publish the same two globals. |
 
@@ -134,7 +134,7 @@ Backend endpoints used (all exist, none is changed by this plan):
 | prompt | `PUT /api/v1/bots/{slug}/prompt` | `{prompt}` |
 | disable / enable | `DELETE /api/v1/bots/{slug}`, `POST /api/v1/bots/{slug}/enable` | - |
 | live events | `/ws/rpc` subscribe `["agent-state-change"]` | `params: {agent_slug,to_state,status_bubble,reason}` |
-| demo events | `POST /ws/rpc/demo` | scripted jasper/scout/forge sequence for tests |
+| demo events | `POST /ws/demo` | scripted jasper/scout/forge sequence for tests |
 
 Appearance overrides are stored in `localStorage` in v1 (single-user, single-machine). Moving them to the backend is explicitly **out of scope** (the founder may ask later; `look.ts` isolates the storage).
 
@@ -192,7 +192,7 @@ Rules: an agent is moved only when `place` changes; at most **4 agents walk at o
 | F3 | Avatars | 32 px, 4 directions, 4-frame walk, no flicker when turning; screenshot at zoom 2 shows hair/outfit/accessory layers. |
 | F4 | Name tags | 12 avatars on one tile -> no two tag rectangles intersect (unit test); screenshot of the lounge with 8+ agents has no overlapping labels. |
 | F5 | Bubbles | Bubble is a child of its avatar: moving the avatar moves the bubble the same frame (Playwright reads positions). |
-| F6 | Live | `POST /ws/rpc/demo` makes `jasper` walk to the meeting room, `forge` to the tools lab, and ring colours match `STATE_RING`. |
+| F6 | Live | `POST /ws/demo` makes `jasper` walk to the meeting room, `forge` to the tools lab, and ring colours match `STATE_RING`. |
 | F7 | Camera | follow, wheel zoom between 0.5 and 3, drag pan, room focus via `1-8`, bounds respected, minimap click recenters. |
 | F8 | Movement | click-to-move and WASD; path never crosses blocked tiles; unreachable click does nothing and shows a brief "can't go there" toast. |
 | F9 | Proximity | founder 2 tiles from a bot -> chip within 0.5 s; 4 tiles away -> chip gone; border jitter does not flicker (unit test). |

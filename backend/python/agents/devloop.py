@@ -21,6 +21,7 @@ Implement = Callable[[Path, int, str], Awaitable[None]]  # (worktree, attempt, f
 
 
 class DevState(TypedDict, total=False):
+    sandbox_opts: dict
     repo: str
     worktrees: str
     task: str
@@ -66,7 +67,7 @@ def build_devloop(implement: Implement, agent: str = "forge", model: str = "unkn
             cwd = Path(s["worktree"]) / s.get("workdir", "")
             if isolated:
                 from hub import sandbox
-                r = await sandbox.run(s["test_cmd"], cwd, timeout_s=test_timeout, network="none")
+                r = await sandbox.run(s["test_cmd"], cwd, timeout_s=test_timeout, network="none", **s.get("sandbox_opts", {}))
                 code, out = (124 if r.timed_out else r.exit_code), r.output[-1500:]
             else:
                 code, out = await asyncio.to_thread(_run_tests, s["test_cmd"], str(cwd), test_timeout)
@@ -104,10 +105,10 @@ def build_devloop(implement: Implement, agent: str = "forge", model: str = "unkn
     return g.compile()
 
 
-async def run_devloop(repo: Path, worktrees: Path, task: str, test_cmd: list[str], implement: Implement, workdir: str = "", sandbox: bool = False, **kw) -> DevState:
+async def run_devloop(repo: Path, worktrees: Path, task: str, test_cmd: list[str], implement: Implement, workdir: str = "", sandbox: bool = False, sandbox_opts: dict | None = None, **kw) -> DevState:
     graph = build_devloop(implement, **kw)
     # recursion_limit is a second, framework-level guard: 3 attempts * 2 nodes + plan/rollback/escalate fits in 14 steps
-    out = await graph.ainvoke({"repo": str(repo), "worktrees": str(worktrees), "task": task, "test_cmd": test_cmd, "workdir": workdir, "sandbox": sandbox, "status": "verified"},
+    out = await graph.ainvoke({"repo": str(repo), "worktrees": str(worktrees), "task": task, "test_cmd": test_cmd, "workdir": workdir, "sandbox": sandbox, "sandbox_opts": sandbox_opts or {}, "status": "verified"},
                               {"recursion_limit": 14})
     out["isolated"] = sandbox
     return out

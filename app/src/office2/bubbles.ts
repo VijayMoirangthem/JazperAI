@@ -27,6 +27,8 @@ export class BubbleLayer {
       this.bubbles.set(slug, b);
     }
     if (b.label !== label) { b.label = label; b.text.setText(label); }
+    const a = this.layer.avatars.get(slug);
+    if (a) b.text.setScale(1 / this.scene.cameras.main.zoom).setPosition(a.sprite.x, a.sprite.y - 58 / this.scene.cameras.main.zoom);
     b.until = ttlMs === null ? null : this.scene.time.now + ttlMs;
     b.text.setVisible(true);
   }

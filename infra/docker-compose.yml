@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     # WAL archiving for PITR (base backups via scripts/backup.ps1; replay documented in docs/ops/backup_restore.md)
-    command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_command=test ! -f /wal_archive/%f && cp %p /wal_archive/%f"]
+    command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_timeout=60", "-c", "archive_command=test ! -f /wal_archive/%f && cp %p /wal_archive/%f"]
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
@@ -51,7 +51,7 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     volumes:
-      - minio_data:/data
+      - ../data/minio:/data   # object data lives in the project folder (D:\Projects\COOS\data\minio)
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -90,4 +90,3 @@ volumes:
   postgres_data:
   wal_archive:
   redis_data:
-  minio_data:

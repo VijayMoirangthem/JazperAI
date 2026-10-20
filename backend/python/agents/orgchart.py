@@ -173,7 +173,7 @@ async def card(slug: str) -> dict | None:
                 d = registry.get(slug)
                 prompt = OVERRIDES.get(slug) or (d.prompt if d else "")
                 return {**b, "group": g["id"], "group_label": g["label"], "prompt": prompt, "prompt_is_default": not d and slug not in OVERRIDES,
-                        "memory_namespace": d.memory_namespace if d else f"bot.{slug}", "settings": SETTINGS.get(slug, {}), "tool_options": _tool_options(slug)}
+                        "memory_namespace": d.memory_namespace if d else f"bot.{slug}", "settings": SETTINGS.get(slug, {}), "tool_options": _tool_options(slug), "evaluations": await _evals(slug)}
     return None
 
 
@@ -191,6 +191,14 @@ async def set_prompt(slug: str, prompt: str | None) -> None:
     await aio.execute("INSERT INTO shared.bot_org(slug) VALUES($1) ON CONFLICT DO NOTHING", slug)
     await aio.execute("UPDATE shared.bot_org SET prompt_override=$2, updated_at=now() WHERE slug=$1", slug, prompt or None)
     await load_overrides()
+
+
+async def _evals(slug: str) -> list[dict]:
+    try:
+        from agents import lifecycle
+        return await lifecycle.history(slug, 5)
+    except Exception:
+        return []
 
 
 def _tool_options(slug: str) -> list[str]:

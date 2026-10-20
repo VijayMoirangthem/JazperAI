@@ -56,13 +56,14 @@ async def ensure_image() -> None:
 
 
 def _run_blocking(cmd: list[str], src: Path, network: str, timeout_s: float, mem: str, cpus: str, pids: int, max_output: int,
-                  run_id: str) -> SandboxResult:
+                  run_id: str, image: str = IMAGE, ro_mounts: tuple = ()) -> SandboxResult:
     name = f"jasper-sbx-{uuid4().hex[:10]}"
     docker_cmd = [
         "docker", "run", "--rm", "--name", name, "--read-only", "--user", "1000:1000", "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges", "--pids-limit", str(pids), "--memory", mem, "--memory-swap", mem, "--cpus", cpus,
         "--network", network, "--tmpfs", "/tmp:rw,size=64m", "--tmpfs", "/work:rw,exec,size=256m,uid=1000,gid=1000",
-        "-v", f"{src.resolve()}:/src:ro", "-e", "HOME=/tmp", "-e", "PYTHONDONTWRITEBYTECODE=1", IMAGE,
+        "-v", f"{src.resolve()}:/src:ro", *[x for host, inside in ro_mounts for x in ("-v", f"{Path(host).resolve()}:{inside}:ro")],
+        "-e", "HOME=/tmp", "-e", "PYTHONDONTWRITEBYTECODE=1", image,
         "sh", "-c", 'cp -a /src/. /work/ 2>/dev/null; cd /work && exec "$@"', "sh", *cmd,
     ]
     t0 = time.monotonic()
@@ -100,8 +101,10 @@ def _run_blocking(cmd: list[str], src: Path, network: str, timeout_s: float, mem
 
 
 async def run(cmd: list[str], src: Path, *, network: str = "none", timeout_s: float = 60, mem: str = "512m", cpus: str = "1",
-              pids: int = 128, max_output: int = 65536, run_id: str | None = None) -> SandboxResult:
+              pids: int = 128, max_output: int = 65536, run_id: str | None = None, image: str = IMAGE, ro_mounts: tuple = ()) -> SandboxResult:
+    """image: default is the Python sandbox; pass e.g. node:20-alpine for JS projects. ro_mounts: ((host_path, container_path), ...) mounted read-only."""
     if network not in ("none", "bridge"):
         raise ValueError("network must be 'none' or 'bridge'")
-    await ensure_image()
-    return await asyncio.to_thread(_run_blocking, cmd, src, network, timeout_s, mem, cpus, pids, max_output, run_id or str(uuid4()))
+    if image == IMAGE:
+        await ensure_image()
+    return await asyncio.to_thread(_run_blocking, cmd, src, network, timeout_s, mem, cpus, pids, max_output, run_id or str(uuid4()), image, ro_mounts)

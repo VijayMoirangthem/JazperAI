@@ -76,6 +76,40 @@ function Workspaces() {
   );
 }
 
+interface Device { id: string; name: string; platform: string; revoked: boolean; created_at: string; last_seen?: string | null }
+
+function Phones() {
+  const { data, refresh } = useApi<{ devices: Device[] }>(`${API}/api/v1/remote/devices`, { ttl: 10000, poll: 15000 });
+  const [pair, setPair] = useState<{ code: string; expires_s: number; url: string } | null>(null);
+  const [left, setLeft] = useState(0);
+  const start = async () => {
+    const d = await fetch(`${API}/api/v1/remote/pair/start`, { method: "POST" }).then((r) => r.json());
+    setPair(d); setLeft(d.expires_s);
+    const t = setInterval(() => setLeft((s) => { if (s <= 1) { clearInterval(t); setPair(null); return 0; } return s - 1; }), 1000);
+  };
+  const revoke = async (id: string) => { await fetch(`${API}/api/v1/remote/devices/${id}`, { method: "DELETE" }); await refresh(); };
+  return (
+    <div className="mt-8" data-testid="phones">
+      <h2 className="text-lg font-semibold">Phones</h2>
+      <p className="mb-3 mt-1 text-sm opacity-60">Pair the Jasper phone app. A paired phone can chat, approve and see activity, but never reaches files, secrets or connectors. Setup: docs/ops/remote_access.md.</p>
+      <div className="space-y-1.5">
+        {(data?.devices ?? []).map((d) => (
+          <div key={d.id} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2 text-sm" style={{ opacity: d.revoked ? 0.5 : 1 }}>
+            <span className="font-medium">{d.name}</span><span className="text-xs opacity-60">{d.platform}</span>
+            <span className="ml-auto text-xs opacity-60">{d.revoked ? "revoked" : d.last_seen ? `last seen ${new Date(d.last_seen).toLocaleString()}` : "never connected"}</span>
+            {!d.revoked && <button onClick={() => void revoke(d.id)} aria-label={`Revoke ${d.name}`} className="rounded-full bg-white/10 px-3 py-0.5 text-xs">Revoke</button>}
+          </div>
+        ))}
+        {(data?.devices ?? []).length === 0 && <div className="text-sm opacity-50">No phones paired yet.</div>}
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <button onClick={() => void start()} data-testid="pair-start" className="rounded-full bg-blue-600 px-4 py-1.5 text-sm">Pair a new phone</button>
+        {pair && <div data-testid="pair-code" className="rounded-xl bg-white/10 px-4 py-2 text-sm"><span className="font-mono text-lg tracking-widest">{pair.code}</span><span className="ml-3 opacity-60">expires in {left}s{pair.url ? ` · server ${pair.url}` : " · set the tunnel URL first"}</span></div>}
+      </div>
+    </div>
+  );
+}
+
 export function ConnectionsPanel() {
   const [busy, setBusy] = useState("");
   const [open, setOpen] = useState("");
@@ -123,6 +157,7 @@ export function ConnectionsPanel() {
         })}
       </div>
       <Workspaces />
+      <Phones />
     </div>
   );
 }

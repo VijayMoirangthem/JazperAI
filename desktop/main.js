@@ -105,7 +105,7 @@ app.whenReady().then(async () => {
     const h = { ...details.responseHeaders };
     h["Content-Security-Policy"] = [`default-src 'self' ${UI_URL} ${API_URL} ws://localhost:8000 data: blob:; ` +
       `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${UI_URL}; style-src 'self' 'unsafe-inline' ${UI_URL} https://fonts.googleapis.com; ` +
-      `font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' ${API_URL} ws://localhost:8000 ${UI_URL} ws://localhost:3001`];
+      `font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' ${API_URL} ws://localhost:8000 ws://127.0.0.1:8000 ${UI_URL} ws://localhost:3001`];
     cb({ responseHeaders: h });
   });
 

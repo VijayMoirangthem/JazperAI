@@ -1,0 +1,48 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@shopify/flash-list": "2.3.2",
+    "csstype": "^3.2.3",
+    "expo": "~58.0.16",
+    "expo-av": "^16.0.8",
+    "expo-camera": "~58.0.11",
+    "expo-constants": "~58.0.12",
+    "expo-document-picker": "~58.0.4",
+    "expo-image-picker": "~58.0.10",
+    "expo-linking": "~58.0.13",
+    "expo-local-authentication": "~58.0.2",
+    "expo-notifications": "~58.1.5",
+    "expo-router": "~58.0.24",
+    "expo-screen-capture": "~58.0.5",
+    "expo-secure-store": "~58.0.2",
+    "expo-sqlite": "~58.0.13",
+    "expo-status-bar": "~58.0.3",
+    "lucide-react-native": "^1.60.0",
+    "react": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-reanimated": "4.7.1",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.30.0",
+    "react-native-svg": "15.16.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^14.1.0",
+    "@types/jest": "^30.0.0",
+    "@types/react": "~19.3.0",
+    "eslint-config-expo": "^58.0.4",
+    "jest-expo": "^58.0.11",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "check": "tsc --noEmit && eslint . && jest --ci"
+  },
+  "private": true
+}

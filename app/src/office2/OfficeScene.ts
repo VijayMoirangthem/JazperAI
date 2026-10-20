@@ -41,7 +41,14 @@ export class OfficeScene extends Phaser.Scene {
   private held = new Set<string>();
   private pending: { people: Person[]; overrides: Record<string, Partial<Look>> } | null = null;
 
-  constructor() { super("office2"); }
+  /** Resolves when create() has finished (map, layers and helpers exist). */
+  readonly ready: Promise<void>;
+  private markReady!: () => void;
+
+  constructor() {
+    super("office2");
+    this.ready = new Promise<void>((res) => { this.markReady = res; });
+  }
 
   preload() {
     this.load.tilemapTiledJSON("office2-map", "/office2/map.json");
@@ -80,6 +87,7 @@ export class OfficeScene extends Phaser.Scene {
       window.__officeFrameMs = [...this.frames].sort((x, y) => x - y)[Math.floor(this.frames.length * 0.95)] ?? 0;
     } });
     if (this.pending) { this.syncPeople(this.pending.people, this.pending.overrides); this.pending = null; }
+    this.markReady();
   }
 
   update(_time: number, delta: number) {
@@ -91,6 +99,14 @@ export class OfficeScene extends Phaser.Scene {
     this.bubbles.update();
     this.frames.push(delta);
     if (this.frames.length > 120) this.frames.shift();
+  }
+
+  /** away = founder dimmed with a zzz bubble. */
+  setPresence(p: "present" | "away") {
+    const f = this.founder();
+    if (!f) return;
+    f.sprite.setAlpha(p === "away" ? 0.5 : 1);
+    if (p === "away") this.bubbles.show(f.person.slug, "zzz", null); else this.bubbles.hide(f.person.slug);
   }
 
   founder(): Avatar | undefined {
@@ -194,6 +210,7 @@ export interface OfficeHandle {
   setActive(active: boolean): void;
   syncPeople(people: Person[], overrides?: Record<string, Partial<Look>>): void;
   applyLive(live: Record<string, LiveAgent>): void;
+  setPresence(p: "present" | "away"): void;
   destroy(): void;
 }
 
@@ -204,11 +221,13 @@ export async function startOffice(host: HTMLElement): Promise<OfficeHandle> {
     scale: { mode: Phaser.Scale.RESIZE, width: host.clientWidth || 800, height: host.clientHeight || 600 },
     scene,
   });
+  await scene.ready;
   return {
     scene,
     setActive: (active) => { if (active) game.loop.wake(); else game.loop.sleep(); },
     syncPeople: (people, overrides) => scene.syncPeople(people, overrides),
     applyLive: (live) => scene.applyLive(live),
+    setPresence: (p) => scene.setPresence(p),
     destroy: () => {
       game.destroy(true);
       window.__officeFps = undefined; window.__officeFrameMs = undefined; window.__officePeople = undefined; window.__officeDebug = undefined;

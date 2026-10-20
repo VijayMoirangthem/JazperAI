@@ -52,6 +52,7 @@ export function Office2Panel() {
     let h: OfficeHandle | null = null;
     let unbind: (() => void) | null = null;
     (async () => {
+      try {
       const { startOffice } = await import("@/office2/OfficeScene");
       if (cancelled || !host.current) return;
       h = await startOffice(host.current);
@@ -64,11 +65,26 @@ export function Office2Panel() {
       h.scene.events.on("toast", (t: string) => { setToast(t); setTimeout(() => setToast(null), 2000); });
       h.scene.events.on("avatar-select", (slug: string) => setSelected(slug));
       setHandle(h);
+      } catch (e) { console.error("office2 init failed", e); }
     })();
     return () => { cancelled = true; unbind?.(); h?.destroy(); handleRef.current = null; setHandle(null); };
   }, []);
 
   useEffect(() => { handleRef.current?.syncPeople(peopleRef.current, readLooks()); }, [sig, looksTick]);
+  // presence: away after 5 minutes (hash param awayMs overrides) without the tab visible or the window focused
+  useEffect(() => {
+    let idleSince: number | null = null, away = false, limit = 300_000;
+    const t = setInterval(() => {
+      const q = hashParams().get("awayMs");
+      if (q) limit = Number(q); // remembered, because the hash loses its query while another panel is open
+      const here = activeRef.current && document.hasFocus();
+      if (here) { idleSince = null; if (away) { away = false; handleRef.current?.setPresence("present"); } return; }
+      idleSince ??= Date.now();
+      if (!away && Date.now() - idleSince > limit) { away = true; handleRef.current?.setPresence("away"); }
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
   // hidden tab: stop the render loop (the panel stays mounted so coming back is instant)
   useEffect(() => { handleRef.current?.setActive(active); }, [active]);
 

@@ -61,6 +61,13 @@ async def _decide(rid: UUID, status: str, by: str | None) -> None:
 
 
 def _announce(rid: UUID, tier: int, action: str, summary: str) -> None:
+    try:
+        import asyncio
+
+        from core import push
+        asyncio.get_running_loop().create_task(push.send("Approval needed", f"Tier {tier} request", {"type": "approval", "id": str(rid)}))
+    except Exception:
+        pass
     bus.publish({"topic": "human-intervention-request", "request_id": str(rid), "tier": tier, "action": action,
                  "summary": summary[:2000]})
 

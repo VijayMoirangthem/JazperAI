@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export interface Attachment { name: string; mime: string; size: number; text?: string; dataUrl?: string }
+export interface Attachment { name: string; mime: string; size: number; text?: string; dataUrl?: string; key?: string; url?: string }
 export interface ChatMessage {
   id: string;
   from: string; // "you" | agent slug | "system"

@@ -24,7 +24,7 @@ EXTRA = {
     "brave-search": {"name": "Brave Search (official MCP server)", "command": [hub_presets.NPX, "-y", "@modelcontextprotocol/server-brave-search"],
                      "env_secrets": {"BRAVE_API_KEY": "BRAVE_API_KEY"}, "needs": "Brave Search API key (free tier available).", "tool_tiers": {}, "untested": True},
     "playwright": {"name": "Playwright browser (official MCP server)", "command": [hub_presets.NPX, "-y", "@playwright/mcp@latest", "--headless"],
-                   "env_secrets": {}, "needs": "", "tool_tiers": {"browser_click": "mcp.write", "browser_type": "mcp.write", "browser_navigate": "mcp.write"}, "untested": True},
+                   "env_secrets": {}, "needs": "", "tool_tiers": {"browser_click": "mcp.write", "browser_type": "mcp.write", "browser_navigate": "mcp.write"}},  # verified live 2026-10-21: 25 tools, browser_tabs read ok
     "notion": {"name": "Notion (official MCP server)", "command": [hub_presets.NPX, "-y", "@notionhq/notion-mcp-server"],
                "env_secrets": {"NOTION_TOKEN": "NOTION_TOKEN"}, "needs": "Notion internal integration token.", "tool_tiers": {}, "untested": True},
 }
@@ -32,7 +32,7 @@ LABELS = {"BRAVE_API_KEY": "Brave Search API key", "GITHUB_TOKEN": "GitHub perso
           "NOTION_TOKEN": "Notion integration token"}
 # harmless read used to prove a connection works: (tool, arguments)
 TESTS = {"google-workspace": ("gmail_search", {"query": "newer_than:1d", "max_results": 1}), "github": ("search_repositories", {"query": "repo:modelcontextprotocol/servers", "perPage": 1}),
-         "filesystem": ("list_allowed_directories", {}), "memory": ("read_graph", {})}
+         "filesystem": ("list_allowed_directories", {}), "memory": ("read_graph", {}), "playwright": ("browser_tabs", {"action": "list"})}
 ALIASES = {"gmail": "google-workspace", "google": "google-workspace", "calendar": "google-workspace", "google calendar": "google-workspace", "drive": "google-workspace",
            "google-calendar": "google-workspace", "files": "filesystem", "knowledge": "memory"}
 

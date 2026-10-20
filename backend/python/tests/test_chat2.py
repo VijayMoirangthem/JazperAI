@@ -47,7 +47,7 @@ def test_stream_endpoints_with_stub_provider(monkeypatch):
 
     monkeypatch.setattr("api.routes.chat2.get_router", fake_get_router)
     from main import app
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://localhost")
     r = c.post("/api/v1/chat2/stream", json={"text": "hi", "slug": "jasper",
                                              "attachments": [{"name": "a.txt", "mime": "text/plain", "text": "data"}]})
     evs = [json.loads(line) for line in r.text.splitlines()]
