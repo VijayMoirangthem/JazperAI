@@ -368,6 +368,8 @@ from api.routes import devloop as devloop_route
 app.include_router(devloop_route.router, prefix="/api/devloop", tags=["devloop"])
 from api.routes import memory2 as memory2_route
 app.include_router(memory2_route.router, prefix="/api/memory2", tags=["memory2"])
+from api.routes import voice2 as voice2_route
+app.include_router(voice2_route.router, prefix="/api/voice2", tags=["voice2"])
 from api.versioning import add_v1_aliases
 add_v1_aliases(app)
 

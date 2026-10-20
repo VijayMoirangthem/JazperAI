@@ -50,3 +50,5 @@ Project_References/
 Jazper.exe
 desktop/*.png
 !desktop/icon.png
+
+app/public/vad/

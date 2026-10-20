@@ -6,6 +6,9 @@ import { readNdjson } from "@/chat/ndjson";
 import { firstUnreadIndex, useChat, type ApprovalLevel, type Attachment, type ChatMessage } from "@/chat/chatStore";
 import { useTranscriptViewport } from "@/chat/useTranscriptViewport";
 import { RpcClient } from "@/lib/rpcClient";
+import { SentenceSplitter, speakable } from "@/voice/audio";
+import { Speaker } from "@/voice/speaker";
+import { useVoiceMode } from "@/voice/useVoiceMode";
 import { useLiveAgents } from "@/stores/liveAgentsStore";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -171,6 +174,28 @@ export function ChatPanel2() {
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
   const abort = useRef<AbortController | null>(null);
+  // voice conversation: Silero VAD -> transcription -> chat -> sentence-by-sentence streamed speech, with barge-in
+  const speaker = useRef<Speaker | null>(null);
+  if (!speaker.current) speaker.current = new Speaker((t) => `${API}/api/v1/voice2/speak?text=${encodeURIComponent(t)}`);
+  const splitterRef = useRef(new SentenceSplitter());
+  const sendRef = useRef<(text: string, atts: Attachment[]) => Promise<void>>(async () => undefined);
+  const timing = useRef<{ speechEnd?: number; transcript?: number; firstDelta?: number }>({});
+  const [lat, setLat] = useState<string>("");
+  const voice = useVoiceMode({
+    speaker: speaker.current,
+    onBargeIn: () => abort.current?.abort(),
+    onUtterance: (text, t) => { timing.current = { speechEnd: t.speechEnd, transcript: t.transcript }; void sendRef.current(text, []); },
+  });
+  useEffect(() => {
+    speaker.current!.onFirstAudio = (t) => {
+      const m = timing.current;
+      if (m.speechEnd) {
+        const r = { stt_ms: (m.transcript ?? 0) - m.speechEnd, llm_first_token_ms: (m.firstDelta ?? 0) - (m.transcript ?? 0), tts_first_audio_ms: t - (m.firstDelta ?? t), total_ms: t - m.speechEnd };
+        (window as unknown as { __voiceLatency?: unknown }).__voiceLatency = r;
+        setLat(`speech end → first audio: ${r.total_ms} ms (STT ${r.stt_ms} · reply ${r.llm_first_token_ms} · voice ${r.tts_first_audio_ms})`);
+      }
+    };
+  }, []);
   const { threads, lastRead, approvalLevel, push, patch, append, markRead, setApprovalLevel } = useChat();
   const live = useLiveAgents((s) => s.agents);
   const connect = useLiveAgents((s) => s.connect);
@@ -216,22 +241,35 @@ export function ChatPanel2() {
         : await fetch(`${API}/api/v1/chat2/room`, { method: "POST", headers: { "Content-Type": "application/json" }, signal: abort.current.signal, body: JSON.stringify({ ...payload, room: active.label, members: members.map((b) => b.slug) }) });
       patch(ch, mine.id, { status: "delivered" });
       const ids = new Map<string, string>();
+      splitterRef.current = new SentenceSplitter();
+      timing.current.firstDelta = undefined;
+      const talk = voice.enabled && active.kind === "dm";
       let route: { slugs: string[]; source: string; confidence: number } | undefined;
       for await (const ev of readNdjson<Record<string, unknown>>(res)) {
         const slug = String(ev.slug ?? "");
         if (ev.t === "route") route = ev as never;
         else if (ev.t === "speaker") { const id = uid(); ids.set(slug, id); push(ch, { id, from: slug, text: "", ts: Date.now(), streaming: true, meta: route ? { route } : undefined }); patch(ch, mine.id, { status: "read" }); }
-        else if (ev.t === "delta" && ids.get(slug)) append(ch, ids.get(slug)!, String(ev.text));
+        else if (ev.t === "delta" && ids.get(slug)) {
+          append(ch, ids.get(slug)!, String(ev.text));
+          if (talk) {
+            if (!timing.current.firstDelta && timing.current.speechEnd) timing.current.firstDelta = Date.now();
+            splitterRef.current.push(String(ev.text)).forEach((x) => { const t = speakable(x); if (t) speaker.current!.speak(t); });
+          }
+        }
         else if (ev.t === "done" && ids.get(slug)) patch(ch, ids.get(slug)!, { streaming: false });
         else if (ev.t === "error") push(ch, { id: uid(), from: "system", text: `Error: ${ev.message}`, ts: Date.now() });
       }
     } catch (e) {
       if ((e as Error).name !== "AbortError") push(ch, { id: uid(), from: "system", text: "Could not reach the backend.", ts: Date.now() });
     } finally {
+      const rest = voice.enabled && active.kind === "dm" ? splitterRef.current.flush() : "";
+      if (rest) speaker.current!.speak(rest);
       for (const m of useChat.getState().threads[ch] ?? []) if (m.streaming) patch(ch, m.id, { streaming: false });
       setBusy(false);
     }
   };
+
+  sendRef.current = send;
 
   const item = (c: Channel) => {
     const unread = firstUnreadIndex(threads[c.id] ?? [], lastRead[c.id]) >= 0 && c.id !== active.id;
@@ -260,6 +298,12 @@ export function ChatPanel2() {
       <section className="relative flex-1 flex flex-col min-w-0">
         <header className="px-4 py-3 border-b flex items-center gap-3">
           <span className="font-semibold">{active.label}</span>
+          <button onClick={() => void voice.toggle()} title="Hands-free voice conversation (Silero VAD, barge-in)" className="flex items-center gap-1 rounded border px-2 py-1 text-xs"
+            style={{ background: voice.enabled ? "rgba(34,197,94,0.25)" : undefined }}>
+            <Mic size={12} />{voice.state === "off" || voice.state === "error" ? "Voice" : voice.state}
+          </button>
+          {voice.error && <span className="text-xs text-red-400">{voice.error}</span>}
+          {lat && <span className="text-[10px] opacity-60">{lat}</span>}
           {active.kind === "dm" && (
             <select value={level} onChange={(e) => { const l = e.target.value as ApprovalLevel; const slug = active.id.slice(3); setApprovalLevel(slug, l); void fetch(`${API}/api/v1/hitl/levels/${slug}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ level: l }) }); }} className="ml-auto text-xs rounded border bg-transparent px-2 py-1" title="Approval level for this bot">
               {LEVELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}

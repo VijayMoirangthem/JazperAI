@@ -2217,6 +2217,10 @@
  ],
  [
   "GET",
+  "/api/v1/voice2/speak"
+ ],
+ [
+  "GET",
   "/api/v1/voyager/events"
  ],
  [
@@ -2246,6 +2250,10 @@
  [
   "GET",
   "/api/voice/voices"
+ ],
+ [
+  "GET",
+  "/api/voice2/speak"
  ],
  [
   "GET",
