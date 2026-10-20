@@ -117,7 +117,7 @@ class Hub:
         scored.sort(key=lambda x: -x[0])
         return [{**t, "tier": hitl.tier_of(t["action"])} for _, t in scored[:k]]
 
-    async def use_tool(self, name: str, arguments: dict, agent: str = "system", gate_ttl_s: float = hitl.DEFAULT_TTL_S) -> dict:
+    async def use_tool(self, name: str, arguments: dict, agent: str = "system", gate_ttl_s: float = hitl.DEFAULT_TTL_S, taint: bool = False, note: str = "") -> dict:
         tool = next((t for t in await self.catalogue() if t["name"] == name), None)
         if tool is None:
             raise ToolError(f"unknown tool {name}")
@@ -129,7 +129,8 @@ class Hub:
         if not self.buckets.setdefault(tool["connector"], Bucket(m["rate_per_min"])).take():
             raise ToolError("rate limit exceeded for connector " + tool["connector"])
         tier = hitl.tier_of(tool["action"])
-        allowed = await hitl.gate(tool["action"], f"{name} {json.dumps(arguments)[:300]}", agent, ttl_s=gate_ttl_s)
+        # a tainted request (untrusted content in context) may not write silently: writes become Tier 3, reads stay as they are
+        allowed = await hitl.gate(tool["action"], f"{name} {json.dumps(arguments)[:300]}{note}", agent, ttl_s=gate_ttl_s, min_tier=3 if taint and tier > 1 else 0)
         digest = hashlib.sha256(json.dumps(arguments, sort_keys=True).encode()).hexdigest()
         meta = {"tool": name, "args_sha256": digest, "agent": agent, "tier": tier}
         if not allowed:

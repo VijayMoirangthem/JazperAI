@@ -4,6 +4,7 @@ every function degrades to "miss / no-op" when Redis is down, and durable data s
 Used for: short-TTL caches (org tree, connection overview), the live bot-communication stream, live agent states (survive a backend restart),
 persisted SLO minute counters, and per-connector locks.
 """
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 
@@ -31,14 +32,29 @@ async def set_json(name: str, value, ttl_s: int) -> None:
         pass
 
 
+_flight: dict[str, "asyncio.Future"] = {}
+
+
 async def cached(name: str, ttl_s: int, fn: Callable[[], Awaitable]):
-    """Return the cached value or compute, store and return it."""
+    """Return the cached value or compute, store and return it. Concurrent misses share ONE computation (no stampede)."""
     hit = await get_json(name)
     if hit is not None:
         return hit
-    val = await fn()
-    await set_json(name, val, ttl_s)
-    return val
+    if name in _flight:
+        return await asyncio.shield(_flight[name])
+    fut = asyncio.get_running_loop().create_future()
+    _flight[name] = fut
+    try:
+        val = await fn()
+        await set_json(name, val, ttl_s)
+        fut.set_result(val)
+        return val
+    except Exception as e:
+        fut.set_exception(e)
+        fut.exception()  # mark retrieved so an unawaited failure does not log
+        raise
+    finally:
+        _flight.pop(name, None)
 
 
 async def invalidate(*names: str) -> None:
@@ -58,6 +74,15 @@ async def stream_add(entry: dict) -> None:
         await layer.client().xadd(k(STREAM), {"d": json.dumps(entry, default=str)}, maxlen=STREAM_MAX, approximate=True)
     except Exception:
         pass
+
+
+async def stream_tail(limit: int = 100) -> list[dict] | None:
+    """The newest `limit` entries (oldest first); None when Redis is unavailable. Cheap: reads only what is returned."""
+    try:
+        rows = await layer.client().xrevrange(k(STREAM), count=limit)
+        return [{**json.loads(f["d"]), "sid": sid} for sid, f in reversed(rows)]
+    except Exception:
+        return None
 
 
 async def stream_since(last_id: str = "0", limit: int = 100) -> list[dict] | None:
@@ -86,16 +111,18 @@ async def agent_states() -> dict:
 
 
 # ── SLO minute counters (survive restarts) ──────────────────────────────────────────────────────────
-SLO_TTL = 8 * 24 * 3600
+# One hash per day, fields "<minute>:t|e|lt|ls". Reading a window is 1-2 HGETALLs (the old one-key-per-minute layout needed a SCAN of
+# thousands of keys and took seconds).
+SLO_TTL = 9 * 24 * 3600
 
 
 async def slo_incr(minute: int, total: int, errors: int, lat_total: int, slow: int) -> None:
     try:
         p = layer.client().pipeline()
-        key = k("slo", str(minute))
+        key = k("slo", "d", str(minute // 1440))
         for f, n in (("t", total), ("e", errors), ("lt", lat_total), ("ls", slow)):
             if n:
-                p.hincrby(key, f, n)
+                p.hincrby(key, f"{minute}:{f}", n)
         p.expire(key, SLO_TTL)
         await p.execute()
     except Exception:
@@ -104,16 +131,18 @@ async def slo_incr(minute: int, total: int, errors: int, lat_total: int, slow: i
 
 async def slo_rows(since_minute: int) -> list[list[int]] | None:
     """[[minute, total, errors, lat_total, slow], ...] from Redis, or None if unavailable."""
+    import time
     try:
-        c, out, cur = layer.client(), [], 0
-        while True:
-            cur, keys = await c.scan(cur, match=k("slo", "*"), count=500)
-            for key in keys:
-                m = int(key.rsplit(":", 1)[1])
-                if m >= since_minute:
-                    h = await c.hgetall(key)
-                    out.append([m, int(h.get("t", 0)), int(h.get("e", 0)), int(h.get("lt", 0)), int(h.get("ls", 0))])
-            if cur == 0:
-                return out
+        c = layer.client()
+        now_min = int(time.time() // 60)
+        acc: dict[int, list[int]] = {}
+        for day in range(since_minute // 1440, now_min // 1440 + 1):
+            for field, v in (await c.hgetall(k("slo", "d", str(day)))).items():
+                m, _, f = field.partition(":")
+                minute = int(m)
+                if minute >= since_minute:
+                    row = acc.setdefault(minute, [minute, 0, 0, 0, 0])
+                    row[{"t": 1, "e": 2, "lt": 3, "ls": 4}[f]] = int(v)
+        return sorted(acc.values())
     except Exception:
         return None

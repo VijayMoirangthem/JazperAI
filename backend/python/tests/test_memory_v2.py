@@ -21,7 +21,8 @@ class Stub:
 
 
 @pytest.fixture(autouse=True)
-async def clean():
+async def clean(monkeypatch):
+    monkeypatch.setattr(consolidate, "NS", "fact_test")  # isolated from the founder's real memories
     try:
         await aio.fetch("SELECT 1")
     except Exception:
@@ -29,9 +30,9 @@ async def clean():
     from core.services.embedding_service import embed_memory
     if embed_memory("warmup") is None:
         pytest.skip("memory embedder unavailable")
-    await aio.execute("DELETE FROM shared.memory_chunks WHERE namespace='fact' AND content LIKE $1", f"%{MARK}%")
+    await aio.execute("DELETE FROM shared.memory_chunks WHERE namespace='fact_test' AND content LIKE $1", f"%{MARK}%")
     yield
-    await aio.execute("DELETE FROM shared.memory_chunks WHERE namespace='fact' AND content LIKE $1", f"%{MARK}%")
+    await aio.execute("DELETE FROM shared.memory_chunks WHERE namespace='fact_test' AND content LIKE $1", f"%{MARK}%")
     await aio.close_pool()
 
 
@@ -64,8 +65,9 @@ async def test_add_duplicate_pii_and_recall_boost():
     router = Stub("unused")
     a = await consolidate.learn(router, f"The user prefers dark mode {MARK}", 0.6)
     assert a["action"] == "ADD"
+    calls_after_first = router.calls  # the first add may consult the model when the live DB holds related facts; that is fine
     again = await consolidate.learn(router, f"The user prefers dark mode {MARK}", 0.6)
-    assert again["action"] == "NONE" and router.calls == 0  # exact duplicate: no model call
+    assert again["action"] == "NONE" and router.calls == calls_after_first  # exact duplicate: no model call
     p = await consolidate.learn(router, f"The user PAN is ABCDE1234F and likes masala tea {MARK}", 0.6)
     stored = [f["content"] for f in await consolidate.list_facts()]
     assert not any("ABCDE1234F" in c for c in stored) and p["action"] == "ADD"
@@ -78,7 +80,7 @@ async def test_add_duplicate_pii_and_recall_boost():
 async def test_update_supersedes_instead_of_overwriting(monkeypatch):
     old = await consolidate.learn(Stub("x"), f"The user lives in Imphal {MARK}", 0.6)
 
-    async def fake_similar(vec, k=4):
+    async def fake_similar(vec, k=4, ns="fact"):
         return [{"id": old["id"], "content": "The user lives in Imphal", "sim": 0.8, "importance": 0.6}]
     monkeypatch.setattr(consolidate, "similar", fake_similar)
     new = await consolidate.learn(Stub(json.dumps({"action": "UPDATE", "id": old["id"]})), f"The user now lives in Delhi {MARK}", 0.6)

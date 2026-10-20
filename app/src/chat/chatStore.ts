@@ -11,7 +11,7 @@ export interface ChatMessage {
   attachments?: Attachment[];
   ui?: { kind: "credentials" | "oauth" | "suggestions"; items?: { id: string; name: string; why: string; status: string; connectable: boolean; untested?: boolean }[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean };
   phase?: boolean;
-  tool?: { name: string; label: string; status: "running" | "ok" | "error"; result?: string };
+  tool?: { name: string; label: string; status: "running" | "ok" | "error"; result?: string; untrusted?: string };
   meta?: { route?: { slugs: string[]; source: string; confidence: number }; tokens?: number };
 }
 export type ApprovalLevel = "ask" | "auto_edits" | "approve_for_me" | "full";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useViewActive } from "./viewActive";
 
 interface CacheEntry<T> {
@@ -44,9 +44,18 @@ function writeToSessionStorage(key: string, data: unknown, timestamp: number) {
   }
 }
 
-function subscribe(callback: () => void) {
-  window.addEventListener("focus", callback);
-  return () => window.removeEventListener("focus", callback);
+// per-URL subscribers: every write to the cache notifies the components showing that URL, so background refreshes and polls actually render
+const listeners = new Map<string, Set<() => void>>();
+function subscribeTo(key: string) {
+  return (callback: () => void) => {
+    let set = listeners.get(key);
+    if (!set) listeners.set(key, (set = new Set()));
+    set.add(callback);
+    return () => { set!.delete(callback); };
+  };
+}
+function notify(key: string) {
+  listeners.get(key)?.forEach((cb) => cb());
 }
 
 function getSnapshot<T>(key: string): T | undefined {
@@ -114,6 +123,7 @@ export function useApi<T = unknown>(url: string, options: UseApiOptions<T> = {})
     return undefined;
   }, [cacheKey, ttl]);
 
+  const subscribe = useMemo(() => subscribeTo(cacheKey), [cacheKey]);
   const cachedData = useSyncExternalStore(
     subscribe,
     () => getCached()?.data,
@@ -143,10 +153,10 @@ export function useApi<T = unknown>(url: string, options: UseApiOptions<T> = {})
 
     const promise = (async () => {
       const result = await fetchJson<T>(url);
-      if (!mounted.current) return result;
       const entry: CacheEntry<T> = { data: result, timestamp: Date.now() };
       memoryCache.set(cacheKey, entry);
       writeToSessionStorage(cacheKey, result, entry.timestamp);
+      notify(cacheKey);
       return result;
     })();
 
@@ -183,6 +193,7 @@ export function useApi<T = unknown>(url: string, options: UseApiOptions<T> = {})
       const entry: CacheEntry<T> = { data: newData, timestamp: Date.now() };
       memoryCache.set(cacheKey, entry);
       writeToSessionStorage(cacheKey, newData, entry.timestamp);
+      notify(cacheKey);
 
       if (opts?.revalidate !== false) {
         return fetchData(false);
@@ -268,6 +279,7 @@ export function preload<T>(url: string): Promise<T | undefined> {
     const entry: CacheEntry<T> = { data, timestamp: Date.now() };
     memoryCache.set(cacheKey, entry);
     writeToSessionStorage(cacheKey, data, entry.timestamp);
+    notify(cacheKey);
     return data;
   });
   inflight.set(cacheKey, promise);
@@ -279,8 +291,11 @@ export function clearCache(url?: string) {
     memoryCache.delete(url);
     const ss = getSessionStorage();
     if (ss) ss.removeItem(url);
+    notify(url);
   } else {
+    const keys0 = [...memoryCache.keys()];
     memoryCache.clear();
+    keys0.forEach(notify);
     const ss = getSessionStorage();
     if (ss) {
       const keys: string[] = [];

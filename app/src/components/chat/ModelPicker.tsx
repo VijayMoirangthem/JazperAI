@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Cpu } from "lucide-react";
 import { useApi } from "@/lib/swr";
 import type { OrgBot } from "./OrgSidebar";
+import { CompareModal } from "./ModelCatalog";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 interface Prov { slug: string; name: string; enabled: boolean; has_key: boolean; local?: boolean; kind?: string; models: { model_id: string; enabled: boolean }[] }
@@ -16,6 +17,7 @@ export function ModelPicker({ bot, onChanged }: { bot: OrgBot; onChanged: () => 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
+  const [cmp, setCmp] = useState<string[] | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const down = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -42,6 +44,7 @@ export function ModelPicker({ bot, onChanged }: { bot: OrgBot; onChanged: () => 
       {open && (
         <div data-testid="model-menu" className="absolute right-0 top-9 z-30 max-h-[60vh] w-72 overflow-y-auto rounded-xl border border-white/10 bg-[#1b1b1b] p-1.5 text-sm shadow-xl">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search models" aria-label="Search models" className="mb-1 w-full rounded-lg bg-white/10 px-2 py-1 text-xs outline-none" />
+          <button onClick={() => setCmp([cur || "groq:openai/gpt-oss-120b", "groq2:qwen/qwen3.8-27b"].filter((v, i, a) => a.indexOf(v) === i))} data-testid="compare-from-picker" className="flex w-full items-center rounded-lg px-2 py-1.5 text-xs opacity-80 hover:bg-white/10">Compare models side by side…</button>
           <button onClick={() => void choose("")} className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white/10">Automatic (tier routing){!cur && <Check size={13} />}</button>
           {provs.map((p) => {
             const ms = p.models.filter((m) => m.enabled && (!q || m.model_id.toLowerCase().includes(q.toLowerCase())));
@@ -64,6 +67,7 @@ export function ModelPicker({ bot, onChanged }: { bot: OrgBot; onChanged: () => 
           })}
         </div>
       )}
+      {cmp && <CompareModal keys={cmp} onClose={() => setCmp(null)} />}
     </div>
   );
 }

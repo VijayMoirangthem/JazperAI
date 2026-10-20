@@ -38,6 +38,46 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
 
+  # Object store (S3 API) for unstructured data and backups; WAL segments are shipped here for point-in-time recovery (Plan V3 W7).
+  minio:
+    image: minio/minio:latest
+    container_name: jasper-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Copies new WAL segments from the Postgres archive volume into the `wal` bucket every 20 s (read-only mount).
+  wal-shipper:
+    image: minio/minio:latest  # ships the mc client
+    container_name: jasper-wal-shipper
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set m http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        mc mb -p m/wal >/dev/null 2>&1
+        while true; do mc mirror --overwrite /wal_archive m/wal >/dev/null 2>&1; sleep 20; done
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - wal_archive:/wal_archive:ro
+
   # Optional: docker compose --profile observability up -d  (stub; filled in P2-10)
   prometheus:
     profiles: ["observability"]
@@ -50,3 +90,4 @@ volumes:
   postgres_data:
   wal_archive:
   redis_data:
+  minio_data:

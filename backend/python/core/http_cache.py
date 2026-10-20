@@ -15,6 +15,8 @@ TTL = {
     "/api/v1/directory": 30, "/api/v1/bots/": 5, "/api/v1/llm/providers": 30, "/api/v1/llm/routing": 30, "/api/v1/finops": 10,
     "/api/v1/mcp-hub/connectors": 5, "/api/v1/mcp-hub/tools": 10, "/api/v1/mcp-hub/presets": 300, "/api/v1/company": 10,
     "/api/v1/system/health": 8, "/api/v1/skills": 5, "/api/v1/workspaces": 10, "/api/v1/voice2/voices": 3600, "/api/v1/devloop": 5,
+    "/api/v1/hitl/pending": 2, "/api/v1/comms/threads": 2, "/api/v1/comms/recent": 1, "/api/v1/comms/agents": 1, "/api/v1/slo/": 5,
+    "/api/notifications/unread-count": 5, "/api/jobs/notifications/unread-count": 5, "/api/v1/connections/": 5,
     "/api/business": 15, "/api/agents/": 10, "/api/company": 10, "/api/model-costs": 15,
 }
 MAX_BODY = 512_000

@@ -54,6 +54,11 @@ class RoomIn(BaseModel):
 
 
 def _persona(slug: str) -> tuple[str, str]:
+    system, tier = _persona_base(slug)
+    return system + orgchart.persona_suffix(slug), tier
+
+
+def _persona_base(slug: str) -> tuple[str, str]:
     b = registry.routable(slug)
     if b:
         return orgchart.OVERRIDES.get(slug) or b.prompt, b.model_policy.get("default_tier", "standard")
@@ -62,8 +67,17 @@ def _persona(slug: str) -> tuple[str, str]:
     return (orgchart.OVERRIDES.get(slug) or f"You are {slug}, {title} at Sir Jasper AI, a personal-to-enterprise agentic OS. Be concise and concrete.", "standard")
 
 
+def _wrap_attachment(name: str, text: str) -> str:
+    """Attachment text is data, not instructions: tag it (and scan it) before it reaches a model."""
+    from core import untrusted
+    s = untrusted.scan(text)
+    flag = f' flags="{",".join(s.flags)}"' if s.flags else ""
+    body = text.replace("</untrusted", "<\\/untrusted")
+    return f'<untrusted source="attachment"{flag} name="{name}">\n{body}\n</untrusted>'
+
+
 def _user_content(text: str, atts: list[Attachment]) -> str:
-    extra = "".join(f"\n\n[Attachment: {a.name}]\n{a.text[:20000]}" if a.text else f"\n\n[Attachment: {a.name} ({a.mime or 'binary'}), not readable as text]"
+    extra = "".join(f"\n\n[Attachment: {a.name}]\n" + _wrap_attachment(a.name, a.text[:20000]) if a.text else f"\n\n[Attachment: {a.name} ({a.mime or 'binary'}), not readable as text]"
                     for a in atts)
     return text + extra
 
@@ -80,9 +94,18 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
         grp = workspaces.GROUP_OF.get(slug)
         if orgchart.SETTINGS.get(slug, {}).get("memory") is False:
             raise LookupError  # this bot has memory switched off
-        spec = {"fact": 4, f"bot.{slug}": 3, "org": 2}
-        if grp and grp not in ("legacy", "chief"):
+        sc = orgchart.memory_scopes(slug)  # which memory layers this bot may read (founder-controlled)
+        spec = {}
+        if sc["founder"]:
+            spec["fact"] = 4
+        if sc["own"]:
+            spec[f"bot.{slug}"] = 3
+        if sc["org"]:
+            spec["org"] = 2
+        if grp and grp not in ("legacy", "chief") and sc["group"]:
             spec[f"group.{grp}"] = 3
+        if not spec:
+            raise LookupError  # every layer is switched off
         got = await asyncio.wait_for(consolidate.recall_multi(text, spec), timeout=4.0)
         for ns, title in (("fact", "What you know about the founder"), (f"bot.{slug}", "Lessons from your own past work"), (f"group.{grp}", "Your group's shared memory"), ("org", "Company-wide memory")):
             if got.get(ns):
@@ -92,6 +115,9 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
 
     msgs = [{"role": t.role, "content": t.content} for t in history[-MAX_HISTORY:]] + [{"role": "user", "content": _user_content(text, atts)}]
     yield _line({"t": "speaker", "slug": slug})
+    if await orgchart.over_cap(slug):
+        yield _line({"t": "error", "slug": slug, "message": f"{slug} reached its daily token cap (change it in the bot settings)"})
+        return
     announce(slug, "working", bubble=text[:100])
     reply_parts: list[str] = []
     t0 = time.monotonic()

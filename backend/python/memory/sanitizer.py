@@ -57,6 +57,11 @@ _RULES = [
     _Rule("AADHAAR", re.compile(r"(?<!\d)[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}(?!\d)"), lambda t: _verhoeff(_digits(t))),
     _Rule("PAN", re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")),
     _Rule("CARD", re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)"), lambda t: 13 <= len(_digits(t)) <= 19 and _luhn(_digits(t))),
+    # defence in depth: these also run when Presidio (spaCy) is unavailable, so email/phone/IP/IBAN never reach memory in clear text
+    _Rule("EMAIL_ADDRESS", re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}\b")),
+    _Rule("IBAN_CODE", re.compile(r"\b[A-Z]{2}\d{2}[ ]?(?:[A-Z0-9]{4}[ ]?){2,7}[A-Z0-9]{1,4}\b")),
+    _Rule("IP_ADDRESS", re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b")),
+    _Rule("PHONE_NUMBER", re.compile(r"(?<![\w.])(?:\+\d{1,3}[ -]?\d{4,5}[ -]?\d{4,6}|[6-9]\d{4}[ -]?\d{5}|\(?\d{3}\)?[ -]\d{3}[ -]\d{4})(?![\w.])"), lambda t: 10 <= len(_digits(t)) <= 15),
     _Rule("UPI_ID", re.compile(r"\b[A-Za-z0-9._\-]{2,}@(?!(?:gmail|yahoo|outlook|hotmail)\b)[A-Za-z]{2,}\b(?!\.)")),
 ]
 

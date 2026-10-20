@@ -131,3 +131,108 @@ async def test(slug: str, model: str):
         return await registry.test_provider(slug, model)
     except LookupError:
         raise HTTPException(404, "unknown provider")
+
+
+# ── model catalogue, tests, comparison ───────────────────────────────────────────────────────────────
+class TestIn(BaseModel):
+    provider: str
+    model: str
+
+
+class CompareIn(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+    models: list[str] = Field(min_length=2, max_length=3)  # "provider:model"
+    max_tokens: int = Field(default=400, ge=16, le=2000)
+
+
+class VoteIn(BaseModel):
+    winner: str
+    others: list[str] = []
+
+
+def _tests_key():
+    from core import cache
+    return cache.k("model_tests")
+
+
+def _votes_key():
+    from core import cache
+    return cache.k("model_votes")
+
+
+@router.get("/catalog")
+async def catalog():
+    """Every registered model with price (per 1M tokens), 7-day usage, the last test result and the comparison win/loss record."""
+    from core import finops
+    from memory.redis import layer
+    await registry.seed_if_empty()
+    prices = await finops._load_prices()
+    rows = await aio.fetch("SELECT p.slug, p.name, p.kind, p.local, (p.secret_name IS NOT NULL OR p.secret_env IS NOT NULL OR p.kind='cli') AS usable, m.model_id, m.enabled "
+                           "FROM shared.llm_models m JOIN shared.llm_providers p ON p.slug = m.provider WHERE p.enabled ORDER BY p.slug, m.model_id")
+    stats = {r["model"]: r for r in await aio.fetch("SELECT model, count(*) AS calls, round(avg(latency_ms)) AS avg_ms, COALESCE(sum(cost_usd),0) AS cost FROM shared.llm_ledger WHERE ts > now() - interval '7 days' GROUP BY model")}
+    try:
+        tests = {k: json.loads(v) for k, v in (await layer.client().hgetall(_tests_key())).items()}
+        votes = await layer.client().hgetall(_votes_key())
+    except Exception:
+        tests, votes = {}, {}
+    out = []
+    for r in rows:
+        key = f"{r['slug']}:{r['model_id']}"
+        pr = prices.get(r["model_id"]) or finops._price(r["model_id"]) or {}
+        st = stats.get(r["model_id"])
+        out.append({"key": key, "provider": r["slug"], "provider_name": r["name"], "kind": r["kind"], "model": r["model_id"], "enabled": r["enabled"],
+                    "input_per_m": pr.get("input"), "output_per_m": pr.get("output"),
+                    "calls_7d": int(st["calls"]) if st else 0, "avg_latency_ms": int(st["avg_ms"]) if st else None, "cost_7d": float(st["cost"]) if st else 0.0,
+                    "last_test": tests.get(key), "wins": int(votes.get(key + "|w", 0)), "losses": int(votes.get(key + "|l", 0))})
+    return {"models": out}
+
+
+@router.post("/catalog/test")
+async def catalog_test(body: TestIn):
+    from memory.redis import layer
+    try:
+        res = await registry.test_provider(body.provider, body.model)
+    except LookupError:
+        raise HTTPException(404, "unknown provider")
+    import time
+    res["at"] = time.time()
+    try:
+        await layer.client().hset(_tests_key(), f"{body.provider}:{body.model}", json.dumps(res))
+    except Exception:
+        pass
+    return res
+
+
+@router.post("/compare")
+async def compare(body: CompareIn):
+    """Same prompt to 2-3 specific models at once (no fallback, so each answer really comes from the model named)."""
+    import asyncio
+    import time
+
+    from core import finops
+    prices = await finops._load_prices()
+
+    async def one(key: str):
+        prov, _, model = key.partition(":")
+        t0 = time.perf_counter()
+        try:
+            res = await registry.complete_pinned(prov, model, LLMRequest(messages=[{"role": "user", "content": body.prompt}], max_tokens=body.max_tokens, tier="standard"))
+            return {"key": key, "ok": True, "text": res.text, "ms": int((time.perf_counter() - t0) * 1000), "input_tokens": res.usage.input_tokens,
+                    "output_tokens": res.usage.output_tokens, "cost_usd": finops.cost_of(res.usage, prices)}
+        except Exception as e:
+            return {"key": key, "ok": False, "error": str(e)[:160], "ms": int((time.perf_counter() - t0) * 1000)}
+    return {"results": await asyncio.gather(*(one(k) for k in body.models))}
+
+
+@router.post("/compare/vote")
+async def compare_vote(body: VoteIn):
+    from memory.redis import layer
+    try:
+        p = layer.client().pipeline()
+        p.hincrby(_votes_key(), body.winner + "|w", 1)
+        for o in body.others:
+            p.hincrby(_votes_key(), o + "|l", 1)
+        await p.execute()
+    except Exception:
+        raise HTTPException(503, "vote store unavailable")
+    return {"ok": True}

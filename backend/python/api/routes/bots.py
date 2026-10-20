@@ -1,4 +1,6 @@
 """Bot management (aliased at /api/v1/bots): create/update/disable bots at runtime, list roster, message a bot."""
+import re
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -103,14 +105,89 @@ class SettingsIn(BaseModel):
     temperature: float | None = None
     max_tokens: int | None = None
     memory: bool | None = None
+    tools_off: list[str] | None = None
+    memory_scopes: dict | None = None
+    style: str | None = None
+    language: str | None = None
+    daily_token_cap: int | None = None
 
 
 @router.put("/{slug}/settings")
 async def put_settings(slug: str, body: SettingsIn):
     """Per-bot runtime settings. Fields sent as null/empty are reset to default (so the UI sends the whole form)."""
-    st = await orgchart.set_settings(slug, body.model_dump())
+    st = await orgchart.set_settings(slug, body.model_dump(exclude_unset=True))  # unsent fields stay as they are; an explicit null resets one
     await cache.invalidate("org_tree")
     return {"slug": slug, "settings": st}
+
+
+class DuplicateIn(BaseModel):
+    new_slug: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{1,62}$")
+    display_name: str | None = None
+
+
+class ImportIn(BaseModel):
+    bot: dict
+    settings: dict = {}
+    org: dict = {}
+
+
+@router.post("/{slug}/enable")
+async def enable(slug: str):
+    from memory.db import aio
+    if not registry.get(slug):
+        raise HTTPException(404, "only dynamic bots can be re-enabled")
+    await aio.execute("UPDATE shared.bot_definitions SET enabled=true, updated_at=now() WHERE slug=$1", slug)
+    await registry.reload()
+    await cache.invalidate("org_tree")
+    return {"slug": slug, "enabled": True}
+
+
+@router.post("/{slug}/duplicate")
+async def duplicate(slug: str, body: DuplicateIn):
+    """Copy a bot (any source) into a new dynamic bot with the same prompt, tier, settings and placement."""
+    from api.routes.chat2 import _persona_base
+    src = await orgchart.card(slug)
+    if not src:
+        raise HTTPException(404, "unknown bot")
+    if registry.get(body.new_slug) or any(r["slug"] == body.new_slug for r in registry.roster()):
+        raise HTTPException(409, "that slug is taken")
+    prompt = src["prompt"] or _persona_base(slug)[0]
+    await registry.upsert(BotDef(slug=body.new_slug, display_name=body.display_name or f"{src['display_name']} copy", role_title=src["role_title"], crew=src["crew"],
+                                 prompt=prompt, reports_to=src.get("reports_to") or "jasper", tools=list(src.get("tools") or []), model_policy={"default_tier": src.get("tier", "standard")}, lifecycle="probation"))
+    await orgchart.place(body.new_slug, src["group"], src["department"], src["position"])
+    if src.get("settings"):
+        await orgchart.set_settings(body.new_slug, dict(src["settings"]))
+    await cache.invalidate("org_tree")
+    return await orgchart.card(body.new_slug)
+
+
+@router.get("/{slug}/export")
+async def export_bot(slug: str):
+    c = await orgchart.card(slug)
+    if not c:
+        raise HTTPException(404, "unknown bot")
+    keep = ("slug", "display_name", "role_title", "crew", "reports_to", "tools", "tier", "prompt")
+    return {"format": "jasper-bot/1", "bot": {k: c.get(k) for k in keep}, "settings": c.get("settings", {}),
+            "org": {"org_group": c["group"], "department": c["department"], "position": c["position"]}}
+
+
+@router.post("/import")
+async def import_bot(body: ImportIn):
+    b = body.bot
+    slug = str(b.get("slug", ""))
+    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,62}", slug):
+        raise HTTPException(422, "bad slug")
+    if any(r["slug"] == slug for r in registry.roster()) and not registry.get(slug):
+        raise HTTPException(409, "a built-in bot with this slug exists; change the slug")
+    await registry.upsert(BotDef(slug=slug, display_name=str(b.get("display_name") or slug), role_title=str(b.get("role_title", "")), crew=str(b.get("crew", "personal")),
+                                 prompt=str(b.get("prompt", "")), reports_to=str(b.get("reports_to") or "jasper"), tools=list(b.get("tools") or []),
+                                 model_policy={"default_tier": b.get("tier", "standard")}, lifecycle="probation"))
+    if body.org:
+        await orgchart.place(slug, body.org.get("org_group"), body.org.get("department"), body.org.get("position"))
+    if body.settings:
+        await orgchart.set_settings(slug, body.settings)
+    await cache.invalidate("org_tree")
+    return await orgchart.card(slug)
 
 
 @router.get("/{slug}/card")

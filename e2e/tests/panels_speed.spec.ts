@@ -54,3 +54,12 @@ test("model picker pins a model for the active bot and Automatic resets it", asy
   await page.getByTestId("model-menu").getByRole("button", { name: /Automatic/ }).click();
   await expect(page.getByTestId("model-pill")).toContainText("Auto");
 });
+
+test("office scene is not rebuilt by background polling", async () => {
+  await page.getByTestId("rail-office").click();
+  const canvas = page.locator("[data-keepalive=office] canvas").first();
+  await expect(canvas).toBeVisible({ timeout: 15_000 });
+  const handle = await canvas.elementHandle();
+  await page.waitForTimeout(13_000); // longer than two roster polls (5 s)
+  expect(await handle!.evaluate((el) => el.isConnected)).toBe(true); // same canvas: the Phaser game was not destroyed and recreated
+});

@@ -42,7 +42,7 @@ async def messages(thread: str, since_id: int = 0, limit: int = 200) -> list[dic
 
 async def recent(since_id: int = 0, limit: int = 100) -> list[dict]:
     """Live feed: served from the Redis stream (fast, capped); falls back to Postgres when Redis is down or has nothing newer."""
-    live = await cache.stream_since("0", 500)
+    live = await cache.stream_tail(min(max(limit, 1), 150))
     if live:
         fresh = [{k: v for k, v in e.items() if k != "sid"} for e in live if e["id"] > since_id]
         if fresh or since_id:

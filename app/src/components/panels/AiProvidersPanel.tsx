@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useApi } from "@/lib/swr";
+import { ModelCatalog } from "@/components/chat/ModelCatalog";
 import { Cpu } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -114,6 +115,7 @@ export function AiProvidersPanel() {
           </div>
         ))}
       </section>
+      <ModelCatalog />
     </div>
   );
 }

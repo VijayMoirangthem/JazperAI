@@ -81,9 +81,9 @@ async def set_level(slug: str, level: str) -> None:
 
 
 async def gate(action: str, summary: str, requester: str, ttl_s: float = DEFAULT_TTL_S,
-               veto_window_s: float | None = None) -> bool:
-    """Returns True if the action may proceed."""
-    tier, rid = tier_of(action), uuid4()
+               veto_window_s: float | None = None, min_tier: int = 0) -> bool:
+    """Returns True if the action may proceed. min_tier raises the tier (untrusted-content requests need explicit approval)."""
+    tier, rid = max(tier_of(action), min_tier), uuid4()
     _last_rid.set(rid)
     if tier == 1:
         await _save(rid, 1, action, summary, requester, ttl_s, status="auto")

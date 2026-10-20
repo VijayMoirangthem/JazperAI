@@ -79,6 +79,7 @@ function Bubble({ m, onAnswer, onRate, onCard, onDelete, onEdit, onSpeak, onRege
         <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1 font-mono text-xs opacity-90">
           {t.status === "running" ? <Loader2 size={12} className="animate-spin" /> : t.status === "ok" ? <Check size={12} className="text-green-400" /> : <X size={12} className="text-red-400" />}
           {t.label}
+          {t.untrusted && <span title={`This request handled untrusted content from: ${t.untrusted}. Changes now need your explicit approval.`} data-testid="untrusted-badge" className="ml-1 rounded-full bg-amber-500/20 px-1.5 text-[10px] text-amber-300">untrusted</span>}
         </span>
       </div>
     );
@@ -127,6 +128,7 @@ function ApprovalCard({ p, onDone }: { p: Pending; onDone: () => void }) {
   return (
     <div role="group" aria-label="Approval request" className="w-full max-w-[600px] space-y-2 rounded-3xl bg-white/5 px-4 py-3 ring-1 ring-amber-400/40">
       <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck size={16} className="text-amber-400" />Approval needed · Tier {p.tier}<span className="ml-auto text-xs opacity-60">{p.requester}</span></div>
+      {p.summary.includes("UNTRUSTED CONTENT") && <div data-testid="untrusted-warning" className="rounded-xl bg-amber-500/15 px-3 py-2 text-xs text-amber-200">This action was requested after reading external content (email, file or web). Check that it is what <b>you</b> asked for before approving.</div>}
       <div className="text-sm"><span className="font-mono text-xs opacity-70">{p.action}</span><div>{p.summary}</div></div>
       <div className="flex gap-2">
         <button onClick={() => respond(true)} className="rounded-full bg-green-600 px-4 py-1 text-sm">Approve</button>
@@ -321,7 +323,7 @@ export function ChatPanel2() {
         else if (ev.t === "tool") {
           const label = String(ev.label ?? ev.name); const status = ev.status as "running" | "ok" | "error";
           const open = [...(useChat.getState().threads[ch] ?? [])].reverse().find((x) => x.tool && x.tool.status === "running" && x.tool.label === label);
-          if (open && status !== "running") patch(ch, open.id, { tool: { name: String(ev.name), label, status, result: String(ev.result ?? "") } });
+          if (open && status !== "running") patch(ch, open.id, { tool: { name: String(ev.name), label, status, result: String(ev.result ?? ""), untrusted: ev.untrusted ? String(ev.untrusted) : undefined } });
           else push(ch, { id: uid(), from: slug, text: "", ts: Date.now(), tool: { name: String(ev.name), label, status } });
           ids.delete(slug);
         }

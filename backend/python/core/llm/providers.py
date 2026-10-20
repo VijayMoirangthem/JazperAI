@@ -94,6 +94,21 @@ class AnthropicProvider(Provider):
             raise _classify(e) from e
 
 
+def _describe(e: Exception) -> tuple[str, int | None, bool]:
+    """(message, http status, retryable) for an SDK error. The message names the cause (e.g. "402 Insufficient account funds") so the UI and logs
+    can say why; permanent failures (400/401/402/403/404) are not retried."""
+    status = getattr(e, "status_code", None)
+    body = getattr(e, "body", None)
+    msg = ""
+    if isinstance(body, dict):
+        err = body.get("error", body)
+        msg = str(err.get("message", "")) if isinstance(err, dict) else str(err)
+    msg = (msg or getattr(e, "message", "") or "").replace("\n", " ")[:140]
+    name = type(e).__name__
+    retryable = status in (408, 429, 529) or (status or 0) >= 500 or name in ("APITimeoutError", "APIConnectionError") or (status is None and name != "PermissionDeniedError")
+    return f"{name} {status or ''} {msg}".strip(), status, retryable
+
+
 class OpenAICompatProvider(Provider):
     """Groq / any OpenAI-compatible endpoint. `local=True` marks LM Studio-style edge endpoints (EDGE_MODE only)."""
 
@@ -116,8 +131,8 @@ class OpenAICompatProvider(Provider):
                 ra = float(e.response.headers.get("retry-after")) if getattr(e, "response", None) is not None else None
             except (TypeError, ValueError):
                 ra = None
-            raise ProviderError(type(e).__name__, retryable=status in (408, 429, 529) or (status or 0) >= 500
-                                or type(e).__name__ in ("APITimeoutError", "APIConnectionError"), retry_after=ra) from e
+            text, _st, retry = _describe(e)
+            raise ProviderError(text, retryable=retry, retry_after=ra) from e
         u = r.usage
         return LLMResult(text=r.choices[0].message.content or "", stop_reason=r.choices[0].finish_reason,
                          usage=Usage(provider=self.name, model=model, input_tokens=getattr(u, "prompt_tokens", 0) or 0,
@@ -136,7 +151,8 @@ class OpenAICompatProvider(Provider):
                 if chunk.choices and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
         except Exception as e:
-            raise ProviderError(type(e).__name__, retryable=True) from e
+            text, _st, retry = _describe(e)
+            raise ProviderError(text, retryable=retry) from e
         yield Usage(provider=self.name, model=model, input_tokens=getattr(u, "prompt_tokens", 0) or 0,
                     output_tokens=getattr(u, "completion_tokens", 0) or 0, latency_ms=int((time.perf_counter() - t0) * 1000))
 

@@ -139,6 +139,14 @@ def invalidate() -> None:
     _cached = None
 
 
+async def complete_pinned(slug: str, model: str, req: LLMRequest) -> LLMResult:
+    """One call to exactly this provider:model (no tier fallback), for comparisons and tests."""
+    row = await aio.fetch("SELECT * FROM shared.llm_providers WHERE slug=$1 AND enabled", slug)
+    if not row:
+        raise LookupError(slug)
+    return await _make(row[0], model, req.tier).complete(req)
+
+
 async def test_provider(slug: str, model: str) -> dict:
     row = await aio.fetch("SELECT * FROM shared.llm_providers WHERE slug=$1", slug)
     if not row:
@@ -148,4 +156,8 @@ async def test_provider(slug: str, model: str) -> dict:
         res = await p.complete(LLMRequest(messages=[{"role": "user", "content": "Reply with the single word: ok"}], max_tokens=8, tier="standard"))
         return {"ok": True, "latency_ms": res.usage.latency_ms, "reply": res.text[:40]}
     except Exception as e:
-        return {"ok": False, "error": str(e)[:200]}
+        msg = str(e)[:200]
+        low = msg.lower()
+        status = ("no_credit" if ("insufficient" in low or " 402" in low) else "blocked" if ("freetier" in low or " 403" in low or "permissiondenied" in low)
+                  else "bad_key" if (" 401" in low or "authentication" in low) else "rate_limited" if " 429" in low else "error")
+        return {"ok": False, "status": status, "error": msg}

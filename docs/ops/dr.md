@@ -1,31 +1,34 @@
-# Disaster recovery drill (Plan V2 G4)
+# Disaster recovery (Plan V3 W7) — measured 2026-10-21
 
-Scope: Postgres (all schemas) and Redis on this PC. Procedures: `docs/ops/backup_restore.md`. Drill run **2026-10-20** with `scripts/backup.ps1` and `scripts/restore.ps1`.
+Scope: Postgres (all schemas) and Redis on this PC, with MinIO as the object store. Procedures also in `docs/ops/backup_restore.md`.
+
+## What runs now
+| Piece | How | Evidence |
+|---|---|---|
+| Encrypted dump | `scripts/backup.ps1` (AES-256-GCM) | unchanged |
+| Backup to MinIO | `scripts/backup_minio.py`: dump, upload to the object-locked `backups` bucket (30-day governance retention), verify size, download + hash the main dump, write `manifest.json` | 6 files, ~1 MB, verified, 44.7 s under load |
+| **Schedule** | Windows task "Jasper Backup", daily 03:00, runs as soon as possible if the PC was off (`scripts/schedule_backups.ps1`) | next run 2026-10-21 03:00 |
+| **WAL archive** | Postgres archives WAL to a volume; the `wal-shipper` container copies new segments to the MinIO `wal` bucket every 20 s | 14+ segments shipped, still shipping |
+| Restore from MinIO | `scripts/restore_from_minio.py`: download, hash-check against the manifest, restore into a scratch DB | live 125 tables / 3 policies = scratch 125 / 3; download+verify 0.9 s, restore 20.8 s, total 21.7 s |
+| **Point-in-time recovery drill** | `scripts/pitr_drill.py`: pg_basebackup, probe row A, target time, probe row B, restore from MinIO base + WAL to the target time | **PASS**: scratch DB has A and not B; restore 65.8 s (18 WAL segments), whole drill 124.8 s |
 
 ## Objectives
-| | Target | Measured / status |
+| | Target | Status |
 |---|---|---|
-| **RTO** (time to restore data) | 15 min | **5.8 s** to restore `full.dump.enc` (433 KB) into a scratch DB, decryption included. Backup took **12.3 s**. |
-| **RPO** (acceptable data loss) | 24 h | **Not yet met automatically**: backups are run by hand. Effective RPO today = time since the last manual backup. |
+| RPO | 15 min | **Met for the database**: WAL segments reach MinIO within about 20-45 s (a segment is archived when it fills or on a WAL switch, so the real worst case is the time to fill 16 MB of WAL on a quiet system; set `archive_timeout=60` to bound it to 1 min). Files and Redis: daily |
+| RTO | 30 min | **Met**: 21.7 s logical restore, 65.8 s PITR on today's data size (about 11 MB base, 18 WAL segments). Will grow with data |
 
-## Drill result
-Backup `20261020-132043`: `full.dump.enc` 433 KB, four tenant dumps (shared 74 KB, co 6 KB, baeit 1 KB, boardmint 1 KB), `redis.rdb.enc`.
-Restore into scratch DB `jasper_restore_drill`: live 121 tables / 3 RLS policies, scratch 121 / 3 (identical). The live database was only read.
+## Still not covered (honest)
+- **Offsite copy.** MinIO is on this same PC and disk. Losing the machine loses the backups. Next step: replicate the `backups` and `wal` buckets to Cloudflare R2 or Backblaze B2 with client-side encryption (needs your account and keys).
+- **Vault passphrase and OS-vault keys are not in the backup.** Without this PC's credential store the encrypted dumps cannot be decrypted. Keep an offline copy of `BACKUP_PASSPHRASE`.
+- **archive_timeout** is not set (see RPO note); requires a Postgres restart, so I left it for you to schedule.
+- **Redis** is volatile by design (caches, live state, SLO counters). A daily `SAVE` is included in `backup.ps1`; nothing in Redis is the only copy of anything.
+- The PITR drill restores into a scratch container; it was not run on a different machine.
 
-## What this does and does not prove
-- Proves: the encrypted backup decrypts, restores cleanly, and schema, tables and row-level-security policies match.
-- Does not prove: restore time at larger data volumes (the dump is under 1 MB, so 5.8 s will grow), restore on a different machine, or recovery of the vault.
-  **The backup passphrase and the OS-vault master keys are not in the backup**; losing this PC's credential store makes encrypted data unreadable.
-- Point-in-time recovery: WAL archiving is on (`infra/docker-compose.yml`), but no replay drill has been run. Treat PITR as unproven.
-
-## Gaps to close (in order)
-1. Schedule a daily backup (Windows Task Scheduler running `scripts\backup.ps1 -KeepDays 14`) so the 24 h RPO becomes real.
-2. Offsite copy of `storage\backups` (not configured).
-3. Back up the vault passphrase separately from the machine.
-4. Run the PITR replay drill and record its RTO.
-
-## Re-running the drill
+## Re-run
 ```
-scripts\backup.ps1
-scripts\restore.ps1 -Backup storage\backups\<stamp>      # prints live vs scratch table/policy counts
+backend\.venv\Scripts\python.exe scripts\backup_minio.py          # backup + verify
+backend\.venv\Scripts\python.exe scripts\restore_from_minio.py    # restore drill into a scratch DB
+backend\.venv\Scripts\python.exe scripts\pitr_drill.py            # point-in-time recovery drill
+Unregister-ScheduledTask -TaskName "Jasper Backup" -Confirm:$false   # remove the schedule
 ```

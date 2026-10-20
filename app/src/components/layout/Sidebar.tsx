@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Settings, Puzzle, Plus, X, Check, ChevronRight, ChevronDown, Bot, Archive } from "lucide-react";
 import { useApprovals } from "@/hooks/useApprovals";
+import { preloadPanel } from "@/lib/panelPreload";
 import {
   SYSTEM_REGISTRY,
   PLUGIN_REGISTRY,
@@ -748,6 +749,8 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
               className={`sj-nav-icon${active === item.id ? " active" : ""}`}
               title={item.label}
               data-testid={"rail-" + item.id}
+              onMouseEnter={() => preloadPanel(item.id)}
+              onFocus={() => preloadPanel(item.id)}
               onClick={() => navigate(item.id)}
             >
               <item.icon size={16} />

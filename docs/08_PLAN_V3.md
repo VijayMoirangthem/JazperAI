@@ -114,5 +114,21 @@ Priority order and why: Google Workspace (done) → GitHub (needs `GITHUB_TOKEN`
 - Fix or explain `test_memory_v2`, `test_sanitizer_memory`, redis p95; add Playwright specs for cards, comms view, Mind Map, voice tab, model tab, meetings, tab keep-alive.
 - Add OpenCode credit; then run the model catalogue test (W2-a) so every model is marked usable or not.
 
+## STATUS (2026-10-21)
+| Item | Status |
+|---|---|
+| W0 baseline (tests, hygiene) | **Done**: 3 failing tests fixed (sanitizer fell back to regex-only because numpy 2 broke spaCy: email/phone/IP/IBAN regex rules added; memory tests isolated in their own namespace; redis latency bound relaxed). 98 backend tests in the touched areas pass |
+| W1 speed | **Done**: see `docs/ops/performance.md` (lazy panels -82% bundle, keep-alive, SWR with a render fix, Office rebuild fix, `/slo` 6.8 s to 31 ms, Redis HTTP cache) |
+| W2 models and per-bot controls | **Done**: model catalogue (prices from opencode.ai/docs/zen, usage, Test, compare + votes), header picker, Model and Behaviour tabs (style, language, daily token cap, memory scopes, tool switches, duplicate/export/import/archive), readable provider errors |
+| W3 prompt-injection guard | **Done**: `docs/ops/prompt_injection.md`, 33 red-team tests, live check |
+| W7 MinIO + backups | **Mostly done**: MinIO, object-locked backups, scheduled daily job, WAL shipping, restore and PITR drills pass (`docs/ops/dr.md`). **Open:** offsite replica, `archive_timeout`, moving chat attachments into MinIO |
+| W4 Flow 1 (Baeit feature on a branch) | Not started |
+| W5 bot lifecycle / PIP | Not started |
+| W6 staffing the company | Not started |
+| W8 remote access + React Native app | Plan only |
+| W9 more connectors | GitHub token, Slack, Notion, Brave, Playwright declared; none verified live except Google |
+| W10 alerts / RCA / runbooks | Not started (backup freshness is recorded in Redis for it) |
+| W11 hygiene | Legacy panel approval, duplicate bots, more Playwright specs |
+
 ## Suggested order
 1. W3 (safety) → 2. W1-a/b (tabs, speed) → 3. W2-a/b (models, bot options) → 4. W4 (Flow 1) → 5. W7 (MinIO + backups) → 6. W8 (remote + mobile) → 7. W5/W6 (lifecycle, staffing) → 8. W9/W10 (connectors, alerts) → 9. W11 (continuous).

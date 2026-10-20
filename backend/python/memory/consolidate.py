@@ -67,7 +67,8 @@ async def extract_facts(router, user_text: str, assistant_text: str, bot: bool =
     return out
 
 
-async def similar(vec: list[float], k: int = 4, ns: str = NS) -> list[dict]:
+async def similar(vec: list[float], k: int = 4, ns: str | None = None) -> list[dict]:
+    ns = ns or NS
     async with aio.tx("memory", (TENANT,)) as c:
         rows = await c.fetch(
             "SELECT id::text AS id, content, importance, 1 - (embedding <=> $1::vector) AS sim FROM shared.memory_chunks "
@@ -97,7 +98,8 @@ async def reconcile(router, fact: str, candidates: list[dict]) -> dict:
     return {"action": action if action in ("ADD", "UPDATE", "DELETE", "NONE") else "ADD", "id": mid}
 
 
-async def _insert(clean: str, vec: list[float], importance: float, ns: str = NS) -> str:
+async def _insert(clean: str, vec: list[float], importance: float, ns: str | None = None) -> str:
+    ns = ns or NS
     async with aio.tx("memory", (TENANT,)) as c:
         return str(await c.fetchval("INSERT INTO shared.memory_chunks (tenant, namespace, content, pii_redacted, embedding, importance) "
                                     "VALUES ($1,$2,$3,true,$4::vector,$5) RETURNING id", TENANT, ns, clean, _vec(vec), importance))
@@ -109,8 +111,9 @@ async def _supersede(old_id: str, new_id: str | None) -> None:
                         old_id, new_id or old_id, TENANT)  # superseded rows are kept (audit) but never recalled
 
 
-async def learn(router, fact: str, importance: float = 0.5, ns: str = NS) -> dict:
+async def learn(router, fact: str, importance: float = 0.5, ns: str | None = None) -> dict:
     """Store one fact through the sanitiser and the reconciler. Returns {"action", "id", "fact"}."""
+    ns = ns or NS
     clean, _found = await asyncio.get_running_loop().run_in_executor(None, sanitize, fact)
     vec = await _embed(clean)
     if vec is None:
@@ -127,8 +130,9 @@ async def learn(router, fact: str, importance: float = 0.5, ns: str = NS) -> dic
     return {"action": action, "id": new_id or old, "fact": clean}
 
 
-async def consolidate_turn(router, user_text: str, assistant_text: str, ns: str = NS, bot: bool = False, extra_ns: tuple = ()) -> list[dict]:
+async def consolidate_turn(router, user_text: str, assistant_text: str, ns: str | None = None, bot: bool = False, extra_ns: tuple = ()) -> list[dict]:
     """ns 'fact' = unified memory about the founder (shared by every bot); ns 'bot.<slug>' = that bot's own lessons (separate)."""
+    ns = ns or NS
     try:
         facts = await extract_facts(router, user_text, assistant_text, bot)
         out = [await learn(router, f["fact"], f["importance"], ns) for f in facts]
@@ -158,7 +162,8 @@ async def recall_multi(query: str, spec: dict[str, int], min_sim: float = 0.5) -
     return out
 
 
-async def recall(query: str, k: int = 4, min_sim: float = 0.5, ns: str = NS) -> list[str]:
+async def recall(query: str, k: int = 4, min_sim: float = 0.5, ns: str | None = None) -> list[str]:
+    ns = ns or NS
     clean, _ = await asyncio.get_running_loop().run_in_executor(None, sanitize, query)
     vec = await _embed(clean)
     if vec is None:
@@ -186,7 +191,8 @@ async def sweep(half_life_days: float = 30.0, threshold: float = 0.05) -> int:
     return len(dead)
 
 
-async def list_facts(include_inactive: bool = False, ns: str = NS) -> list[dict]:
+async def list_facts(include_inactive: bool = False, ns: str | None = None) -> list[dict]:
+    ns = ns or NS
     where = "" if include_inactive else " AND superseded_by IS NULL AND (expires_at IS NULL OR expires_at > now())"
     async with aio.tx("memory", (TENANT,)) as c:
         rows = await c.fetch(f"SELECT id::text AS id, content, importance, hits, created_at, last_used_at, superseded_by::text AS superseded_by, expires_at "

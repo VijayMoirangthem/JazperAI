@@ -15,7 +15,7 @@ from collections.abc import AsyncIterator
 
 from agents import comms, connector, orgchart, skills, workspaces
 from agents.registry import BotDef, registry
-from core import finops, hitl
+from core import finops, hitl, untrusted
 from core.llm.types import LLMRequest, Usage
 from hub.hub import ToolError, hub
 
@@ -69,13 +69,16 @@ RULES = ("\nHierarchy: Jasper delegates to group leads; leads delegate to their 
 
 def tools_for(slug: str) -> list[str]:
     """Static allowlist, else a default set for bots whose group has a workspace (leads also delegate and hold meetings)."""
+    off = set(orgchart.SETTINGS.get(slug, {}).get("tools_off", []))  # the founder can switch individual tools off per bot
     if slug in TOOLS_FOR:
-        return TOOLS_FOR[slug]
-    if slug in LEADS:
-        return ["list_org", "find_bot", "ask_bot", "hold_meeting", "remember", "list_skills", "view_skill", *(FS if workspaces.has_workspace(slug) else [])]
-    if workspaces.has_workspace(slug):
-        return [*FS, "ask_bot", "remember", "list_skills", "view_skill"]
-    return []
+        base = TOOLS_FOR[slug]
+    elif slug in LEADS:
+        base = ["list_org", "find_bot", "ask_bot", "hold_meeting", "remember", "list_skills", "view_skill", *(FS if workspaces.has_workspace(slug) else [])]
+    elif workspaces.has_workspace(slug):
+        base = [*FS, "ask_bot", "remember", "list_skills", "view_skill"]
+    else:
+        base = []
+    return [t for t in base if t not in off]
 
 
 def has_tools(slug: str) -> bool:
@@ -85,7 +88,7 @@ def has_tools(slug: str) -> bool:
 async def system_for(slug: str, system: str) -> str:
     lines = "\n".join("- " + HELP[t] for t in tools_for(slug))
     cat = await skills.catalogue()
-    return f"{system}\n\n{INTRO}{lines}{RULES}" + (f"\n\nSkills you can load with view_skill:\n{cat}" if cat else "")
+    return f"{system}\n\n{INTRO}{lines}{RULES}\n{untrusted.STANDING_RULE}" + (f"\n\nSkills you can load with view_skill:\n{cat}" if cat else "")
 
 
 def _clip(x, n: int = 1800) -> str:
@@ -119,6 +122,18 @@ def _path(args: dict) -> str:
     return ""
 
 
+async def _gate(action: str, summary: str, agent: str) -> bool:
+    """hitl.gate that escalates to explicit approval (Tier 3) and quotes the untrusted source when the request is tainted."""
+    return await hitl.gate(action, summary + untrusted.approval_note(), agent, min_tier=3 if untrusted.is_tainted() else 0)
+
+
+def _ext(source: str, agent: str, result: str, always: bool = True) -> str:
+    """Wrap an external tool result as untrusted data (errors and our own status text are left alone)."""
+    if not always or result.startswith(("error", "blocked", "no ")):
+        return result
+    return untrusted.wrap(source, result)
+
+
 async def run_tool(name: str, args: dict, agent: str) -> str:
     if name not in tools_for(agent):
         return f"error: tool {name} is not available to {agent}"
@@ -150,7 +165,7 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
             return "error: slug must be lowercase letters, digits, - . _"
         if registry.get(slug):
             return f"error: bot {slug} already exists"
-        if not await hitl.gate("bot.create", f"Create bot {slug}: {str(args.get('role_title', ''))[:120]}", agent):
+        if not await _gate("bot.create", f"Create bot {slug}: {str(args.get('role_title', ''))[:120]}", agent):
             return "blocked: founder did not approve"
         b = BotDef(slug=slug, display_name=str(args.get("display_name") or slug), role_title=str(args.get("role_title", "")), crew=str(args.get("group", "personal")),
                    prompt=str(args.get("prompt", "")), model_policy={"default_tier": args.get("tier", "standard")}, lifecycle="probation")
@@ -161,7 +176,7 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
         slug = str(args.get("slug", ""))
         if not any(r["slug"] == slug for r in registry.roster()):
             return f"error: unknown bot {slug}"
-        if not await hitl.gate("bot.edit", f"Change system prompt of {slug}", agent):
+        if not await _gate("bot.edit", f"Change system prompt of {slug}", agent):
             return "blocked: founder did not approve"
         await orgchart.set_prompt(slug, str(args.get("prompt", "")))
         return f"prompt of {slug} updated"
@@ -173,7 +188,7 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
         exp = str(args.get("experiment", ""))
         if exp != "all" and exp not in chaos.EXPERIMENTS:
             return f"error: unknown experiment; choose from {list(chaos.EXPERIMENTS)} or all"
-        if not await hitl.gate("chaos.run", f"Run chaos experiment {exp} (sandbox only)", agent):
+        if not await _gate("chaos.run", f"Run chaos experiment {exp} (sandbox only)", agent):
             return "blocked: founder did not approve"
         res = await chaos.run_all() if exp == "all" else [await chaos.run(exp)]
         return _clip([{k: r[k] for k in ("name", "passed", "detail", "ms")} for r in res])
@@ -184,7 +199,9 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
         return _clip([{"name": t["name"], "tier": t["tier"], "description": t["description"][:100], "args": list(t["schema"].get("properties", {}))} for t in found])
     if name == "use_tool":
         try:
-            return _clip(await hub.use_tool(str(args.get("name", "")), args.get("arguments") or {}, agent=agent))
+            tname = str(args.get("name", ""))
+            res = await hub.use_tool(tname, args.get("arguments") or {}, agent=agent, taint=untrusted.is_tainted(), note=untrusted.approval_note())
+            return _ext(tname.split(".")[0] or "mcp", agent, _clip(res), always=not res.get("blocked"))
         except ToolError as e:
             return f"error: {str(e)[:300]}"
     if name == "list_connections":
@@ -222,22 +239,25 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
     if name == "fs_list":
         if not _path(args):  # no path given: show the folders the bot may use instead of failing
             return _clip([r["path"] for r in workspaces.roots_for(agent)] or "no folders attached")
-        return _clip(workspaces.list_dir(agent, _path(args)), 3000)
+        return _ext("file", agent, _clip(workspaces.list_dir(agent, _path(args)), 3000))
     if name == "fs_read":
-        return _clip(workspaces.read_file(agent, _path(args), min(int(args.get("max_chars", 8000) or 8000), workspaces.MAX_READ)), workspaces.MAX_READ)
+        return _ext("file", agent, _clip(workspaces.read_file(agent, _path(args), min(int(args.get("max_chars", 8000) or 8000), workspaces.MAX_READ)), workspaces.MAX_READ))
     if name == "fs_search":
-        return _clip(await asyncio.to_thread(workspaces.search, agent, str(args.get("query", "")), _path(args)), 3000)
+        return _ext("file", agent, _clip(await asyncio.to_thread(workspaces.search, agent, str(args.get("query", "")), _path(args)), 3000))
     if name == "fs_write":
         p, why = workspaces.write_file(agent, _path(args), str(args.get("content", "")))
         if not p:
             return "error: " + why
-        if not await hitl.gate("file.write", f"{agent} writes {p} ({len(str(args.get('content', '')))} chars)", agent):
+        if not await _gate("file.write", f"{agent} writes {p} ({len(str(args.get('content', '')))} chars)", agent):
             return "blocked: founder did not approve"
         out = await asyncio.to_thread(workspaces.commit_write, p, str(args.get("content", "")))
         await comms.log(agent, "tool:fs_write", "event", out)
         return out
     if name == "find_bot":
         return _clip(await _find_bot(str(args.get("need", ""))), 2000)
+    if name in ("remember", "save_skill") and untrusted.is_tainted():
+        return ("blocked: this request contains untrusted external content (" + ", ".join(untrusted.current().sources) + "). I will not store memories or skills from it; "
+                "ask the founder to say it directly if it should be remembered.")
     if name == "remember":
         from core.llm.registry import get_router
         from memory import consolidate
@@ -425,16 +445,33 @@ def _spawn_review(r, slug: str, user_text: str, trace: list[str], answer: str) -
 async def stream_with_tools(r, system: str, msgs: list[dict], tier: str, agent: str = "jasper") -> AsyncIterator[dict]:
     """Yields {"delta"} | {"tool"} | {"ui"} | {"usage"}. Tool-call rounds are buffered, plain answers are streamed."""
     token = _ui.set([])
+    scope = untrusted.begin()  # one taint scope per request; delegated bots share it
     trace: list[str] = []
     answer: list[str] = []
+    tainted = False
     try:
+        last = str(msgs[-1].get("content", "")) if msgs else ""
+        if '<untrusted source="attachment' in last:  # attachments the founder sent are untrusted data too; carry over what the scan found
+            tn = untrusted.current()
+            tn.sources.append("attachment")
+            for fl in re.findall(r'<untrusted source="attachment" flags="([^"]*)"', last):
+                tn.flags += [x for x in fl.split(",") if x and x not in tn.flags]
+            tn.suspicious = bool(tn.flags)
         async for ev in _rounds(r, agent, system, msgs, tier, trace):
             if "delta" in ev:
                 answer.append(ev["delta"])
+            if "tool" in ev and untrusted.is_tainted() and ev["tool"].get("status") != "running":
+                ev["tool"]["untrusted"] = ", ".join(untrusted.current().sources)
             yield ev
+        tainted = untrusted.is_tainted()
+        if tainted:
+            tn = untrusted.current()
+            await comms.log(agent, "system", "event", f"turn tainted by {', '.join(tn.sources)}; flags: {', '.join(tn.flags) or 'none'}; writes escalated to explicit approval")
     finally:
         _ui.reset(token)
-    _spawn_review(r, agent, msgs[-1]["content"] if msgs else "", trace, "".join(answer))
+        untrusted.end(scope)
+    if not tainted:  # never learn (skills, memory) from a turn that handled untrusted content
+        _spawn_review(r, agent, msgs[-1]["content"] if msgs else "", trace, "".join(answer))
 
 
 async def run_bot(slug: str, text: str, asker: str = "jasper") -> str:
@@ -445,6 +482,8 @@ async def run_bot(slug: str, text: str, asker: str = "jasper") -> str:
 
     if _depth.get() >= MAX_DEPTH:
         return "error: delegation depth limit reached"
+    if await orgchart.over_cap(slug):
+        return f"error: {slug} reached its daily token cap"
     system, tier = _persona(slug)
     r = await get_router()
     tok = _depth.set(_depth.get() + 1)

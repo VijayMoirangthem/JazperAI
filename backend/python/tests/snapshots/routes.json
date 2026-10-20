@@ -677,6 +677,10 @@
  ],
  [
   "GET",
+  "/api/bots/{slug}/export"
+ ],
+ [
+  "GET",
   "/api/briefings/config"
  ],
  [
@@ -1110,6 +1114,10 @@
  [
   "GET",
   "/api/knowledge"
+ ],
+ [
+  "GET",
+  "/api/llm/catalog"
  ],
  [
   "GET",
@@ -1553,6 +1561,10 @@
  ],
  [
   "GET",
+  "/api/v1/bots/{slug}/export"
+ ],
+ [
+  "GET",
   "/api/v1/briefings/config"
  ],
  [
@@ -1986,6 +1998,10 @@
  [
   "GET",
   "/api/v1/knowledge"
+ ],
+ [
+  "GET",
+  "/api/v1/llm/catalog"
  ],
  [
   "GET",
@@ -2741,6 +2757,18 @@
  ],
  [
   "POST",
+  "/api/bots/import"
+ ],
+ [
+  "POST",
+  "/api/bots/{slug}/duplicate"
+ ],
+ [
+  "POST",
+  "/api/bots/{slug}/enable"
+ ],
+ [
+  "POST",
   "/api/bots/{slug}/message"
  ],
  [
@@ -3161,6 +3189,18 @@
  ],
  [
   "POST",
+  "/api/llm/catalog/test"
+ ],
+ [
+  "POST",
+  "/api/llm/compare"
+ ],
+ [
+  "POST",
+  "/api/llm/compare/vote"
+ ],
+ [
+  "POST",
   "/api/llm/complete"
  ],
  [
@@ -3454,6 +3494,18 @@
  [
   "POST",
   "/api/v1/bots/groups"
+ ],
+ [
+  "POST",
+  "/api/v1/bots/import"
+ ],
+ [
+  "POST",
+  "/api/v1/bots/{slug}/duplicate"
+ ],
+ [
+  "POST",
+  "/api/v1/bots/{slug}/enable"
  ],
  [
   "POST",
@@ -3874,6 +3926,18 @@
  [
   "POST",
   "/api/v1/knowledge/url"
+ ],
+ [
+  "POST",
+  "/api/v1/llm/catalog/test"
+ ],
+ [
+  "POST",
+  "/api/v1/llm/compare"
+ ],
+ [
+  "POST",
+  "/api/v1/llm/compare/vote"
  ],
  [
   "POST",

@@ -173,7 +173,7 @@ async def card(slug: str) -> dict | None:
                 d = registry.get(slug)
                 prompt = OVERRIDES.get(slug) or (d.prompt if d else "")
                 return {**b, "group": g["id"], "group_label": g["label"], "prompt": prompt, "prompt_is_default": not d and slug not in OVERRIDES,
-                        "memory_namespace": d.memory_namespace if d else f"bot.{slug}", "settings": SETTINGS.get(slug, {})}
+                        "memory_namespace": d.memory_namespace if d else f"bot.{slug}", "settings": SETTINGS.get(slug, {}), "tool_options": _tool_options(slug)}
     return None
 
 
@@ -191,6 +191,12 @@ async def set_prompt(slug: str, prompt: str | None) -> None:
     await aio.execute("INSERT INTO shared.bot_org(slug) VALUES($1) ON CONFLICT DO NOTHING", slug)
     await aio.execute("UPDATE shared.bot_org SET prompt_override=$2, updated_at=now() WHERE slug=$1", slug, prompt or None)
     await load_overrides()
+
+
+def _tool_options(slug: str) -> list[str]:
+    """Tools this bot has (including ones switched off, so they can be switched back on)."""
+    from agents import jasper_tools
+    return sorted(set(jasper_tools.tools_for(slug)) | set(SETTINGS.get(slug, {}).get("tools_off", [])))
 
 
 def llm_kwargs(slug: str) -> dict:
@@ -214,7 +220,7 @@ async def set_settings(slug: str, patch: dict) -> dict:
     """Validated merge into the bot's settings. A value of None/'' removes that key (back to default)."""
     cur = dict(SETTINGS.get(slug, {}))
     for k, v in patch.items():
-        if k not in ("model", "tier", "temperature", "max_tokens", "memory"):
+        if k not in ("model", "tier", "temperature", "max_tokens", "memory", "tools_off", "memory_scopes", "style", "language", "daily_token_cap"):
             continue
         if v in (None, ""):
             cur.pop(k, None)
@@ -228,7 +234,46 @@ async def set_settings(slug: str, patch: dict) -> dict:
             cur[k] = v
         elif k == "memory" and isinstance(v, bool):
             cur[k] = v
+        elif k == "tools_off" and isinstance(v, list):
+            cur[k] = [str(x)[:40] for x in v][:30]
+        elif k == "memory_scopes" and isinstance(v, dict):
+            cur[k] = {s: bool(v.get(s, True)) for s in ("founder", "own", "group", "org")}
+        elif k == "style" and v in ("concise", "detailed"):
+            cur[k] = v
+        elif k == "language" and isinstance(v, str) and len(v) <= 30:
+            cur[k] = v
+        elif k == "daily_token_cap" and isinstance(v, int) and 1000 <= v <= 50_000_000:
+            cur[k] = v
     await aio.execute("INSERT INTO shared.bot_org(slug) VALUES($1) ON CONFLICT DO NOTHING", slug)
     await aio.execute("UPDATE shared.bot_org SET settings=$2::jsonb, updated_at=now() WHERE slug=$1", slug, json.dumps(cur))
     SETTINGS[slug] = cur
     return cur
+
+
+def persona_suffix(slug: str) -> str:
+    """Reply style and language chosen for this bot, appended to its system prompt."""
+    st = SETTINGS.get(slug, {})
+    bits = []
+    if st.get("style") == "concise":
+        bits.append("Keep answers short: lead with the answer, no preamble, no repetition.")
+    elif st.get("style") == "detailed":
+        bits.append("Give thorough, well-structured answers with the reasoning and options.")
+    if st.get("language"):
+        bits.append(f"Reply in {st['language']}.")
+    return ("\n\n" + " ".join(bits)) if bits else ""
+
+
+def memory_scopes(slug: str) -> dict:
+    return {"founder": True, "own": True, "group": True, "org": True, **SETTINGS.get(slug, {}).get("memory_scopes", {})}
+
+
+async def over_cap(slug: str) -> bool:
+    """True when this bot has used its daily token cap (hard stop for the day)."""
+    cap = SETTINGS.get(slug, {}).get("daily_token_cap")
+    if not cap:
+        return False
+    from core import finops
+    try:
+        return await finops.used_today(" AND agent = $1", slug) >= cap
+    except Exception:
+        return False

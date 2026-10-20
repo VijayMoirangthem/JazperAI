@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useViewActive } from "@/lib/viewActive";
 import { useApi } from "@/lib/swr";
 import { UserPlus, X } from "lucide-react";
 import { bfs, near, pickSpot, placeFor, type Place, type Pt } from "@/office/behavior";
@@ -29,11 +30,16 @@ export function OfficePanel() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ slug: "", name: "", role: "", crew: "baeit" });
   const [reloadKey, setReloadKey] = useState(0);
+  const active = useViewActive();
+  const activeRef = useRef(active);
+  const gameRef = useRef<import("phaser").Game | null>(null);
   useEffect(() => connect(WS_URL), [connect]);
 
   const { data: directory, loading: dirLoading } = useApi<DirectoryResponse>(`${API}/api/v1/directory/`, { ttl: 30000, poll: 30000 });
   const { data: roster, loading: rosterLoading } = useApi<BotsResponse>(`${API}/api/v1/bots/`, { ttl: 5000, poll: 5000 });
 
+  // rebuild the scene only when WHO is in the office changes, not on every poll (each poll returns new objects with the same content)
+  const sig = useMemo(() => JSON.stringify([directory?.humans, roster?.bots?.map((b) => [b.slug, b.display_name, b.role_title, b.crew, b.lifecycle, b.enabled])]), [directory, roster]);
   useEffect(() => {
     let game: import("phaser").Game | null = null;
     let unsub: (() => void) | null = null;
@@ -178,10 +184,16 @@ export function OfficePanel() {
         type: Phaser.AUTO, parent: host.current, width: 40 * T, height: 24 * T, backgroundColor: "#0b0f14", scene: OfficeScene, pixelArt: true,
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
       });
+      gameRef.current = game;
+      if (!activeRef.current) game.loop.sleep();
     })();
 
-    return () => { cancelled = true; unsub?.(); game?.destroy(true); };
-  }, [reloadKey, directory, roster]);
+    return () => { cancelled = true; unsub?.(); game?.destroy(true); gameRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey, sig]);
+
+  // hidden tab: stop the render loop (the panel stays mounted so coming back is instant)
+  useEffect(() => { activeRef.current = active; const g = gameRef.current; if (g) { if (active) g.loop.wake(); else g.loop.sleep(); } }, [active]);
 
   const addEmployee = async () => {
     if (!form.slug || !form.name) return;
