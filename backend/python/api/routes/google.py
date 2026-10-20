@@ -58,6 +58,18 @@ def _client_config():
 
 # ── OAuth flow ────────────────────────────────────────────────────────────────
 
+def _done_page(ok: bool, detail: str):
+    """Landing page after Google's redirect. The app runs inside Electron (no web server on the old :3001), so show a small page
+    in the system browser instead of redirecting; the chat card polls /oauth/status and continues by itself."""
+    import html
+
+    from fastapi.responses import HTMLResponse
+    title = "Signed in to Google" if ok else "Sign-in failed"
+    msg = f"Connected as {html.escape(detail)}. You can close this tab and go back to Jazper." if ok else html.escape(detail)
+    color = "#22c55e" if ok else "#ef4444"
+    return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>{title}</title><body style=" + chr(34) + f"background:#0b0b0b;color:#eee;font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0" + chr(34) + f"><div style=" + chr(34) + "text-align:center;max-width:420px" + chr(34) + f"><h2 style=" + chr(34) + f"color:{color}" + chr(34) + f">{title}</h2><p>{msg}</p></div>")
+
+
 @router.get("/oauth/authorize")
 async def authorize():
     """Redirect the user to Google's OAuth consent screen."""
@@ -106,7 +118,7 @@ async def oauth_callback(
 
     if error:
         log.warning("Google OAuth error", error=error)
-        return RedirectResponse(f"{settings.FRONTEND_URL}?gmail_error={error}")
+        return _done_page(False, f"Google reported: {error}")
 
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
@@ -151,10 +163,10 @@ async def oauth_callback(
 
     try:
         email = await _run(_exchange)
-        return RedirectResponse(f"{settings.FRONTEND_URL}?gmail_connected={email}&view=gmail")
+        return _done_page(True, email)
     except Exception as e:
         log.error("OAuth callback failed", error=str(e))
-        return RedirectResponse(f"{settings.FRONTEND_URL}?gmail_error=callback_failed")
+        return _done_page(False, "The sign-in could not be completed. Close this tab and try again from Jazper.")
 
 
 @router.get("/oauth/status")

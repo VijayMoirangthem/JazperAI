@@ -4,6 +4,7 @@ Pattern: CrewAI's manager-led process (a lead synthesises the crew's work) and g
 transcript so far). Rounds are sequential so later speakers can agree, disagree or build on earlier ones. Every turn is stored in the comms log
 (thread "meeting|<group>") so the exchange can be replayed. Yields chat2-compatible events (speaker/delta/done) plus {"t":"phase"} markers.
 """
+import asyncio
 from collections.abc import AsyncIterator
 
 from agents import comms, orgchart
@@ -63,3 +64,8 @@ async def stream(router, group: str, topic: str, rounds: int = 2) -> AsyncIterat
     yield {"t": "phase", "text": "Conclusion"}
     async for ev in turn(lead_slug, CONCLUDE_RULE, f"Topic: {topic}\n\nDiscussion:\n" + "\n".join(transcript), "conclusion"):
         yield ev
+    try:  # the conclusion becomes group memory so future work in this group starts from it
+        from memory import consolidate
+        asyncio.create_task(consolidate.learn(router, f"Meeting decision on '{topic[:120]}': " + transcript[-1].split(': ', 1)[-1][:400], 0.7, f"group.{group}"))
+    except Exception:
+        pass

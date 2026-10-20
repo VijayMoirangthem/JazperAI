@@ -25,11 +25,13 @@ class Connection:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._stop: asyncio.Event | None = None
         self._session = None
+        self._cancel = False
 
-    def start(self, timeout: float = 30) -> None:
+    def start(self, timeout: float = 60) -> None:
         self._thread = threading.Thread(target=self._main, name=f"mcp-{self.cid}", daemon=True)
         self._thread.start()
         if not self._ready.wait(timeout) or self.error:
+            self._cancel = True  # late starter: _serve exits (and the stdio child is reaped) as soon as it is up
             raise ConnectionError_(self.error or "connector start timed out")
 
     def _main(self) -> None:
@@ -56,6 +58,8 @@ class Connection:
                 self.tools = [{"name": t.name, "description": t.description or "", "schema": t.inputSchema,
                                "read_only": bool(getattr(getattr(t, "annotations", None), "readOnlyHint", False))} for t in (await session.list_tools()).tools]
                 self._ready.set()
+                if self._cancel:
+                    return
                 await self._stop.wait()
 
     @property
@@ -79,6 +83,7 @@ class Connection:
         return {"is_error": bool(res.isError), "text": text}
 
     def stop(self) -> None:
+        self._cancel = True
         if self._loop and self._stop and not self._loop.is_closed():
             self._loop.call_soon_threadsafe(self._stop.set)
         if self._thread:

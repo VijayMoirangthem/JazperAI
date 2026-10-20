@@ -173,5 +173,18 @@ async def disconnect(cid: str) -> dict:
     return await check(cid)
 
 
+async def autoconnect() -> None:
+    """Background, after startup: bring up connectors that are already authorised (Google signed in, secrets present). Never raises."""
+    import asyncio
+    await asyncio.sleep(5)
+    for cid in ("google-workspace", "github", "slack", "notion"):
+        try:
+            st = await check(cid)
+            if st.get("ready") and cid not in hub.manifests:
+                await test(cid)
+        except Exception:
+            pass
+
+
 async def overview() -> list[dict]:
     return [await check(cid) for cid in catalogue()]

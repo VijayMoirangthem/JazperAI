@@ -57,6 +57,10 @@
  ],
  [
   "DELETE",
+  "/api/connections/{cid}"
+ ],
+ [
+  "DELETE",
   "/api/contacts/{contact_id}"
  ],
  [
@@ -317,6 +321,10 @@
  ],
  [
   "DELETE",
+  "/api/v1/connections/{cid}"
+ ],
+ [
+  "DELETE",
   "/api/v1/contacts/{contact_id}"
  ],
  [
@@ -529,11 +537,19 @@
  ],
  [
   "DELETE",
+  "/api/v1/workspaces/{wid}"
+ ],
+ [
+  "DELETE",
   "/api/voice-journal/{entry_id}"
  ],
  [
   "DELETE",
   "/api/webhooks/{webhook_id}"
+ ],
+ [
+  "DELETE",
+  "/api/workspaces/{wid}"
  ],
  [
   "GET",
@@ -737,6 +753,22 @@
  ],
  [
   "GET",
+  "/api/comms/agents"
+ ],
+ [
+  "GET",
+  "/api/comms/recent"
+ ],
+ [
+  "GET",
+  "/api/comms/thread"
+ ],
+ [
+  "GET",
+  "/api/comms/threads"
+ ],
+ [
+  "GET",
   "/api/company/departments"
  ],
  [
@@ -746,6 +778,10 @@
  [
   "GET",
   "/api/company/structure"
+ ],
+ [
+  "GET",
+  "/api/connections/"
  ],
  [
   "GET",
@@ -1289,6 +1325,14 @@
  ],
  [
   "GET",
+  "/api/skills/"
+ ],
+ [
+  "GET",
+  "/api/skills/{name}"
+ ],
+ [
+  "GET",
   "/api/slo/"
  ],
  [
@@ -1585,6 +1629,22 @@
  ],
  [
   "GET",
+  "/api/v1/comms/agents"
+ ],
+ [
+  "GET",
+  "/api/v1/comms/recent"
+ ],
+ [
+  "GET",
+  "/api/v1/comms/thread"
+ ],
+ [
+  "GET",
+  "/api/v1/comms/threads"
+ ],
+ [
+  "GET",
   "/api/v1/company/departments"
  ],
  [
@@ -1594,6 +1654,10 @@
  [
   "GET",
   "/api/v1/company/structure"
+ ],
+ [
+  "GET",
+  "/api/v1/connections/"
  ],
  [
   "GET",
@@ -2137,6 +2201,14 @@
  ],
  [
   "GET",
+  "/api/v1/skills/"
+ ],
+ [
+  "GET",
+  "/api/v1/skills/{name}"
+ ],
+ [
+  "GET",
   "/api/v1/slo/"
  ],
  [
@@ -2253,6 +2325,10 @@
  ],
  [
   "GET",
+  "/api/v1/voice2/voices"
+ ],
+ [
+  "GET",
   "/api/v1/voyager/events"
  ],
  [
@@ -2266,6 +2342,14 @@
  [
   "GET",
   "/api/v1/workflows/"
+ ],
+ [
+  "GET",
+  "/api/v1/workspaces/"
+ ],
+ [
+  "GET",
+  "/api/v1/workspaces/browse"
  ],
  [
   "GET",
@@ -2289,6 +2373,10 @@
  ],
  [
   "GET",
+  "/api/voice2/voices"
+ ],
+ [
+  "GET",
   "/api/voyager/events"
  ],
  [
@@ -2302,6 +2390,14 @@
  [
   "GET",
   "/api/workflows/"
+ ],
+ [
+  "GET",
+  "/api/workspaces/"
+ ],
+ [
+  "GET",
+  "/api/workspaces/browse"
  ],
  [
   "GET",
@@ -2713,6 +2809,10 @@
  ],
  [
   "POST",
+  "/api/chat2/meeting"
+ ],
+ [
+  "POST",
   "/api/chat2/room"
  ],
  [
@@ -2738,6 +2838,14 @@
  [
   "POST",
   "/api/compose/improve"
+ ],
+ [
+  "POST",
+  "/api/connections/{cid}/connect"
+ ],
+ [
+  "POST",
+  "/api/connections/{cid}/test"
  ],
  [
   "POST",
@@ -3225,6 +3333,10 @@
  ],
  [
   "POST",
+  "/api/skills/{name}/enabled"
+ ],
+ [
+  "POST",
   "/api/slo/chaos/{name}"
  ],
  [
@@ -3413,6 +3525,10 @@
  ],
  [
   "POST",
+  "/api/v1/chat2/meeting"
+ ],
+ [
+  "POST",
   "/api/v1/chat2/room"
  ],
  [
@@ -3438,6 +3554,14 @@
  [
   "POST",
   "/api/v1/compose/improve"
+ ],
+ [
+  "POST",
+  "/api/v1/connections/{cid}/connect"
+ ],
+ [
+  "POST",
+  "/api/v1/connections/{cid}/test"
  ],
  [
   "POST",
@@ -3925,6 +4049,10 @@
  ],
  [
   "POST",
+  "/api/v1/skills/{name}/enabled"
+ ],
+ [
+  "POST",
   "/api/v1/slo/chaos/{name}"
  ],
  [
@@ -4065,6 +4193,10 @@
  ],
  [
   "POST",
+  "/api/v1/workspaces/"
+ ],
+ [
+  "POST",
   "/api/voice-journal/record"
  ],
  [
@@ -4145,6 +4277,10 @@
  ],
  [
   "POST",
+  "/api/workspaces/"
+ ],
+ [
+  "POST",
   "/ws/demo"
  ],
  [
@@ -4170,6 +4306,10 @@
  [
   "PUT",
   "/api/bots/{slug}/prompt"
+ ],
+ [
+  "PUT",
+  "/api/connections/{cid}/secrets"
  ],
  [
   "PUT",
@@ -4217,6 +4357,10 @@
  ],
  [
   "PUT",
+  "/api/skills/"
+ ],
+ [
+  "PUT",
   "/api/system/secrets"
  ],
  [
@@ -4246,6 +4390,10 @@
  [
   "PUT",
   "/api/v1/bots/{slug}/prompt"
+ ],
+ [
+  "PUT",
+  "/api/v1/connections/{cid}/secrets"
  ],
  [
   "PUT",
@@ -4290,6 +4438,10 @@
  [
   "PUT",
   "/api/v1/profile/"
+ ],
+ [
+  "PUT",
+  "/api/v1/skills/"
  ],
  [
   "PUT",

@@ -19,7 +19,7 @@ POLICY: dict[str, int] = {
     "file.read": 1, "memory.search": 1, "web.search": 1, "git.read": 1, "mcp.read": 1,
     # Tier 2 - notification gated
     "git.create_branch": 2, "git.commit_agent_branch": 2, "mcp.write": 2, "email.draft": 2, "calendar.create_event": 2,
-    "bot.create": 2, "bot.edit": 2, "chaos.run": 2,
+    "bot.create": 2, "file.write": 2, "bot.edit": 2, "chaos.run": 2,
     # Tier 3 - explicit authorization
     "git.merge_main": 3, "deploy.production": 3, "payment.authorize": 3, "filing.submit": 3,
     "email.send_external": 3, "linkedin.apply": 3, "secrets.export": 3,

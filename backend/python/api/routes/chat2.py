@@ -13,7 +13,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from agents import discussion, jasper_tools, orgchart
+from agents import discussion, jasper_tools, orgchart, workspaces
 from agents.decision import decide
 from agents.registry import registry
 from core import directory, finops
@@ -75,13 +75,16 @@ def _line(o: dict) -> str:
 async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attachment], tier: str | None = None) -> AsyncIterator[str]:
     system, default_tier = _persona(slug)
     
-    # Memory v2: unified memory about the founder (shared by all bots) + this bot's own lessons (separate). Recall never blocks the chat.
+    # Memory layers, embedded once: founder facts (shared by all bots), this bot's own lessons, its group's memory, company-wide memory. Never blocks the chat.
     try:
-        facts, lessons = await asyncio.wait_for(asyncio.gather(consolidate.recall(text, k=4), consolidate.recall(text, k=3, ns=f"bot.{slug}")), timeout=4.0)
-        if facts:
-            system = f"{system}\n\nWhat you already know about the founder:\n" + "\n".join(f"- {f}" for f in facts)
-        if lessons:
-            system = f"{system}\n\nLessons from your own past work:\n" + "\n".join(f"- {f}" for f in lessons)
+        grp = workspaces.GROUP_OF.get(slug)
+        spec = {"fact": 4, f"bot.{slug}": 3, "org": 2}
+        if grp and grp not in ("legacy", "chief"):
+            spec[f"group.{grp}"] = 3
+        got = await asyncio.wait_for(consolidate.recall_multi(text, spec), timeout=4.0)
+        for ns, title in (("fact", "What you know about the founder"), (f"bot.{slug}", "Lessons from your own past work"), (f"group.{grp}", "Your group's shared memory"), ("org", "Company-wide memory")):
+            if got.get(ns):
+                system = f"{system}\n\n{title}:\n" + "\n".join(f"- {f}" for f in got[ns])
     except Exception:
         pass  # includes TimeoutError: memory must never break a conversation
 

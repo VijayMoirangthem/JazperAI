@@ -215,6 +215,8 @@ async def lifespan(app: FastAPI):
         await ensure_org()  # seeds executives + spec crews once; never overwrites edits
         from agents.orgchart import ensure_orgchart
         await ensure_orgchart()  # groups, Jazper Team bots, placements, prompt overrides
+        from agents.connector import autoconnect
+        asyncio.create_task(autoconnect())  # reconnect already-authorised connectors in the background
         from core.durable import get_checkpointer
         await get_checkpointer()
     except Exception as exc:
@@ -377,6 +379,7 @@ from api.routes import connections as connections_route
 app.include_router(connections_route.router, prefix="/api/connections", tags=["connections"])
 app.include_router(connections_route.comms_router, prefix="/api/comms", tags=["comms"])
 app.include_router(connections_route.skills_router, prefix="/api/skills", tags=["skills"])
+app.include_router(connections_route.workspaces_router, prefix="/api/workspaces", tags=["workspaces"])
 from api.routes import memory2 as memory2_route
 app.include_router(memory2_route.router, prefix="/api/memory2", tags=["memory2"])
 from api.routes import voice2 as voice2_route

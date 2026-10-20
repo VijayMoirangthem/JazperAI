@@ -17,7 +17,7 @@ def test_score_combines_reliability_and_thumbs():
 
 def test_home_for_rules():
     assert orgchart.home_for("jasper", "l1", "builtin") == ("chief", "")
-    assert orgchart.home_for("herald", "personal", "dynamic")[0] == "jazper_team"
+    assert orgchart.home_for("messenger", "personal", "dynamic")[0] == "jazper_team"
     assert orgchart.home_for("mobile-dev-bot", "baeit", "dynamic")[0] == "baeit"
     assert orgchart.home_for("aria", "unmapped", "builtin")[0] == "legacy"
 
@@ -58,3 +58,32 @@ async def test_unknown_tool_reports_error_and_continues():
     r = _Router([['<tool>{"name":"nope","args":{}}</tool>'], ["Could not."]])
     evs = await _collect(r)
     assert [e["tool"]["status"] for e in evs if "tool" in e] == ["running", "error"]
+
+
+def test_parse_call_handles_nested_json_and_variants():
+    from agents.jasper_tools import parse_call
+    nested = 'Checking.\n<tool_call>{"name":"use_tool","arguments":{"name":"g.search","arguments":{"query":"a b","max_results":5}}}</tool_call>'
+    name, args, start, _ = parse_call(nested)
+    assert name == "use_tool" and args["arguments"]["max_results"] == 5 and nested[:start].strip() == "Checking."
+    assert parse_call('<tool_call><function=view_skill>{"name": "x"}</function></tool_call>')[:2] == ("view_skill", {"name": "x"})
+    assert parse_call("plain answer") is None and parse_call("<tool>{broken") is None
+
+
+def test_workspace_rules(tmp_path):
+    from agents import workspaces
+    ws = tmp_path / "proj"
+    ws.mkdir()
+    (ws / "a.txt").write_text("hello")
+    (ws / ".env").write_text("SECRET=1")
+    workspaces._cache["baeit"] = [{"id": 1, "org_group": "baeit", "path": str(ws), "label": "p", "mode": "read-write"}]
+    workspaces.GROUP_OF["t-bot"] = "baeit"
+    try:
+        assert workspaces.read_file("t-bot", str(ws / "a.txt")) == "hello"
+        assert workspaces.read_file("t-bot", str(ws / ".env")).startswith("error: blocked")  # secret files never readable
+        assert workspaces.read_file("t-bot", str(tmp_path / "outside.txt")).startswith("error: outside")
+        assert workspaces.write_file("t-bot", str(ws / "new" / "b.txt"), "x")[0] is not None
+        assert workspaces.write_file("t-bot", str(ws / "node_modules" / "x.js"), "x")[0] is None
+        assert "no workspace" in workspaces.read_file("stranger", str(ws / "a.txt"))
+    finally:
+        workspaces._cache.pop("baeit", None)
+        workspaces.GROUP_OF.pop("t-bot", None)

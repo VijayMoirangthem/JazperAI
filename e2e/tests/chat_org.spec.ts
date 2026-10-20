@@ -22,11 +22,11 @@ test.afterAll(async () => { await app?.close(); });
 
 test("bots are grouped into the Jazper Team and companies", async () => {
   for (const g of ["chief", "jazper_team", "create_origins", "baeit", "boardmint"]) await expect(page.getByTestId(`group-${g}`)).toBeVisible();
-  await expect(page.getByTestId("chan-dm:herald")).toBeVisible();
+  await expect(page.getByTestId("chan-dm:messenger")).toBeVisible();
 });
 
 test("hovering a bot shows its position and department", async () => {
-  await page.getByTestId("chan-dm:herald").hover();
+  await page.getByTestId("chan-dm:messenger").hover();
   const card = page.getByTestId("bot-hover-card");
   await expect(card).toContainText("Jazper Team");
   await expect(card).toContainText("Personal");

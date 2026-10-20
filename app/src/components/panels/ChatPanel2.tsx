@@ -3,7 +3,7 @@
 // Chat UI modelled on Project_References/OpenMausBot: bot list with animated mascots, pill composer,
 // per-bot customisation (colour + body), mascot faces that follow what the bot is doing.
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { ArrowDown, Check, CheckCheck, Copy, Hand, Loader2, Mic, Paperclip, Pencil, SendHorizontal, ShieldCheck, Square, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { ArrowDown, Check, CheckCheck, Copy, Hand, Loader2, MoreHorizontal, Mic, Paperclip, Pencil, RefreshCw, SendHorizontal, ShieldCheck, Square, ThumbsDown, ThumbsUp, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { readNdjson } from "@/chat/ndjson";
 import { firstUnreadIndex, useChat, type ApprovalLevel, type Attachment, type ChatMessage } from "@/chat/chatStore";
 import { useTranscriptViewport } from "@/chat/useTranscriptViewport";
@@ -12,7 +12,8 @@ import { SentenceSplitter, speakable } from "@/voice/audio";
 import { Speaker } from "@/voice/speaker";
 import { useVoiceMode } from "@/voice/useVoiceMode";
 import { useLiveAgents } from "@/stores/liveAgentsStore";
-import { MausAvatar, lookFor, stateFromAgent, useBotLook, type MausMotion, type MausState } from "@/mascot/MausAvatar";
+import { MausAvatar, lookFor, stateFromAgent, useBotLook, voiceOf, type MausMotion, type MausState } from "@/mascot/MausAvatar";
+import { speakAs, stopSpeaking, useTts } from "@/voice/botVoice";
 import { OrgSidebar, ScoreBadge, type OrgGroup } from "@/components/chat/OrgSidebar";
 import { BotSettings } from "@/components/chat/BotSettings";
 import { CredentialCard, OAuthCard } from "@/components/chat/ChatCards";
@@ -62,8 +63,10 @@ function Rich({ text, onAnswer }: { text: string; onAnswer?: (t: string) => void
 
 const hhmm = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
-function Bubble({ m, onAnswer, onRate, onCard }: { m: ChatMessage; onAnswer?: (t: string) => void; onRate?: (up: boolean) => void; onCard?: (t: string) => void }) {
+function Bubble({ m, onAnswer, onRate, onCard, onDelete, onEdit, onSpeak, onRegenerate }: { m: ChatMessage; onAnswer?: (t: string) => void; onRate?: (up: boolean) => void; onCard?: (t: string) => void; onDelete?: () => void; onEdit?: (t: string) => void; onSpeak?: () => void; onRegenerate?: () => void }) {
   const mine = m.from === "you";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(m.text);
   if (m.phase) return <div className="my-1 flex items-center gap-2 text-xs opacity-60" data-testid="phase"><span className="h-px flex-1 bg-white/15" />{m.text}<span className="h-px flex-1 bg-white/15" /></div>;
   if (m.ui) return <div className="flex justify-start">{m.ui.kind === "credentials" ? <CredentialCard req={m.ui} onDone={(t) => onCard?.(t)} /> : <OAuthCard req={m.ui} onDone={(t) => onCard?.(t)} />}</div>;
   const system = m.from === "system";
@@ -90,7 +93,12 @@ function Bubble({ m, onAnswer, onRate, onCard }: { m: ChatMessage; onAnswer?: (t
           : a.dataUrl && a.mime.startsWith("audio/")
             ? <audio key={a.name} controls src={a.dataUrl} className="mb-1 h-8" />
             : <div key={a.name} className="mb-1 inline-flex items-center gap-1 rounded-full bg-black/30 px-2 py-0.5 text-xs"><Paperclip size={11} />{a.name}</div>)}
-        <Rich text={m.text || (m.streaming ? "…" : "")} onAnswer={m.streaming ? undefined : onAnswer} />
+        {editing ? (
+          <div className="space-y-1.5">
+            <textarea autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} rows={Math.min(8, draft.split("\n").length + 1)} aria-label="Edit message" className="w-full min-w-[280px] resize-none rounded-lg bg-black/30 p-2 text-sm outline-none" />
+            <div className="flex justify-end gap-2 text-xs"><button onClick={() => { setEditing(false); setDraft(m.text); }} className="rounded-full bg-white/10 px-3 py-1">Cancel</button><button onClick={() => { setEditing(false); if (draft.trim()) onEdit?.(draft.trim()); }} className="rounded-full bg-blue-600 px-3 py-1">Save &amp; resend</button></div>
+          </div>
+        ) : <Rich text={m.text || (m.streaming ? "…" : "")} onAnswer={m.streaming ? undefined : onAnswer} />}
         <div className="mt-0.5 flex items-center justify-end gap-2 text-[10px] opacity-0 transition-opacity group-hover:opacity-60">
           {!mine && !system && !m.streaming && onRate && (
             <>
@@ -98,6 +106,10 @@ function Bubble({ m, onAnswer, onRate, onCard }: { m: ChatMessage; onAnswer?: (t
               <button title="Bad answer" aria-label="Bad answer" disabled={rated !== null} onClick={() => { setRated(false); onRate(false); }}><ThumbsDown size={11} className={rated === false ? "text-red-400" : ""} /></button>
             </>
           )}
+          {!mine && !system && !m.streaming && onSpeak && <button title="Read aloud" aria-label="Read aloud" data-testid="speak-btn" onClick={onSpeak}><Volume2 size={11} /></button>}
+          {!mine && !system && !m.streaming && onRegenerate && <button title="Regenerate" aria-label="Regenerate" onClick={onRegenerate}><RefreshCw size={11} /></button>}
+          {mine && onEdit && <button title="Edit and resend" aria-label="Edit message" data-testid="edit-btn" onClick={() => { setDraft(m.text); setEditing(true); }}><Pencil size={11} /></button>}
+          {onDelete && <button title="Delete message" aria-label="Delete message" data-testid="delete-btn" onClick={onDelete}><Trash2 size={11} /></button>}
           <button title="Copy" onClick={() => navigator.clipboard?.writeText(m.text)}><Copy size={11} /></button>
           {hhmm(m.ts)}
           {mine && (m.status === "read" ? <CheckCheck size={12} /> : <Check size={12} />)}
@@ -150,17 +162,24 @@ function Composer({ channel, label, members, onSend, onMeeting, busy, onStop, le
     if (text.trim() === "/clear") { useChat.getState().clear(channel); setText(""); return; }
     onSend(text.trim(), atts); setText(""); setAtts([]);
   };
-  const onDrop = (e: DragEvent) => { e.preventDefault(); if (e.dataTransfer.files.length) void addFiles(e.dataTransfer.files); };
+  const [dragOver, setDragOver] = useState(false);
+  const onDrop = (e: DragEvent) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) void addFiles(e.dataTransfer.files); };
+  const onPaste = (e: React.ClipboardEvent) => {
+    const files = Array.from(e.clipboardData.files);
+    if (files.length) { e.preventDefault(); void addFiles(files.map((f) => (f.name && f.name !== "image.png" ? f : new File([f], `pasted-${Date.now()}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`, { type: f.type })))); }
+  };
 
   return (
-    <div className="relative px-5 pb-4 pt-2" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+    <div className="relative px-5 pb-4 pt-2" onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={onDrop} data-testid="composer">
+      {dragOver && <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-3xl border-2 border-dashed border-blue-400/70 bg-blue-500/10 text-sm">Drop files to attach</div>}
       {atts.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="mb-2 flex flex-wrap gap-2" data-testid="attachments">
           {atts.map((a) => (
-            <span key={a.name} className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-xs">
-              {a.dataUrl && a.mime.startsWith("image/") && <img src={a.dataUrl} alt="" className="h-5 w-5 rounded-full object-cover" />}{a.name}
-              <button onClick={() => setAtts((x) => x.filter((y) => y !== a))}><X size={11} /></button>
-            </span>
+            <div key={a.name} className="group/att relative flex items-center gap-2 rounded-2xl bg-white/10 p-1.5 pr-3 text-xs">
+              {a.dataUrl && a.mime.startsWith("image/") ? <img src={a.dataUrl} alt="" className="h-12 w-12 rounded-xl object-cover" /> : <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10"><Paperclip size={16} /></span>}
+              <span className="max-w-[160px]"><span className="block truncate font-medium">{a.name}</span><span className="opacity-60">{a.size > 1024 ? `${Math.round(a.size / 1024)} KB` : `${a.size} B`}</span></span>
+              <button aria-label={`Remove ${a.name}`} onClick={() => setAtts((x) => x.filter((y) => y !== a))} className="absolute -right-1.5 -top-1.5 rounded-full bg-black/80 p-0.5"><X size={11} /></button>
+            </div>
           ))}
         </div>
       )}
@@ -186,7 +205,7 @@ function Composer({ channel, label, members, onSend, onMeeting, busy, onStop, le
           </div>
         )}
         <textarea value={text} rows={Math.min(6, text.split("\n").length)} onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }} onPaste={onPaste}
           placeholder={`Message ${label}`} aria-label="Message"
           className="flex-1 resize-none bg-transparent py-1 text-[15px] outline-none placeholder:opacity-50" />
         {onMeeting && <button onClick={() => { if (text.trim()) { onMeeting(text.trim()); setText(""); } }} title="Hold a meeting: the bots of this group discuss your message and the lead concludes" data-testid="meeting-btn" disabled={!text.trim()} className="rounded-full border border-white/15 px-2.5 py-1 text-xs opacity-80 hover:opacity-100 disabled:opacity-30">Meeting</button>}
@@ -206,6 +225,8 @@ export function ChatPanel2() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [query, setQuery] = useState("");
   const [customize, setCustomize] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const tts = useTts();
   const commsThreads = useCommsThreads();
   const loadTree = () => fetch(`${API}/api/v1/bots/tree`).then((r) => r.json()).then((d) => setGroups(d.groups ?? [])).catch(() => undefined);
   const [motion, setMotion] = useState<{ m: MausMotion; k: number }>({ m: "arrive", k: 0 });
@@ -322,6 +343,8 @@ export function ChatPanel2() {
       for (const m of useChat.getState().threads[ch] ?? []) if (m.streaming) patch(ch, m.id, { streaming: false });
       setBusy(false);
       kick(failed ? "failure" : "success");
+      const done = [...(useChat.getState().threads[ch] ?? [])].reverse().find((x) => x.from !== "you" && x.from !== "system" && !x.tool && !x.ui && x.text);
+      if (!failed && done && !voice.enabled && looks[done.from]?.autoSpeak) speakAs(done.from, voiceOf(looks, done.from), done.text);
     }
   };
   sendRef.current = send;
@@ -383,6 +406,15 @@ export function ChatPanel2() {
           <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-xs opacity-70" data-testid="face-state">{face}</span>
           {activeBot && <span className="hidden truncate text-xs opacity-50 xl:block">{activeBot.position}</span>}
           <div className="ml-auto flex items-center gap-2">
+            {tts.speaking && <button onClick={stopSpeaking} title="Stop speaking" data-testid="stop-speaking" className="flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-xs"><VolumeX size={12} />Stop</button>}
+            <div className="relative">
+              <button onClick={() => setMenuOpen((v) => !v)} title="Chat options" aria-label="Chat options" data-testid="chat-menu-btn" className="rounded-full p-1.5 opacity-70 hover:opacity-100"><MoreHorizontal size={16} /></button>
+              {menuOpen && (
+                <div className="absolute right-0 top-9 z-30 w-52 rounded-xl border border-white/10 bg-[#1b1b1b] p-1 text-sm shadow-xl">
+                  <button data-testid="clear-chat" onClick={() => { setMenuOpen(false); if (window.confirm(`Delete all messages in this chat with ${nameOf(active)}?`)) useChat.getState().clear(active.id); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/10"><Trash2 size={13} />Delete chat history</button>
+                </div>
+              )}
+            </div>
             {voice.error && <span className="text-xs text-red-400">{voice.error}</span>}
             {lat && <span className="text-[11px] opacity-50" title="speech end → first audio">{lat}</span>}
             <button onClick={() => void voice.toggle()} title="Hands-free voice conversation (Silero VAD, barge-in)" data-testid="voice-btn"
@@ -398,7 +430,10 @@ export function ChatPanel2() {
           {shown.map((m, i) => (
             <div key={m.id}>
               {vp.start + i === unreadRef.current && <div className="my-2 flex items-center gap-2 text-xs text-blue-400"><span className="h-px flex-1 bg-blue-500/40" />New messages<span className="h-px flex-1 bg-blue-500/40" /></div>}
-              <Bubble m={m} onCard={(t) => void send(t, [])} onAnswer={(t) => void send(t, [])} onRate={m.from !== "you" && m.from !== "system" ? rate(m.from) : undefined} />
+              <Bubble m={m} onDelete={() => useChat.getState().remove(active.id, m.id)} onEdit={m.from === "you" ? (t) => { useChat.getState().truncateFrom(active.id, m.id); void send(t, m.attachments ?? []); } : undefined}
+                onSpeak={m.from !== "you" && m.from !== "system" ? () => speakAs(m.from, voiceOf(looks, m.from), m.text) : undefined}
+                onRegenerate={m.id === lastMsg?.id && m.from !== "you" && m.from !== "system" && !busy ? () => { const prev = [...messages].reverse().find((x) => x.from === "you"); if (prev) { useChat.getState().truncateFrom(active.id, prev.id); void send(prev.text, prev.attachments ?? []); } } : undefined}
+                onCard={(t) => void send(t, [])} onAnswer={(t) => void send(t, [])} onRate={m.from !== "you" && m.from !== "system" ? rate(m.from) : undefined} />
             </div>
           ))}
           {busy && !(lastMsg?.streaming && lastMsg.text) && (

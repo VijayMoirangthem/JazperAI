@@ -5,12 +5,13 @@ Secrets sent to PUT /{id}/secrets go straight to the OS vault; they are never ec
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from agents import comms, connector, skills
+from agents import comms, connector, skills, workspaces
 from core import cache
 
 router = APIRouter()
 comms_router = APIRouter()
 skills_router = APIRouter()
+workspaces_router = APIRouter()
 
 
 class SecretIn(BaseModel):
@@ -106,3 +107,40 @@ async def save_skill(body: SkillIn):
 async def enable(name: str, enabled: bool = True):
     await skills.set_enabled(name, enabled)
     return {"name": name, "enabled": enabled}
+
+
+# ── workspaces: folders a group's bots may work in ────────────────────────────────────────────────────
+class WorkspaceIn(BaseModel):
+    org_group: str
+    path: str
+    mode: str = "read-write"
+
+
+@workspaces_router.get("/")
+async def list_workspaces():
+    await workspaces.reload()
+    return {"workspaces": [w for ws in workspaces._cache.values() for w in ws], "jasper": "all drives (reads free; writes need approval; secret files blocked)"}
+
+
+@workspaces_router.post("/")
+async def add_workspace(body: WorkspaceIn):
+    if body.mode not in ("read", "read-write"):
+        raise HTTPException(400, "mode must be read or read-write")
+    try:
+        return await workspaces.add(body.org_group, body.path, body.mode)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@workspaces_router.delete("/{wid}")
+async def delete_workspace(wid: int):
+    await workspaces.remove(wid)
+    return {"deleted": wid}
+
+
+@workspaces_router.get("/browse")
+async def browse(path: str = ""):
+    try:
+        return workspaces.browse(path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))

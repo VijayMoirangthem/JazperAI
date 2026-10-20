@@ -29,12 +29,12 @@ SLUG_HOME = {
     "ceo-create-origins": ("create_origins", "Executive"), "vp-tech-ops": ("create_origins", "Executive"), "cfo": ("create_origins", "Executive"),
     "coo": ("create_origins", "Executive"), "general-counsel": ("create_origins", "Executive"),
     "scout": ("jazper_team", "Personal"), "atlas": ("jazper_team", "Personal"),
-    "chaosbot": ("create_origins", "SRE"), "herald": ("jazper_team", "Personal"), "bot-creator": ("jazper_team", "Bot Operations"), "connector": ("jazper_team", "Integrations"), "bot-reviewer": ("jazper_team", "Bot Operations"),
+    "chaosbot": ("create_origins", "SRE"), "messenger": ("jazper_team", "Personal"), "bot-creator": ("jazper_team", "Bot Operations"), "connector": ("jazper_team", "Integrations"), "bot-reviewer": ("jazper_team", "Bot Operations"),
 }
 
 JAZPER_TEAM_BOTS = [
-    BotDef(slug="herald", display_name="Herald", role_title="Email triage: tells the founder what matters", crew="personal",
-           prompt=("You are Herald on the Jazper Team, the founder's mail watcher. For anything about email: FIRST check whether Gmail is connected (find_tool 'gmail', or list_connections). If it is not, ask `connector` to connect it and relay exactly what it needs from the founder. Once connected, search the inbox with the Gmail tools (read-only) and answer the question directly: what you found, which messages matter (urgent, needs a reply, money/legal, people waiting), sender, one-line reason, suggested action. If nothing matches say so plainly. Never send, delete or archive mail yourself; propose drafts for approval."),
+    BotDef(slug="messenger", display_name="Messenger", role_title="Email triage: tells the founder what matters", crew="personal",
+           prompt=("You are Messenger on the Jazper Team, the founder's mail watcher. For anything about email: FIRST check whether Gmail is connected (find_tool 'gmail', or list_connections). If it is not, ask `connector` to connect it and relay exactly what it needs from the founder. Once connected, search the inbox with the Gmail tools (read-only) and answer the question directly: what you found, which messages matter (urgent, needs a reply, money/legal, people waiting), sender, one-line reason, suggested action. If nothing matches say so plainly. Never send, delete or archive mail yourself; propose drafts for approval."),
            model_policy={"default_tier": "standard"}),
     BotDef(slug="connector", display_name="Connector", role_title="Connects Jasper to Gmail, calendar, GitHub and other tools; verifies they work", crew="personal",
            prompt=("You are Connector on the Jazper Team. You own every integration. When asked to connect a service: call connect; it checks the vault and backend .env itself and tells you if "
@@ -91,10 +91,15 @@ async def ensure_orgchart() -> int:
                           None if r.get("lifecycle") == "spec" else datetime.now(timezone.utc))
         added += 1
     await load_overrides()
+    from agents import workspaces
+    await workspaces.ensure_seeds()
     return added
 
 
 async def load_overrides() -> None:
+    from agents import workspaces
+    workspaces.GROUP_OF.clear()
+    workspaces.GROUP_OF.update({r["slug"]: r["org_group"] for r in await aio.fetch("SELECT slug, org_group FROM shared.bot_org")})
     OVERRIDES.clear()
     for r in await aio.fetch("SELECT slug, prompt_override FROM shared.bot_org WHERE prompt_override IS NOT NULL AND prompt_override <> ''"):
         OVERRIDES[r["slug"]] = r["prompt_override"]
@@ -168,6 +173,9 @@ async def card(slug: str) -> dict | None:
 
 async def place(slug: str, org_group: str | None = None, department: str | None = None, position: str | None = None, sort_order: int | None = None) -> None:
     await aio.execute("INSERT INTO shared.bot_org(slug) VALUES($1) ON CONFLICT DO NOTHING", slug)
+    if org_group:
+        from agents import workspaces
+        workspaces.GROUP_OF[slug] = org_group
     for col, val in (("org_group", org_group), ("department", department), ("position", position), ("sort_order", sort_order)):
         if val is not None:
             await aio.execute(f"UPDATE shared.bot_org SET {col}=$2, updated_at=now() WHERE slug=$1", slug, val)

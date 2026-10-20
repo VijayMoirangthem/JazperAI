@@ -61,7 +61,7 @@ export const MausAvatar = memo(function MausAvatar({ color, state = "idle", size
 });
 
 // ── per-bot look (colour + body), customisable from the chat header, saved locally ──
-export interface BotLook { color: MausColor; body: MascotBodyId; name?: string }
+export interface BotLook { color: MausColor; body: MascotBodyId; name?: string; voice?: string; autoSpeak?: boolean }
 const KEY = "jasper.botLook.v1";
 const DEFAULTS: Record<string, BotLook> = { jasper: { color: "blue", body: "cursor" } };
 const FALLBACK_COLORS: MausColor[] = ["green", "orange", "purple", "cyan", "pink", "teal", "coral", "yellow", "red"];
@@ -79,6 +79,12 @@ export const useBotLook = create<LookState>((set) => ({
 }));
 export function lookFor(looks: Record<string, BotLook>, slug: string): BotLook {
   return looks[slug] ?? DEFAULTS[slug] ?? { color: FALLBACK_COLORS[hash(slug) % FALLBACK_COLORS.length], body: "cursor" };
+}
+
+// distinct natural default voices so every bot sounds different out of the box (Edge neural voices: free, no tokens)
+const VOICES = ["en-US-AriaNeural", "en-US-GuyNeural", "en-GB-SoniaNeural", "en-GB-RyanNeural", "en-AU-NatashaNeural", "en-IN-NeerjaNeural", "en-US-JennyNeural", "en-US-DavisNeural", "en-CA-ClaraNeural", "en-IE-ConnorNeural"];
+export function voiceOf(looks: Record<string, BotLook>, slug: string): string {
+  return looks[slug]?.voice ?? (slug === "jasper" ? "en-GB-RyanNeural" : VOICES[hash(slug) % VOICES.length]);
 }
 
 /** Maps a live agent state from the event bus to a mascot face. */

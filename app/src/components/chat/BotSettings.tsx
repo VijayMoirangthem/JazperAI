@@ -3,12 +3,13 @@
 // Bot settings dialog: ID card, system prompt, appearance (colour/body), organisation (group/department/position).
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { MAUS_COLORS, MAUS_COLOR_NAMES, MASCOT_BODY_IDS, MausAvatar, lookFor, useBotLook } from "@/mascot/MausAvatar";
+import { MAUS_COLORS, MAUS_COLOR_NAMES, MASCOT_BODY_IDS, MausAvatar, lookFor, useBotLook, voiceOf } from "@/mascot/MausAvatar";
+import { speakAs, stopSpeaking } from "@/voice/botVoice";
 import { ScoreBadge, ago, type OrgBot, type OrgGroup } from "./OrgSidebar";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 type Card = OrgBot & { group: string; group_label: string; prompt: string; prompt_is_default: boolean; memory_namespace: string; has_prompt_override: boolean };
-const TABS = ["ID card", "Prompt", "Appearance", "Organisation"] as const;
+const TABS = ["ID card", "Prompt", "Appearance", "Voice", "Organisation"] as const;
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
 
 export function BotSettings({ slug, groups, onClose, onChanged }: { slug: string; groups: OrgGroup[]; onClose: () => void; onChanged: () => void }) {
@@ -19,6 +20,9 @@ export function BotSettings({ slug, groups, onClose, onChanged }: { slug: string
   const looks = useBotLook((s) => s.looks);
   const setLook = useBotLook((s) => s.set);
   const look = lookFor(looks, slug);
+  const [voices, setVoices] = useState<{ name: string; gender: string; locale: string; label: string }[]>([]);
+  useEffect(() => { fetch(`${API}/api/v1/voice2/voices`).then((r) => r.json()).then((d) => setVoices(d.voices ?? [])).catch(() => undefined); }, []);
+  const voice = voiceOf(looks, slug);
 
   const load = () => fetch(`${API}/api/v1/bots/${slug}/card`).then((r) => r.json()).then((c: Card) => { setCard(c); setPrompt(c.prompt); }).catch(() => undefined);
   useEffect(() => { void load(); }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -76,6 +80,21 @@ export function BotSettings({ slug, groups, onClose, onChanged }: { slug: string
                 <button onClick={() => void savePrompt(null)} className="rounded-full bg-white/10 px-4 py-1.5">Reset to default</button>
                 <span className="text-xs text-green-400">{saved}</span>
               </div>
+            </div>
+          ) : tab === "Voice" ? (
+            <div className="space-y-3" data-testid="voice-tab">
+              <div className="text-xs opacity-60">Natural neural voices (Microsoft Edge TTS): free, no API key, and no LLM tokens are used. Each bot can have its own voice. The text is sent to Microsoft's speech service to be synthesised, so it needs an internet connection.</div>
+              <label className="block text-xs opacity-60">Voice</label>
+              <select value={voice} onChange={(e) => setLook(slug, { voice: e.target.value })} aria-label="Voice" className="w-full rounded-lg bg-white/10 px-2 py-1.5 outline-none">
+                {voices.length === 0 && <option value={voice}>{voice}</option>}
+                {voices.map((v) => <option key={v.name} value={v.name} className="bg-[#1b1b1b]">{v.locale} · {v.label} ({v.gender})</option>)}
+              </select>
+              <div className="flex items-center gap-2">
+                <button onClick={() => speakAs(slug, voice, `Hello, I am ${look.name ?? card.display_name}. This is how I sound.`)} className="rounded-full bg-blue-600 px-4 py-1.5">Preview</button>
+                <button onClick={stopSpeaking} className="rounded-full bg-white/10 px-4 py-1.5">Stop</button>
+              </div>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={!!look.autoSpeak} onChange={(e) => setLook(slug, { autoSpeak: e.target.checked })} aria-label="Speak every reply" />Speak every reply automatically</label>
+              <div className="text-xs opacity-50">You can also press the speaker icon under any message to hear it, or again to repeat it.</div>
             </div>
           ) : tab === "Appearance" ? (
             <div className="space-y-3">

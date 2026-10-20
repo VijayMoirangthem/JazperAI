@@ -25,6 +25,8 @@ interface ChatState {
   append: (channel: string, id: string, delta: string) => void;
   markRead: (channel: string) => void;
   clear: (channel: string) => void;
+  remove: (channel: string, id: string) => void;
+  truncateFrom: (channel: string, id: string) => void;
   setApprovalLevel: (slug: string, l: ApprovalLevel) => void;
 }
 
@@ -42,6 +44,8 @@ export const useChat = create<ChatState>((set, get) => ({
   patch: (c, id, p) => set((s) => ({ threads: { ...s.threads, [c]: (s.threads[c] ?? []).map((m) => (m.id === id ? { ...m, ...p } : m)) } })),
   append: (c, id, d) => set((s) => ({ threads: { ...s.threads, [c]: (s.threads[c] ?? []).map((m) => (m.id === id ? { ...m, text: m.text + d } : m)) } })),
   markRead: (c) => { const t = get().threads[c] ?? []; if (t.length) set((s) => ({ lastRead: { ...s.lastRead, [c]: t[t.length - 1].id } })); },
+  remove: (c, id) => set((s) => ({ threads: { ...s.threads, [c]: (s.threads[c] ?? []).filter((m) => m.id !== id) } })),
+  truncateFrom: (c, id) => set((s) => { const l = s.threads[c] ?? []; const i = l.findIndex((m) => m.id === id); return { threads: { ...s.threads, [c]: i < 0 ? l : l.slice(0, i) } }; }),
   clear: (c) => set((s) => ({ threads: { ...s.threads, [c]: [] }, lastRead: { ...s.lastRead, [c]: "" } })),
   setApprovalLevel: (slug, l) => set((s) => ({ approvalLevel: { ...s.approvalLevel, [slug]: l } })),
 }));

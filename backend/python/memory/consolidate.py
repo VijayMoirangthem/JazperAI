@@ -127,14 +127,35 @@ async def learn(router, fact: str, importance: float = 0.5, ns: str = NS) -> dic
     return {"action": action, "id": new_id or old, "fact": clean}
 
 
-async def consolidate_turn(router, user_text: str, assistant_text: str, ns: str = NS, bot: bool = False) -> list[dict]:
+async def consolidate_turn(router, user_text: str, assistant_text: str, ns: str = NS, bot: bool = False, extra_ns: tuple = ()) -> list[dict]:
     """ns 'fact' = unified memory about the founder (shared by every bot); ns 'bot.<slug>' = that bot's own lessons (separate)."""
     try:
         facts = await extract_facts(router, user_text, assistant_text, bot)
-        return [await learn(router, f["fact"], f["importance"], ns) for f in facts]
+        out = [await learn(router, f["fact"], f["importance"], ns) for f in facts]
+        for x in extra_ns:  # e.g. also keep the lesson in the bot's group memory
+            out += [await learn(router, f["fact"], f["importance"], x) for f in facts]
+        return out
     except Exception as e:  # memory must never break a conversation
         log.warning("memory consolidation failed", error=str(e)[:160])
         return []
+
+
+async def recall_multi(query: str, spec: dict[str, int], min_sim: float = 0.5) -> dict[str, list[str]]:
+    """Embed the query once and recall from several namespaces: {ns: k}. Returns {ns: [facts]} (empty lists when nothing matches)."""
+    clean, _ = await asyncio.get_running_loop().run_in_executor(None, sanitize, query)
+    vec = await _embed(clean)
+    out: dict[str, list[str]] = {n: [] for n in spec}
+    if vec is None:
+        return out
+    ids: list[str] = []
+    for n, k in spec.items():
+        hits = [h for h in await similar(vec, k, n) if h["sim"] >= min_sim]
+        out[n] = [h["content"] for h in hits]
+        ids += [h["id"] for h in hits]
+    if ids:
+        async with aio.tx("memory", (TENANT,)) as c:
+            await c.execute("UPDATE shared.memory_chunks SET hits = hits + 1, last_used_at = now() WHERE id = ANY($1::uuid[])", ids)
+    return out
 
 
 async def recall(query: str, k: int = 4, min_sim: float = 0.5, ns: str = NS) -> list[str]:

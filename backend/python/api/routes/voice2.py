@@ -14,6 +14,19 @@ VOICE_RX = re.compile(r"^[A-Za-z]{2}-[A-Za-z]{2}-[A-Za-z]+Neural$")
 DEFAULT_VOICE = "en-US-AriaNeural"
 
 
+@router.get("/voices")
+async def voices(lang: str = "en"):
+    """Natural neural voices for the per-bot voice picker (Edge TTS: free, no API key, no LLM tokens). Cached for a day in Redis."""
+    from core import cache
+
+    async def load():
+        import edge_tts
+        out = [{"name": v["ShortName"], "gender": v["Gender"], "locale": v["Locale"], "label": v["ShortName"].split("-", 2)[-1].replace("Neural", "")}
+               for v in await edge_tts.list_voices() if v["Locale"].lower().startswith(lang.lower())]
+        return sorted(out, key=lambda v: (v["locale"], v["name"]))
+    return {"voices": await cache.cached(f"voices:{lang}", 86400, load)}
+
+
 @router.get("/speak")
 async def speak(text: str, voice: str = DEFAULT_VOICE):
     text = text.strip()

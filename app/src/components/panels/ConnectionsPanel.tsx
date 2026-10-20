@@ -18,6 +18,57 @@ function badge(c: Conn) {
   return { t: c.detail.startsWith("test failed") ? "Failed" : "Not tested", color: c.detail.startsWith("test failed") ? "#ef4444" : "#94a3b8" };
 }
 
+interface Workspace { id: number; org_group: string; path: string; label: string; mode: string }
+const GROUPS = [["baeit", "Baeit"], ["boardmint", "Boardmint"], ["create_origins", "Create Origins"], ["jazper_team", "Jazper Team"]];
+
+function Workspaces() {
+  const [list, setList] = useState<Workspace[]>([]);
+  const [group, setGroup] = useState("baeit");
+  const [mode, setMode] = useState("read-write");
+  const [path, setPath] = useState("");
+  const [browse, setBrowse] = useState<{ path: string; parent: string | null; dirs: string[] } | null>(null);
+  const [err, setErr] = useState("");
+  const load = () => fetch(`${API}/api/v1/workspaces/`).then((r) => r.json()).then((d) => setList(d.workspaces ?? [])).catch(() => undefined);
+  useEffect(() => { void load(); }, []);
+  const open = (p: string) => fetch(`${API}/api/v1/workspaces/browse?path=${encodeURIComponent(p)}`).then((r) => r.json()).then((d) => { if (d.dirs) setBrowse(d); });
+  const add = async () => {
+    setErr("");
+    const r = await fetch(`${API}/api/v1/workspaces/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_group: group, path, mode }) });
+    if (!r.ok) { setErr((await r.json()).detail ?? "could not add"); return; }
+    setPath(""); setBrowse(null); await load();
+  };
+  return (
+    <div className="mt-8" data-testid="workspaces">
+      <h2 className="text-lg font-semibold">Workspaces</h2>
+      <p className="mb-3 mt-1 text-sm opacity-60">Folders on this PC that a group&apos;s bots can read and (with approval) write. Jasper can read anywhere; secret files (.env, keys) are always blocked.</p>
+      <div className="space-y-1.5">
+        {list.map((w) => (
+          <div key={w.id} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2 text-sm">
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">{GROUPS.find((g) => g[0] === w.org_group)?.[1] ?? w.org_group}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-xs">{w.path}</span>
+            <span className="text-xs opacity-60">{w.mode}</span>
+            <button aria-label={`Remove ${w.path}`} onClick={() => void fetch(`${API}/api/v1/workspaces/${w.id}`, { method: "DELETE" }).then(load)} className="text-xs opacity-60 hover:opacity-100">Remove</button>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <select value={group} onChange={(e) => setGroup(e.target.value)} aria-label="Group" className="rounded-lg bg-white/10 px-2 py-1.5">{GROUPS.map(([id, l]) => <option key={id} value={id} className="bg-[#1b1b1b]">{l}</option>)}</select>
+        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="D:\\Projects\\my-folder" aria-label="Folder path" className="min-w-[260px] flex-1 rounded-lg bg-white/10 px-2 py-1.5 font-mono text-xs outline-none" />
+        <button onClick={() => void open(path || "")} className="rounded-full bg-white/10 px-3 py-1.5 text-xs">Browse…</button>
+        <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Mode" className="rounded-lg bg-white/10 px-2 py-1.5 text-xs"><option value="read-write" className="bg-[#1b1b1b]">read + write (approval)</option><option value="read" className="bg-[#1b1b1b]">read only</option></select>
+        <button onClick={() => void add()} disabled={!path} className="rounded-full bg-blue-600 px-4 py-1.5 text-xs disabled:opacity-40">Add folder</button>
+      </div>
+      {err && <div className="mt-1 text-xs text-red-400">{err}</div>}
+      {browse && (
+        <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-2 text-xs" data-testid="folder-browser">
+          <div className="mb-1 flex items-center gap-2 opacity-70"><span className="font-mono">{browse.path || "This PC"}</span>{browse.parent !== null && <button onClick={() => void open(browse.parent ?? "")} className="underline">up</button>}<button onClick={() => { if (browse.path) setPath(browse.path); }} className="ml-auto rounded-full bg-white/10 px-2 py-0.5">Use this folder</button></div>
+          {browse.dirs.map((d) => <button key={d} onClick={() => void open(d)} className="block w-full truncate rounded px-2 py-0.5 text-left hover:bg-white/10">{d}</button>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ConnectionsPanel() {
   const [conns, setConns] = useState<Conn[]>([]);
   const [busy, setBusy] = useState("");
@@ -61,6 +112,7 @@ export function ConnectionsPanel() {
           );
         })}
       </div>
+      <Workspaces />
     </div>
   );
 }

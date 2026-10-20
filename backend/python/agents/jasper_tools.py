@@ -13,7 +13,7 @@ import re
 import time
 from collections.abc import AsyncIterator
 
-from agents import comms, connector, orgchart, skills
+from agents import comms, connector, orgchart, skills, workspaces
 from agents.registry import BotDef, registry
 from core import finops, hitl
 from core.llm.types import LLMRequest, Usage
@@ -21,7 +21,7 @@ from hub.hub import ToolError, hub
 
 MAX_ROUNDS = 4
 MAX_DEPTH = 2
-CALL_RE = re.compile(r"<tool>\s*(\{.*?\})\s*</tool>", re.S)
+CALL_RE = re.compile(r"<tool(?:_call)?>\s*(?:<function=(\w+)>\s*)?(\{.*?\})\s*(?:</function>\s*)?</tool(?:_call)?>", re.S)
 _ui: contextvars.ContextVar[list | None] = contextvars.ContextVar("ui_events", default=None)
 _depth: contextvars.ContextVar[int] = contextvars.ContextVar("bot_depth", default=0)
 
@@ -39,30 +39,50 @@ HELP = {
     "connect": "connect {connector} : connect a service (gmail, calendar, github, slack, notion, filesystem, memory). Uses secrets found in the vault or .env; otherwise shows the founder a secure card",
     "test_connection": "test_connection {connector} : run the harmless read check on a connector",
     "hold_meeting": "hold_meeting {group,topic} : the bots of a group (create_origins, baeit, boardmint, jazper_team) discuss a topic and their lead concludes; returns the conclusion",
+    "fs_roots": "fs_roots {} : folders on this PC you may work in",
+    "fs_list": "fs_list {path} : list a folder",
+    "fs_read": "fs_read {path,max_chars} : read a text file (secret files such as .env are blocked)",
+    "fs_search": "fs_search {query,path} : find files or text inside your workspace folders",
+    "fs_write": "fs_write {path,content} : create or overwrite a file (needs approval; a .jasper-bak backup is kept)",
+    "find_bot": "find_bot {need} : which bot is the right owner for a job (best 3 with fit), or says none fits",
+    "remember": "remember {scope,fact} : store a lasting fact for your group (scope group) or the whole company (scope org)",
     "list_skills": "list_skills {} : the shared skill library (name: when to use)",
     "view_skill": "view_skill {name} : load a skill's step-by-step procedure before doing that kind of task",
     "save_skill": "save_skill {name,description,body} : create or improve a reusable skill (numbered steps, no secrets)",
 }
+FS = ["fs_roots", "fs_list", "fs_read", "fs_search", "fs_write"]
+LEADS = {"ceo-create-origins", "ceo-baeit", "lead-boardmint", "vp-tech-ops"}
 TOOLS_FOR: dict[str, list[str]] = {
-    "jasper": ["list_org", "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "find_tool", "use_tool", "list_connections", "hold_meeting", "list_skills", "view_skill", "save_skill"],
+    "jasper": ["list_org", "find_bot", "remember", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "hold_meeting", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
     "connector": ["list_connections", "connect", "test_connection", "find_tool", "list_skills", "view_skill", "save_skill"],
-    "herald": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
+    "messenger": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
     "bot-reviewer": ["list_org", "bot_stats", "list_skills", "view_skill"],
     "bot-creator": ["list_org", "list_skills"],
     "chaosbot": ["slo", "run_chaos"],
 }
 INTRO = 'You have system access. To use a tool reply with ONLY one line: <tool>{"name":"NAME","args":{...}}</tool> and wait for the result, then continue. Tools:\n'
-RULES = ("\nRouting: anything about email goes to `herald` (it checks Gmail and asks `connector` itself); connections go to `connector`. One tool call at a time. Delegate to the right specialist instead of doing everything yourself. If a service is not connected, ask `connector` to connect it "
+RULES = ("\nHierarchy: Jasper delegates to group leads; leads delegate to their members, hold meetings for decisions and record lasting decisions with remember. Use find_bot to pick the right owner. Routing: anything about email goes to `messenger` (it checks Gmail and asks `connector` itself); connections go to `connector`. One tool call at a time. Delegate to the right specialist instead of doing everything yourself. If a service is not connected, ask `connector` to connect it "
          "(it checks the vault/.env and asks the founder only if something is missing). Never ask the founder to paste secrets into chat: a secure card is shown for that. "
          "Answer the founder concisely when done.")
 
 
+def tools_for(slug: str) -> list[str]:
+    """Static allowlist, else a default set for bots whose group has a workspace (leads also delegate and hold meetings)."""
+    if slug in TOOLS_FOR:
+        return TOOLS_FOR[slug]
+    if slug in LEADS:
+        return ["list_org", "find_bot", "ask_bot", "hold_meeting", "remember", "list_skills", "view_skill", *(FS if workspaces.has_workspace(slug) else [])]
+    if workspaces.has_workspace(slug):
+        return [*FS, "ask_bot", "remember", "list_skills", "view_skill"]
+    return []
+
+
 def has_tools(slug: str) -> bool:
-    return slug in TOOLS_FOR
+    return bool(tools_for(slug))
 
 
 async def system_for(slug: str, system: str) -> str:
-    lines = "\n".join("- " + HELP[t] for t in TOOLS_FOR[slug])
+    lines = "\n".join("- " + HELP[t] for t in tools_for(slug))
     cat = await skills.catalogue()
     return f"{system}\n\n{INTRO}{lines}{RULES}" + (f"\n\nSkills you can load with view_skill:\n{cat}" if cat else "")
 
@@ -86,12 +106,20 @@ def _push_ui(req: dict) -> None:
 
 
 def _conn_line(c: dict) -> dict:
-    return {"id": c["id"], "connected": c.get("connected", False), "ready": c.get("ready", False), "missing": c.get("missing", []),
+    return {"id": c["id"], "name": c.get("name", ""), "connected": c.get("connected", False), "ready": c.get("ready", False), "missing": c.get("missing", []),
             "needs_google_signin": bool(c.get("oauth") and not c["oauth"]["connected"]), "detail": c.get("detail", ""), "untested": c.get("untested", False)}
 
 
+def _path(args: dict) -> str:
+    """Models name the path argument in many ways; accept the common ones."""
+    for k in ("path", "dir", "directory", "folder", "file", "filepath", "file_path", "name"):
+        if args.get(k):
+            return str(args[k])
+    return ""
+
+
 async def run_tool(name: str, args: dict, agent: str) -> str:
-    if name not in TOOLS_FOR.get(agent, []):
+    if name not in tools_for(agent):
         return f"error: tool {name} is not available to {agent}"
     if name == "list_org":
         return _clip("\n".join(f"{g['label']}: " + "; ".join(_bot_line(b) for b in g["bots"]) for g in (await orgchart.tree())["groups"]), 3500)
@@ -102,6 +130,8 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
         slug, text = str(args.get("slug", "")), str(args.get("text", ""))[:4000]
         if slug in (agent, "") or not any(r["slug"] == slug and r.get("enabled") for r in registry.roster()):
             return f"error: bot {slug or '?'} not found, disabled or is yourself"
+        if agent != "jasper" and slug not in ("jasper", "connector", "messenger") and workspaces.GROUP_OF.get(slug) != workspaces.GROUP_OF.get(agent):
+            return f"error: {slug} is in another group; ask your lead or Jasper to delegate across groups"
         await comms.log(agent, slug, "ask", text)
         t0 = time.monotonic()
         try:
@@ -181,6 +211,36 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
             if ev.get("t") == "delta":
                 said[ev["slug"]] = said.get(ev["slug"], "") + ev["text"]
         return _clip(f"Meeting in {group} on '{topic}'. Conclusion by {lead}: {said.get(lead, '(none)')}  |  Views: " + " / ".join(f"{k}: {v[:140]}" for k, v in said.items() if k != lead), 2600)
+    if name == "fs_roots":
+        return _clip([f"{r['path']} ({r['mode']})" for r in workspaces.roots_for(agent)] or "no folders attached")
+    if name == "fs_list":
+        if not _path(args):  # no path given: show the folders the bot may use instead of failing
+            return _clip([r["path"] for r in workspaces.roots_for(agent)] or "no folders attached")
+        return _clip(workspaces.list_dir(agent, _path(args)), 3000)
+    if name == "fs_read":
+        return _clip(workspaces.read_file(agent, _path(args), min(int(args.get("max_chars", 8000) or 8000), workspaces.MAX_READ)), workspaces.MAX_READ)
+    if name == "fs_search":
+        return _clip(await asyncio.to_thread(workspaces.search, agent, str(args.get("query", "")), _path(args)), 3000)
+    if name == "fs_write":
+        p, why = workspaces.write_file(agent, _path(args), str(args.get("content", "")))
+        if not p:
+            return "error: " + why
+        if not await hitl.gate("file.write", f"{agent} writes {p} ({len(str(args.get('content', '')))} chars)", agent):
+            return "blocked: founder did not approve"
+        out = await asyncio.to_thread(workspaces.commit_write, p, str(args.get("content", "")))
+        await comms.log(agent, "tool:fs_write", "event", out)
+        return out
+    if name == "find_bot":
+        return _clip(await _find_bot(str(args.get("need", ""))), 2000)
+    if name == "remember":
+        from core.llm.registry import get_router
+        from memory import consolidate
+        scope, fact = str(args.get("scope", "group")), str(args.get("fact", ""))[:500]
+        ns = {"group": f"group.{workspaces.GROUP_OF.get(agent, 'none')}", "org": "org", "founder": "fact"}.get(scope)
+        if not ns or not fact or (scope == "founder" and agent != "jasper"):
+            return "error: scope must be group or org (founder only for jasper) and fact is required"
+        r = await consolidate.learn(await get_router(), fact, 0.7, ns)
+        return f"remembered in {ns}: {r['action']}"
     if name == "list_skills":
         return _clip(await skills.catalogue(40) or "(no skills yet)", 3000)
     if name == "view_skill":
@@ -191,19 +251,95 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
     return f"error: unknown tool {name}"
 
 
+async def _find_bot(need: str) -> list[dict]:
+    """Which bot fits this need? Keyword overlap over role, department and duties (prompt head); returns the best 3 with their fit.
+    No match means no fit: ask bot-creator to design one."""
+    words = {w for w in re.split(r"[^a-z0-9]+", need.lower()) if len(w) > 2}
+    out = []
+    for g in (await orgchart.tree())["groups"]:
+        if g["id"] == "legacy":
+            continue
+        for b in g["bots"]:
+            if not b["enabled"]:
+                continue
+            d = registry.get(b["slug"])
+            hay = f"{b['display_name']} {b['position']} {b['department']} {(d.prompt[:300] if d else '')}".lower()
+            hits = sum(w in hay for w in words)
+            if hits:
+                out.append({"slug": b["slug"], "role": b["position"][:60], "group": g["id"], "fit": hits, "quality": b["score"]})
+    out.sort(key=lambda x: (-x["fit"], -(x["quality"] or 0)))
+    return out[:3] or [{"note": "no bot fits this need; ask bot-creator to design one"}]
+
+
+_OPEN_RE = re.compile(r"<tool(?:_call)?>\s*(?:<function=(\w+)>\s*)?")
+
+
+def parse_call(buf: str):
+    """Find a tool call anywhere in the text and decode its JSON properly (arguments may contain nested objects).
+    Returns (name, args, start, end) or None when there is no well-formed call. Accepts <tool>{"name","args"}</tool>,
+    <tool_call>{"name","arguments"}</tool_call> and <tool_call><function=NAME>{args}</function></tool_call>."""
+    m = _OPEN_RE.search(buf)
+    if not m:
+        t = buf.lstrip()
+        if t.startswith("{"):  # some models drop the tags and emit the bare JSON call
+            try:
+                obj, end = json.JSONDecoder().raw_decode(t)
+            except ValueError:
+                return None
+            if isinstance(obj, dict) and obj.get("name") and ("args" in obj or "arguments" in obj):
+                args = obj.get("args") or obj.get("arguments") or {}
+                return str(obj["name"]), (args if isinstance(args, dict) else {}), len(buf) - len(t), len(buf) - len(t) + end
+        return None
+    i = buf.find("{", m.end())
+    if i < 0:
+        return None
+    try:
+        obj, end = json.JSONDecoder().raw_decode(buf, i)
+    except ValueError:
+        return None
+    if m.group(1):
+        name, args = m.group(1), obj
+    else:
+        name, args = str(obj.get("name", "")), obj.get("args") or obj.get("arguments") or obj.get("parameters") or {}
+    close = re.compile(r"\s*(?:</function>\s*)?(?:</tool(?:_call)?>)?").match(buf, end)
+    return name, (args if isinstance(args, dict) else {}), m.start(), close.end() if close else end
+
+
+async def _stream_retry(r, req):
+    """r.stream with one retry after a short pause; a persistent provider failure becomes a readable message instead of an exception
+    (Groq's free tier rate-limits bursts, and a failed sub-call must not blank the whole delegation chain)."""
+    for attempt in (1, 2, 3):
+        got = False
+        try:
+            async for item in r.stream(req):
+                got = True
+                yield item
+            return
+        except Exception as e:
+            await comms.log("system", "llm", "event", f"provider error (attempt {attempt}, {'mid-stream' if got else 'before output'}): {type(e).__name__}: {str(e)[:300]}")
+            if got or attempt == 3:
+                yield "(The model provider is busy or rate-limited right now - " + str(e)[:80] + ". Please try again in a minute.)"
+                return
+            await asyncio.sleep(6 * attempt)  # 6 s, then 12 s: lets a per-minute limit on the free tier recover
+
+
 async def _rounds(r, slug: str, system: str, msgs: list[dict], tier: str, trace: list[str]) -> AsyncIterator[dict]:
     """Core loop shared by streaming (Jasper) and headless (run_bot) use."""
     system = await system_for(slug, system)
     msgs = list(msgs)
+    tier = "standard" if tier == "light" else tier  # the light model returns empty text for tool-call prompts
     for rnd in range(MAX_ROUNDS + 1):
         buf, emitted, mode, last_usage = "", 0, "text", None
-        async for item in r.stream(LLMRequest(system=system, messages=msgs, tier=tier, max_tokens=1024 if rnd < MAX_ROUNDS else 700)):
+        stream = _stream_retry(r, LLMRequest(system=system, messages=msgs, tier=tier, max_tokens=1024 if rnd < MAX_ROUNDS else 700))
+        async for item in stream:
             if isinstance(item, Usage):
                 last_usage = item
                 continue
             buf += item
             if mode == "text":
                 i = buf.find("<tool")
+                if i < 0 and emitted == 0 and buf.lstrip().startswith("{"):
+                    i = len(buf) - len(buf.lstrip())  # possible bare-JSON call: buffer until we know
                 if i >= 0:  # a call may follow prose: stop streaming at it and buffer the rest
                     mode, safe = "tool", i
                 else:
@@ -211,21 +347,31 @@ async def _rounds(r, slug: str, system: str, msgs: list[dict], tier: str, trace:
                 if safe > emitted:
                     yield {"delta": buf[emitted:safe]}
                     emitted = safe
-        call = CALL_RE.search(buf) if mode == "tool" else None
+        if not buf.strip() and rnd < MAX_ROUNDS:  # empty completion (the model produced only hidden reasoning): nudge once instead of ending silently
+            msgs += [{"role": "assistant", "content": "(no output)"}, {"role": "user", "content": "Continue: use the information you have to answer, or call the next tool."}]
+            continue
+        call = parse_call(buf) if mode == "tool" else None
+        looks_like_call = mode == "tool" and not call and (buf.lstrip().startswith("<tool") or ('"name"' in buf and ('"args"' in buf or '"arguments"' in buf)))
+        if looks_like_call and rnd < MAX_ROUNDS:  # malformed call (usually unescaped quotes in an argument): tell the model and let it retry
+            await comms.log(slug, "system", "event", "malformed tool call, asked to retry: " + buf.strip()[:160])
+            msgs += [{"role": "assistant", "content": buf.strip()[:600]},
+                     {"role": "user", "content": "<tool_result>error: that tool call was not valid JSON. Send ONE valid call again; do not put double quotes inside string values (use simple search words).</tool_result>"}]
+            continue
+        if mode == "tool" and not call and not looks_like_call:
+            yield {"delta": buf}  # it was an ordinary JSON-looking answer, not a call
+            if last_usage:
+                yield {"usage": last_usage}
+            return
         if mode == "text" and len(buf) > emitted:
             yield {"delta": buf[emitted:]}
         if not call or rnd == MAX_ROUNDS:
             if mode == "tool":
-                rest = CALL_RE.sub("", buf[emitted:]).replace("<tool>", "").strip()
+                rest = (buf[emitted:call[2]] if call else buf[emitted:]).replace("<tool>", "").replace("<tool_call>", "").strip()
                 yield {"delta": rest or ("" if emitted else "(I could not complete that action.)")}
             if last_usage:
                 yield {"usage": last_usage}
             return
-        try:
-            spec = json.loads(call.group(1))
-            name, args = str(spec.get("name", "")), spec.get("args") or {}
-        except Exception:
-            name, args = "?", {}
+        name, args = (call[0], call[1]) if call else ("?", {})
         args = args if isinstance(args, dict) else {}
         label = f"{name} {args.get('slug') or args.get('connector') or args.get('name') or ''}".strip()
         yield {"tool": {"name": name, "label": label, "status": "running"}}
@@ -245,12 +391,20 @@ async def _rounds(r, slug: str, system: str, msgs: list[dict], tier: str, trace:
         msgs += [{"role": "assistant", "content": buf.strip()}, {"role": "user", "content": f"<tool_result name=\"{name}\">{result}</tool_result>"}]
 
 
+async def _later(coro, delay: float = 25.0):
+    """Run background learning after the foreground request is done so it does not eat the same per-minute model budget."""
+    await asyncio.sleep(delay)
+    return await coro
+
+
 def _spawn_review(r, slug: str, user_text: str, trace: list[str], answer: str) -> None:
     """After a tool-using turn: maybe save/patch a skill, and store the bot's own lessons in its separate memory namespace."""
-    if trace and answer:
+    if len(trace) >= 2 and answer:  # only multi-step work is worth learning from
         from memory import consolidate
-        asyncio.create_task(skills.review_turn(r, slug, user_text, " | ".join(trace), answer))
-        asyncio.create_task(consolidate.consolidate_turn(r, user_text, answer + " Steps: " + " | ".join(trace)[:600], ns=f"bot.{slug}", bot=True))
+        asyncio.create_task(_later(skills.review_turn(r, slug, user_text, " | ".join(trace), answer)))
+        grp = workspaces.GROUP_OF.get(slug)
+        asyncio.create_task(_later(consolidate.consolidate_turn(r, user_text, answer + " Steps: " + " | ".join(trace)[:600], ns=f"bot.{slug}", bot=True,
+                                                                extra_ns=(f"group.{grp}",) if grp and grp not in ("legacy", "chief") else ())))
 
 
 async def stream_with_tools(r, system: str, msgs: list[dict], tier: str, agent: str = "jasper") -> AsyncIterator[dict]:
