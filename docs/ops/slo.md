@@ -17,8 +17,7 @@ Example: 1 000 requests allow 5 failures at 99.5 %; 5 failures leaves 0 budget.
   Scrape config: job `jasper`, target `localhost:8000`.
 
 ## Limits (honest)
-The budget window lives in process memory (max 7 days, reset on every restart). Durable history needs a Prometheus instance scraping `/metrics`;
-none is installed. Nothing pages you yet; a budget breach is only visible on these endpoints.
+The SLO minute counters are mirrored to Redis (8-day TTL), so the budget survives a backend restart; if Redis is down the in-process window is used (and is lost on restart). Long-term history still needs a Prometheus instance scraping `/metrics`; none is installed. Nothing pages you yet; a budget breach is only visible on these endpoints.
 
 ## Policy when the budget is spent
 Freeze feature work, fix the top failing route (`jasper_http_requests_total{status="5xx"}`), resume once the 24 h window is back above 0.
