@@ -299,6 +299,7 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
   { id: "company",       label: "Company",         description: "Company-level KPIs and dept scorecards",    icon: Building2,   group: "agent_os", system: "agent_os" },
   { id: "team_chat",     label: "Chat", description: "Chat with Sir Jasper, agents and department channels", icon: MessagesSquare,   group: "agent_os", system: "jazper" },
   { id: "office",        label: "Virtual Office", description: "2D office with live agent bubbles", icon: Building2, group: "agent_os", system: "jazper" },
+  { id: "office2",       label: "Office 2 (beta)", description: "New 2D office, work in progress", icon: Building2, group: "agent_os", system: "jazper" },
   { id: "ai_providers",  label: "AI Providers",  description: "Add AI providers, models and tier routing", icon: Cpu, group: "agent_os", system: "jazper" },
   { id: "business",      label: "Business",      description: "Clients, projects, team and finance", icon: BriefcaseBusiness, group: "agent_os", system: "jazper" },
   { id: "diff_editor",   label: "AI Diff Editor", description: "Streamed AI edits with per-hunk accept/reject", icon: GitCompare, group: "agent_os", system: "jazper" },

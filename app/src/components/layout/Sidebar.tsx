@@ -142,7 +142,7 @@ function SystemButton({
 }
 
 // ── Jazper ordering (by importance) + Setup only until finished ────────────────
-const JAZPER_ORDER = ["team_chat", "mind_map", "live_agents", "office", "org_chart", "dev_loop", "diff_editor", "connections", "skills", "mcp_hub", "ai_providers", "finops", "business", "system", "setup"];
+const JAZPER_ORDER = ["team_chat", "mind_map", "live_agents", "office", "office2", "org_chart", "dev_loop", "diff_editor", "connections", "skills", "mcp_hub", "ai_providers", "finops", "business", "system", "setup"];
 
 function setupDone(): boolean {
   try { return localStorage.getItem("jasper.setupDone") === "1"; } catch { return false; }

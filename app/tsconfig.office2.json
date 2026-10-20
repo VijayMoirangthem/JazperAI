@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": true, "tsBuildInfoFile": "./node_modules/.cache/tsc-office2.tsbuildinfo" },
+  "include": ["src/office2", "src/components/office2", "src/components/panels/Office2Panel.tsx", "src/stores/chatIntentStore.ts"]
+}

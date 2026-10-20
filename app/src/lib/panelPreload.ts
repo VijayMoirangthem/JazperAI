@@ -8,6 +8,7 @@ const CODE: Record<string, () => Promise<unknown>> = {
   mind_map: () => import("@/components/panels/MindMapPanel"),
   live_agents: () => import("@/components/panels/LiveAgentsPanel"),
   office: () => import("@/components/panels/OfficePanel"),
+  office2: () => import("@/components/panels/Office2Panel"),
   org_chart: () => import("@/components/panels/CompanyPanel"),
   dev_loop: () => import("@/components/panels/DevLoopPanel"),
   diff_editor: () => import("@/components/panels/DiffEditorPanel"),
@@ -22,6 +23,7 @@ const CODE: Record<string, () => Promise<unknown>> = {
 const DATA: Record<string, string[]> = {
   mind_map: ["/api/v1/bots/tree", "/api/v1/connections/"],
   office: ["/api/v1/directory/", "/api/v1/bots/"],
+  office2: ["/api/v1/directory/", "/api/v1/bots/"],
   org_chart: ["/api/v1/company/structure"],
   connections: ["/api/v1/connections/", "/api/v1/workspaces/"],
   skills: ["/api/v1/skills/"],
