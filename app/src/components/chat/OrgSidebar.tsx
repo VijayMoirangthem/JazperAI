@@ -5,6 +5,7 @@
 import { useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Hash, Search } from "lucide-react";
 import { MausAvatar, lookFor, useBotLook, type MausState } from "@/mascot/MausAvatar";
+import { threadTitle, type CommsThread } from "./CommsView";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -44,8 +45,8 @@ function HoverCard({ bot, groupLabel, state, top }: { bot: OrgBot; groupLabel: s
   );
 }
 
-export function OrgSidebar({ groups, rooms, activeId, query, onQuery, onSelect, faceFor, lastOf, unreadOf, nameOf, onChanged }: {
-  groups: OrgGroup[]; rooms: RoomRow[]; activeId: string; query: string; onQuery: (q: string) => void; onSelect: (id: string, label: string, kind: "dm" | "room", crew?: string) => void;
+export function OrgSidebar({ comms = [], groups, rooms, activeId, query, onQuery, onSelect, faceFor, lastOf, unreadOf, nameOf, onChanged }: {
+  comms?: CommsThread[]; groups: OrgGroup[]; rooms: RoomRow[]; activeId: string; query: string; onQuery: (q: string) => void; onSelect: (id: string, label: string, kind: "dm" | "room" | "comms", crew?: string) => void;
   faceFor: (channelId: string) => MausState; lastOf: (channelId: string) => { text: string; ts: number } | undefined; unreadOf: (channelId: string) => boolean;
   nameOf: (slug: string, fallback: string) => string; onChanged: () => void;
 }) {
@@ -133,6 +134,23 @@ export function OrgSidebar({ groups, rooms, activeId, query, onQuery, onSelect, 
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10"><Hash size={14} /></span>
                 <span className="truncate text-[14px] font-semibold">{r.label}</span>
                 {unreadOf(r.id) && <span className="ml-auto h-2 w-2 rounded-full bg-blue-500" />}
+              </button>
+            ))}
+          </div>
+        )}
+        {comms.filter((c) => !q || threadTitle(c.thread).toLowerCase().includes(q)).length > 0 && (
+          <div data-testid="comms-section">
+            <button onClick={() => setClosed((c) => ({ ...c, comms: !c.comms }))} className="flex w-full items-center gap-1 px-2 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider opacity-60">
+              {closed.comms ? <ChevronRight size={12} /> : <ChevronDown size={12} />}Bot conversations<span className="ml-auto font-normal opacity-70">{comms.length}</span>
+            </button>
+            {!closed.comms && comms.filter((c) => !q || threadTitle(c.thread).toLowerCase().includes(q)).map((c) => (
+              <button key={c.thread} onClick={() => onSelect("comms:" + c.thread, threadTitle(c.thread), "comms")} data-testid={"chan-comms:" + c.thread}
+                className="flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left" style={{ background: activeId === "comms:" + c.thread ? "rgba(255,255,255,0.09)" : "transparent" }}>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px]">&#8644;</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold">{threadTitle(c.thread)}</span>
+                  <span className="block truncate text-[12px] opacity-55">{c.preview}</span>
+                </span>
               </button>
             ))}
           </div>

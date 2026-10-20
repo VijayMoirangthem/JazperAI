@@ -9,6 +9,8 @@ export interface ChatMessage {
   status?: "sent" | "delivered" | "read";
   streaming?: boolean;
   attachments?: Attachment[];
+  ui?: { kind: "credentials" | "oauth"; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean };
+  phase?: boolean;
   tool?: { name: string; label: string; status: "running" | "ok" | "error"; result?: string };
   meta?: { route?: { slugs: string[]; source: string; confidence: number }; tokens?: number };
 }

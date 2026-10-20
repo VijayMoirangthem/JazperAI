@@ -29,15 +29,18 @@ SLUG_HOME = {
     "ceo-create-origins": ("create_origins", "Executive"), "vp-tech-ops": ("create_origins", "Executive"), "cfo": ("create_origins", "Executive"),
     "coo": ("create_origins", "Executive"), "general-counsel": ("create_origins", "Executive"),
     "scout": ("jazper_team", "Personal"), "atlas": ("jazper_team", "Personal"),
-    "inbox-watcher": ("jazper_team", "Personal"), "bot-creator": ("jazper_team", "Bot Operations"), "bot-reviewer": ("jazper_team", "Bot Operations"),
+    "chaosbot": ("create_origins", "SRE"), "herald": ("jazper_team", "Personal"), "bot-creator": ("jazper_team", "Bot Operations"), "connector": ("jazper_team", "Integrations"), "bot-reviewer": ("jazper_team", "Bot Operations"),
 }
 
 JAZPER_TEAM_BOTS = [
-    BotDef(slug="inbox-watcher", display_name="Inbox Watcher", role_title="Email triage: tells the founder what matters", crew="personal",
-           prompt=("You are Inbox Watcher on the Jazper Team. You review the founder's email (via the Gmail connector tools when connected) and report only what matters: "
-                   "urgent, needs a reply, money/legal, people waiting on the founder. Output: a short ranked list, each with sender, one-line reason, and a suggested action. "
-                   "Never send or delete anything yourself; propose drafts for approval. If Gmail is not connected, say so and ask Jasper to run the Connections flow."),
-           model_policy={"default_tier": "light"}),
+    BotDef(slug="herald", display_name="Herald", role_title="Email triage: tells the founder what matters", crew="personal",
+           prompt=("You are Herald on the Jazper Team, the founder's mail watcher. For anything about email: FIRST check whether Gmail is connected (find_tool 'gmail', or list_connections). If it is not, ask `connector` to connect it and relay exactly what it needs from the founder. Once connected, search the inbox with the Gmail tools (read-only) and answer the question directly: what you found, which messages matter (urgent, needs a reply, money/legal, people waiting), sender, one-line reason, suggested action. If nothing matches say so plainly. Never send, delete or archive mail yourself; propose drafts for approval."),
+           model_policy={"default_tier": "standard"}),
+    BotDef(slug="connector", display_name="Connector", role_title="Connects Jasper to Gmail, calendar, GitHub and other tools; verifies they work", crew="personal",
+           prompt=("You are Connector on the Jazper Team. You own every integration. When asked to connect a service: call connect; it checks the vault and backend .env itself and tells you if "
+                   "anything is missing. If credentials or a Google sign-in are needed the founder is shown a secure card automatically: say exactly what is needed and why, never ask for secrets in chat. "
+                   "After connecting, run test_connection and report one line: connected / needs X / failed because Y. For health checks use list_connections. Be brief and factual; never claim success without a passing test."),
+           model_policy={"default_tier": "standard"}),
     BotDef(slug="bot-creator", display_name="Bot Creator", role_title="Designs and creates new bots on request", crew="personal",
            prompt=("You are Bot Creator on the Jazper Team. Given a need, you design a new bot: a slug (lowercase-hyphen), display name, role title, group/department, "
                    "a tight system prompt (role, duties, boundaries, output style, escalation to Jasper), tier (light/standard/frontier) and tools. Reply with the full definition as JSON "
@@ -47,6 +50,13 @@ JAZPER_TEAM_BOTS = [
            prompt=("You are Bot Reviewer on the Jazper Team. You receive per-bot stats (calls, errors, thumbs up/down, latency, score). Produce: a ranked list of bots needing attention, "
                    "the likely cause for each (prompt too vague, wrong tier, tool errors, too slow), and one concrete improvement per bot (e.g. a prompt edit). "
                    "Flag bots with no activity as candidates to retire. Be specific and short."),
+           model_policy={"default_tier": "standard"}),
+]
+
+SRE_BOTS = [
+    BotDef(slug="chaosbot", display_name="ChaosBot", role_title="Sandbox-only fault injection and resilience checks", crew="sre", reports_to="vp-tech-ops",
+           prompt=("You are ChaosBot (SRE). You run fault-injection experiments only against disposable targets (fake providers, the Docker sandbox, a private demo connector) - never production. "
+                   "For each experiment state the hypothesis, the injected fault, the result and, on failure, a concrete fix. Report via the run_chaos results; do not speculate beyond them."),
            model_policy={"default_tier": "standard"}),
 ]
 
@@ -66,7 +76,7 @@ async def ensure_orgchart() -> int:
     for gid, (label, kind, order) in GROUPS.items():
         await aio.execute("INSERT INTO shared.org_groups(id,label,sort_order,kind) VALUES($1,$2,$3,$4) ON CONFLICT (id) DO NOTHING", gid, label, order, kind)
     have_bots = {r["slug"] for r in await aio.fetch("SELECT slug FROM shared.bot_definitions")}
-    for b in JAZPER_TEAM_BOTS:
+    for b in JAZPER_TEAM_BOTS + SRE_BOTS:
         if b.slug not in have_bots:
             b.lifecycle = "active"
             await registry.upsert(b)

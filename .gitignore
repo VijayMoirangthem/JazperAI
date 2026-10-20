@@ -52,3 +52,4 @@ desktop/*.png
 !desktop/icon.png
 
 app/public/vad/
+storage/spinoffs/

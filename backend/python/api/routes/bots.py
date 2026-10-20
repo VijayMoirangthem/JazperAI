@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from agents import orgchart
+from core import cache
 from agents.registry import BotDef, registry
 
 router = APIRouter()
@@ -78,13 +79,14 @@ class GroupIn(BaseModel):
 
 @router.get("/tree")
 async def tree():
-    return await orgchart.tree()
+    return await cache.cached("org_tree", 3, orgchart.tree)
 
 
 @router.put("/order")
 async def reorder(items: list[OrderItem]):
     for it in items:
         await orgchart.place(it.slug, it.org_group, it.department, it.position, it.sort_order)
+    await cache.invalidate("org_tree")
     return {"updated": len(items)}
 
 
@@ -106,16 +108,19 @@ async def card(slug: str):
 @router.put("/{slug}/org")
 async def place(slug: str, body: PlaceIn):
     await orgchart.place(slug, **body.model_dump())
+    await cache.invalidate("org_tree")
     return await orgchart.card(slug)
 
 
 @router.put("/{slug}/prompt")
 async def set_prompt(slug: str, body: PromptIn):
     await orgchart.set_prompt(slug, body.prompt)
+    await cache.invalidate("org_tree")
     return {"slug": slug, "override": bool(body.prompt)}
 
 
 @router.post("/{slug}/rate")
 async def rate(slug: str, body: RateIn):
     await orgchart.rate(slug, body.up)
+    await cache.invalidate("org_tree")
     return (await orgchart.card(slug)) or {}

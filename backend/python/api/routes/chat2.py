@@ -13,7 +13,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from agents import jasper_tools, orgchart
+from agents import discussion, jasper_tools, orgchart
 from agents.decision import decide
 from agents.registry import registry
 from core import directory, finops
@@ -75,18 +75,16 @@ def _line(o: dict) -> str:
 async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attachment], tier: str | None = None) -> AsyncIterator[str]:
     system, default_tier = _persona(slug)
     
-    # Memory v2: recall relevant facts before answering (only for jasper)
-    if slug == "jasper":
-        try:
-            facts = await asyncio.wait_for(consolidate.recall(text, k=4), timeout=4.0)
-            if facts:
-                bullet = "\n".join(f"- {f}" for f in facts)
-                system = f"{system}\n\nWhat you already know about the user:\n{bullet}"
-        except asyncio.TimeoutError:
-            pass  # memory must never block the conversation
-        except Exception:
-            pass  # memory must never break a conversation
-    
+    # Memory v2: unified memory about the founder (shared by all bots) + this bot's own lessons (separate). Recall never blocks the chat.
+    try:
+        facts, lessons = await asyncio.wait_for(asyncio.gather(consolidate.recall(text, k=4), consolidate.recall(text, k=3, ns=f"bot.{slug}")), timeout=4.0)
+        if facts:
+            system = f"{system}\n\nWhat you already know about the founder:\n" + "\n".join(f"- {f}" for f in facts)
+        if lessons:
+            system = f"{system}\n\nLessons from your own past work:\n" + "\n".join(f"- {f}" for f in lessons)
+    except Exception:
+        pass  # includes TimeoutError: memory must never break a conversation
+
     msgs = [{"role": t.role, "content": t.content} for t in history[-MAX_HISTORY:]] + [{"role": "user", "content": _user_content(text, atts)}]
     yield _line({"t": "speaker", "slug": slug})
     announce(slug, "working", bubble=text[:100])
@@ -95,13 +93,15 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     try:
         b = registry.routable(slug)
         with finops.attribute(slug, b.crew if b else None):
-            if slug == "jasper":  # chief orchestrator has system access via the tool loop
-                async for ev in jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier):
+            if jasper_tools.has_tools(slug):  # bots with a tool allowlist (Jasper, Connector, ...) use the tool loop
+                async for ev in jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier, agent=slug):
                     if "delta" in ev:
                         reply_parts.append(ev["delta"])
                         yield _line({"t": "delta", "slug": slug, "text": ev["delta"]})
                     elif "tool" in ev:
                         yield _line({"t": "tool", "slug": slug, **ev["tool"]})
+                    elif "ui" in ev:
+                        yield _line({"t": "ui", "slug": slug, **ev["ui"]})
                     else:
                         yield _line({"t": "done", "slug": slug, "usage": ev["usage"].model_dump()})
             else:
@@ -120,7 +120,7 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     await orgchart.record_call(slug, True, int((time.monotonic() - t0) * 1000))
     
     # Memory v2: consolidate the turn after the reply (only for jasper)
-    if slug == "jasper" and reply_parts:
+    if reply_parts:
         asyncio.create_task(consolidate.consolidate_turn(r, text, "".join(reply_parts)))
 
 
@@ -130,6 +130,22 @@ async def stream(body: ChatIn):
         r = await get_router()
         async for line in _speak(r, body.slug, body.history, body.text, body.attachments, body.tier):
             yield line
+    return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+
+class MeetingIn(BaseModel):
+    group: str
+    topic: str
+    rounds: int = 2
+
+
+@router.post("/meeting")
+async def meeting(body: MeetingIn):
+    """Group discussion: the group's bots debate the topic (rounds), then the lead concludes. Streams chat2 events plus {"t":"phase"}."""
+    async def gen():
+        r = await get_router()
+        async for ev in discussion.stream(r, body.group, body.topic, max(1, min(body.rounds, 3))):
+            yield _line(ev)
     return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 

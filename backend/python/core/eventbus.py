@@ -61,6 +61,13 @@ def announce(slug: str, to_state: str, bubble: str | None = None, reason: str | 
     """Publish an agent-state-change for a named agent; never raises (telemetry must not break agent runs)."""
     from uuid import NAMESPACE_DNS, uuid5
     try:
+        try:
+            import asyncio
+
+            from core import cache
+            asyncio.get_running_loop().create_task(cache.set_agent_state(slug, to_state, bubble))
+        except RuntimeError:
+            pass  # no running loop (sync caller): skip the mirror
         bus.publish({"topic": "agent-state-change", "agent_id": str(uuid5(NAMESPACE_DNS, f"jasper.{slug}")),
                      "agent_slug": slug, "to_state": to_state,
                      "status_bubble": (bubble or "")[:140] or None, "reason": (reason or "")[:500] or None})

@@ -1289,6 +1289,14 @@
  ],
  [
   "GET",
+  "/api/slo/"
+ ],
+ [
+  "GET",
+  "/api/slo/chaos"
+ ],
+ [
+  "GET",
   "/api/sprints"
  ],
  [
@@ -2129,6 +2137,14 @@
  ],
  [
   "GET",
+  "/api/v1/slo/"
+ ],
+ [
+  "GET",
+  "/api/v1/slo/chaos"
+ ],
+ [
+  "GET",
   "/api/v1/sprints"
  ],
  [
@@ -2298,6 +2314,10 @@
  [
   "GET",
   "/health/"
+ ],
+ [
+  "GET",
+  "/metrics"
  ],
  [
   "GET",
@@ -3205,6 +3225,10 @@
  ],
  [
   "POST",
+  "/api/slo/chaos/{name}"
+ ],
+ [
+  "POST",
   "/api/sprints"
  ],
  [
@@ -3898,6 +3922,10 @@
  [
   "POST",
   "/api/v1/shared-memory"
+ ],
+ [
+  "POST",
+  "/api/v1/slo/chaos/{name}"
  ],
  [
   "POST",

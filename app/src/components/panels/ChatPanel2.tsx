@@ -15,19 +15,22 @@ import { useLiveAgents } from "@/stores/liveAgentsStore";
 import { MausAvatar, lookFor, stateFromAgent, useBotLook, type MausMotion, type MausState } from "@/mascot/MausAvatar";
 import { OrgSidebar, ScoreBadge, type OrgGroup } from "@/components/chat/OrgSidebar";
 import { BotSettings } from "@/components/chat/BotSettings";
+import { CredentialCard, OAuthCard } from "@/components/chat/ChatCards";
+import { CommsView, useCommsThreads } from "@/components/chat/CommsView";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const WS_URL = API.replace(/^http/, "ws") + "/ws/rpc";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 interface Bot { slug: string; display_name: string; role_title: string; crew: string; enabled: boolean }
-interface Channel { id: string; label: string; kind: "dm" | "room"; crew?: string }
+interface Channel { id: string; label: string; kind: "dm" | "room" | "comms"; crew?: string }
 interface Pending { request_id: string; tier: number; action: string; summary: string; requester: string }
 
 const ROOMS: Channel[] = [
   { id: "room:create_origins", label: "Create Origins HQ", kind: "room" },
   { id: "room:baeit", label: "Baeit Engineering", kind: "room", crew: "baeit" },
   { id: "room:boardmint", label: "Boardmint Compliance", kind: "room", crew: "boardmint" },
+  { id: "room:jazper_team", label: "Jazper Team", kind: "room", crew: "jazper_team" },
 ];
 const LEVELS: [ApprovalLevel, string][] = [["ask", "Ask"], ["auto_edits", "Auto-accept edits"], ["approve_for_me", "Approve for me"], ["full", "Full access"]];
 const LEVEL_SHORT: Record<ApprovalLevel, string> = { ask: "Ask", auto_edits: "Edits", approve_for_me: "Auto", full: "Full" };
@@ -59,8 +62,10 @@ function Rich({ text, onAnswer }: { text: string; onAnswer?: (t: string) => void
 
 const hhmm = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
-function Bubble({ m, onAnswer, onRate }: { m: ChatMessage; onAnswer?: (t: string) => void; onRate?: (up: boolean) => void }) {
+function Bubble({ m, onAnswer, onRate, onCard }: { m: ChatMessage; onAnswer?: (t: string) => void; onRate?: (up: boolean) => void; onCard?: (t: string) => void }) {
   const mine = m.from === "you";
+  if (m.phase) return <div className="my-1 flex items-center gap-2 text-xs opacity-60" data-testid="phase"><span className="h-px flex-1 bg-white/15" />{m.text}<span className="h-px flex-1 bg-white/15" /></div>;
+  if (m.ui) return <div className="flex justify-start">{m.ui.kind === "credentials" ? <CredentialCard req={m.ui} onDone={(t) => onCard?.(t)} /> : <OAuthCard req={m.ui} onDone={(t) => onCard?.(t)} />}</div>;
   const system = m.from === "system";
   const [rated, setRated] = useState<boolean | null>(null);
   if (m.tool) {
@@ -118,7 +123,8 @@ function ApprovalCard({ p, onDone }: { p: Pending; onDone: () => void }) {
   );
 }
 
-function Composer({ channel, label, members, onSend, busy, onStop, level, onLevel, rec, onRec }: {
+function Composer({ channel, label, members, onSend, onMeeting, busy, onStop, level, onLevel, rec, onRec }: {
+  onMeeting?: (topic: string) => void;
   channel: string; label: string; members: Bot[]; onSend: (text: string, atts: Attachment[]) => void; busy: boolean; onStop: () => void;
   level: ApprovalLevel | null; onLevel: (l: ApprovalLevel) => void; rec: boolean; onRec: (addFiles: (f: File[]) => Promise<void>, setText: (fn: (t: string) => string) => void) => void;
 }) {
@@ -183,6 +189,7 @@ function Composer({ channel, label, members, onSend, busy, onStop, level, onLeve
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
           placeholder={`Message ${label}`} aria-label="Message"
           className="flex-1 resize-none bg-transparent py-1 text-[15px] outline-none placeholder:opacity-50" />
+        {onMeeting && <button onClick={() => { if (text.trim()) { onMeeting(text.trim()); setText(""); } }} title="Hold a meeting: the bots of this group discuss your message and the lead concludes" data-testid="meeting-btn" disabled={!text.trim()} className="rounded-full border border-white/15 px-2.5 py-1 text-xs opacity-80 hover:opacity-100 disabled:opacity-30">Meeting</button>}
         <button onClick={() => onRec(addFiles, setText)} title={rec ? "Stop recording" : "Voice note"} className="rounded-full p-1.5 opacity-70 hover:opacity-100" style={{ color: rec ? "#ef4444" : undefined }}><Mic size={17} /></button>
         {busy
           ? <button onClick={onStop} title="Stop" className="rounded-full bg-white/20 p-1.5"><Square size={15} /></button>
@@ -199,6 +206,7 @@ export function ChatPanel2() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [query, setQuery] = useState("");
   const [customize, setCustomize] = useState(false);
+  const commsThreads = useCommsThreads();
   const loadTree = () => fetch(`${API}/api/v1/bots/tree`).then((r) => r.json()).then((d) => setGroups(d.groups ?? [])).catch(() => undefined);
   const [motion, setMotion] = useState<{ m: MausMotion; k: number }>({ m: "arrive", k: 0 });
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
@@ -260,7 +268,7 @@ export function ChatPanel2() {
   }, [bots, active]);
   const typing = Object.values(live).filter((a) => ["working", "planning"].includes(a.state)).map((a) => a.slug);
 
-  const send = async (text: string, atts: Attachment[]) => {
+  const send = async (text: string, atts: Attachment[], mode?: "meeting") => {
     const ch = active.id;
     const history = (threads[ch] ?? []).filter((m) => m.from !== "system" && !m.tool && m.text).slice(-20).map((m) => ({ role: m.from === "you" ? "user" : "assistant", content: m.text }));
     const mine: ChatMessage = { id: uid(), from: "you", text, ts: Date.now(), status: "sent", attachments: atts };
@@ -270,7 +278,9 @@ export function ChatPanel2() {
     const payload = { text, history, attachments: atts.map(({ name, mime, text: t }) => ({ name, mime, text: t })) };
     let failed = false;
     try {
-      const res = active.kind === "dm"
+      const res = mode === "meeting"
+        ? await fetch(`${API}/api/v1/chat2/meeting`, { method: "POST", headers: { "Content-Type": "application/json" }, signal: abort.current.signal, body: JSON.stringify({ group: active.id.slice(5), topic: text, rounds: 2 }) })
+        : active.kind === "dm"
         ? await fetch(`${API}/api/v1/chat2/stream`, { method: "POST", headers: { "Content-Type": "application/json" }, signal: abort.current.signal, body: JSON.stringify({ ...payload, slug: active.id.slice(3) }) })
         : await fetch(`${API}/api/v1/chat2/room`, { method: "POST", headers: { "Content-Type": "application/json" }, signal: abort.current.signal, body: JSON.stringify({ ...payload, room: active.label, members: members.map((b) => b.slug) }) });
       patch(ch, mine.id, { status: "delivered" });
@@ -284,6 +294,8 @@ export function ChatPanel2() {
         const slug = String(ev.slug ?? "");
         if (ev.t === "route") route = ev as never;
         else if (ev.t === "speaker") { startMsg(slug); patch(ch, mine.id, { status: "read" }); }
+        else if (ev.t === "phase") push(ch, { id: uid(), from: "system", text: String(ev.text), ts: Date.now(), phase: true });
+        else if (ev.t === "ui") { push(ch, { id: uid(), from: slug, text: "", ts: Date.now(), ui: { kind: ev.kind as "credentials" | "oauth", connector: String(ev.connector), secrets: ev.secrets as { name: string; label: string }[] | undefined, url: ev.url as string | undefined, provider: ev.provider as string | undefined } }); ids.delete(slug); }
         else if (ev.t === "tool") {
           const label = String(ev.label ?? ev.name); const status = ev.status as "running" | "ok" | "error";
           const open = [...(useChat.getState().threads[ch] ?? [])].reverse().find((x) => x.tool && x.tool.status === "running" && x.tool.label === label);
@@ -356,11 +368,12 @@ export function ChatPanel2() {
   const face = faceFor(active.id);
   return (
     <div className="flex h-full min-h-[560px]" data-testid="chat-panel">
-      <OrgSidebar groups={groups} rooms={roomRows} activeId={active.id} query={query} onQuery={setQuery} onChanged={loadTree}
+      <OrgSidebar comms={commsThreads} groups={groups} rooms={roomRows} activeId={active.id} query={query} onQuery={setQuery} onChanged={loadTree}
         onSelect={(id, label, kind, crew) => setActive({ id, label, kind, crew })}
         faceFor={faceFor} lastOf={chanLast} unreadOf={(id) => id !== active.id && firstUnreadIndex(threads[id] ?? [], lastRead[id]) >= 0}
         nameOf={(slug, fb) => looks[slug]?.name ?? fb} />
 
+      {active.kind === "comms" ? <CommsView thread={active.id.slice(6)} /> : (
       <section className="relative flex min-w-0 flex-1 flex-col">
         <header className="relative flex items-center gap-3 px-5 py-3">
           <MausAvatar color={ab.color} bodyId={ab.body} size={40} state={face} motion={motion.m} motionKey={motion.k} label={nameOf(active)} />
@@ -385,7 +398,7 @@ export function ChatPanel2() {
           {shown.map((m, i) => (
             <div key={m.id}>
               {vp.start + i === unreadRef.current && <div className="my-2 flex items-center gap-2 text-xs text-blue-400"><span className="h-px flex-1 bg-blue-500/40" />New messages<span className="h-px flex-1 bg-blue-500/40" /></div>}
-              <Bubble m={m} onAnswer={(t) => void send(t, [])} onRate={m.from !== "you" && m.from !== "system" ? rate(m.from) : undefined} />
+              <Bubble m={m} onCard={(t) => void send(t, [])} onAnswer={(t) => void send(t, [])} onRate={m.from !== "you" && m.from !== "system" ? rate(m.from) : undefined} />
             </div>
           ))}
           {busy && !(lastMsg?.streaming && lastMsg.text) && (
@@ -397,9 +410,10 @@ export function ChatPanel2() {
           {pending.map((p) => <ApprovalCard key={p.request_id} p={p} onDone={() => setPending((x) => x.filter((y) => y.request_id !== p.request_id))} />)}
         </div>
         {!vp.following && <button onClick={vp.jumpToBottom} className="absolute bottom-24 right-6 rounded-full bg-blue-600 p-2" title="Jump to latest"><ArrowDown size={16} /></button>}
-        <Composer channel={active.id} label={nameOf(active)} members={members} onSend={send} busy={busy} onStop={() => abort.current?.abort()}
+        <Composer onMeeting={active.kind === "room" ? (t) => void send(t, [], "meeting") : undefined} channel={active.id} label={nameOf(active)} members={members} onSend={send} busy={busy} onStop={() => abort.current?.abort()}
           level={level} onLevel={setLevel} rec={!!recorder} onRec={toggleRec} />
       </section>
+      )}
       {customize && active.kind === "dm" && <BotSettings slug={slugOf(active)} groups={groups} onClose={() => setCustomize(false)} onChanged={loadTree} />}
     </div>
   );

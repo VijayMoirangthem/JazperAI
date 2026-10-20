@@ -246,6 +246,8 @@ class NoCacheMunderMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(NoCacheMunderMiddleware)
+from core.metrics import MetricsMiddleware
+app.add_middleware(MetricsMiddleware)  # G4: Prometheus counters + SLO window
 app.add_middleware(
     CORSMiddleware,
     allow_origins=sorted({settings.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3001", "http://127.0.0.1:3001"}),
@@ -368,6 +370,13 @@ from api.routes import system as system_route
 app.include_router(system_route.router, prefix="/api/system", tags=["system"])
 from api.routes import devloop as devloop_route
 app.include_router(devloop_route.router, prefix="/api/devloop", tags=["devloop"])
+from api.routes import observability as observability_route
+app.include_router(observability_route.router, prefix="/api/slo", tags=["slo"])
+app.include_router(observability_route.metrics_router)
+from api.routes import connections as connections_route
+app.include_router(connections_route.router, prefix="/api/connections", tags=["connections"])
+app.include_router(connections_route.comms_router, prefix="/api/comms", tags=["comms"])
+app.include_router(connections_route.skills_router, prefix="/api/skills", tags=["skills"])
 from api.routes import memory2 as memory2_route
 app.include_router(memory2_route.router, prefix="/api/memory2", tags=["memory2"])
 from api.routes import voice2 as voice2_route

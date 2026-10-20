@@ -87,6 +87,9 @@ import { PortfolioPanel } from "@/components/panels/PortfolioPanel";
 import { SalaryCoachPanel } from "@/components/panels/SalaryCoachPanel";
 import { StandupPanel } from "@/components/panels/StandupPanel";
 import { QuickActionsBar } from "@/components/QuickActionsBar";
+import { MindMapPanel } from "@/components/panels/MindMapPanel";
+import { ConnectionsPanel } from "@/components/panels/ConnectionsPanel";
+import { SkillsPanel } from "@/components/panels/SkillsPanel";
 import { StudioLayout } from "@/components/panels/StudioLayout";
 import { CommandPalette } from "@/components/CommandPalette";
 import { VoiceOrb } from "@/components/voice/VoiceOrb";
@@ -248,6 +251,9 @@ export default function Home() {
     ai_providers:   <AiProvidersPanel />,
     office:         <OfficePanel />,
     team_chat:      <ChatPanel2 />,
+    mind_map:       <MindMapPanel />,
+    connections:    <ConnectionsPanel />,
+    skills:         <SkillsPanel />,
     company:        <CompanyDashboardPanel />,
     pipeline:       <PipelinePanel />,
     evolution:      <EvolutionPanel />,
@@ -306,7 +312,7 @@ export default function Home() {
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--color-bg)" }}>
-      {view !== "team_chat" && <QuickActionsBar />}
+      {!["team_chat", "mind_map", "connections", "skills"].includes(view) && <QuickActionsBar />}
       <CommandPalette onNavigate={(v) => navigate(v)} />
       {!studioMode && <Sidebar active={view} onNavigate={(id) => navigate(id as View)} />}
       <ApprovalOverlay
