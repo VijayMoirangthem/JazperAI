@@ -33,7 +33,7 @@ export function McpHubPanel() {
 
   const call = async () => {
     if (!sel) return;
-    setOut("running… (Tier 2/3 tools wait for approval in Team Chat)");
+    setOut("running… (Tier 2/3 tools wait for approval in Chat)");
     try {
       const r = await fetch(`${base}/call`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: sel.name, arguments: JSON.parse(args), agent: "founder" }) });
       setOut(JSON.stringify(await r.json(), null, 2));

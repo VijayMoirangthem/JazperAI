@@ -297,7 +297,7 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
   { id: "qa",            label: "QA Center",       description: "Quality assurance and testing",             icon: ShieldCheck, group: "agent_os", system: "agent_os" },
   { id: "observatory",   label: "Observatory",     description: "Live agent feed and session monitor",       icon: Radio,       group: "agent_os", system: "agent_os" },
   { id: "company",       label: "Company",         description: "Company-level KPIs and dept scorecards",    icon: Building2,   group: "agent_os", system: "agent_os" },
-  { id: "team_chat",     label: "Team Chat",      description: "Chat with Sir Jasper, agents and department channels", icon: MessagesSquare,   group: "agent_os", system: "jazper" },
+  { id: "team_chat",     label: "Chat", description: "Chat with Sir Jasper, agents and department channels", icon: MessagesSquare,   group: "agent_os", system: "jazper" },
   { id: "office",        label: "Virtual Office", description: "2D office with live agent bubbles", icon: Building2, group: "agent_os", system: "jazper" },
   { id: "ai_providers",  label: "AI Providers",  description: "Add AI providers, models and tier routing", icon: Cpu, group: "agent_os", system: "jazper" },
   { id: "business",      label: "Business",      description: "Clients, projects, team and finance", icon: BriefcaseBusiness, group: "agent_os", system: "jazper" },

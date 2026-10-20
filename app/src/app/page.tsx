@@ -306,7 +306,7 @@ export default function Home() {
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--color-bg)" }}>
-      <QuickActionsBar />
+      {view !== "team_chat" && <QuickActionsBar />}
       <CommandPalette onNavigate={(v) => navigate(v)} />
       {!studioMode && <Sidebar active={view} onNavigate={(id) => navigate(id as View)} />}
       <ApprovalOverlay

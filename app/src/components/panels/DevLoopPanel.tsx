@@ -61,7 +61,7 @@ export function DevLoopPanel() {
               {cur.status === "verified" && !cur.merge && <button onClick={() => act(cur.id, "merge")} className="rounded bg-green-700 px-3 py-1 text-sm">Request merge</button>}
               <button onClick={() => act(cur.id, "discard")} className="rounded border px-3 py-1 text-sm">Discard</button>
             </div></div>
-          {cur.merge === "awaiting-approval" && <div className="rounded bg-amber-500/20 p-2 text-sm">Approve or deny in Team Chat (approval card) — the merge happens only after you approve.</div>}
+          {cur.merge === "awaiting-approval" && <div className="rounded bg-amber-500/20 p-2 text-sm">Approve or deny in Chat (approval card) — the merge happens only after you approve.</div>}
           {cur.merge === "merged" && <div className="rounded bg-green-500/20 p-2 text-sm">Merged ({cur.merge_sha?.slice(0, 8)}).</div>}
           {cur.status === "rolled_back_escalated" && <div className="rounded bg-red-500/20 p-2 text-sm">Gave up after 3 failed attempts; the branch was rolled back and an escalation was raised.</div>}
           {cur.error && <div className="rounded bg-red-500/20 p-2 text-sm">{cur.error}</div>}
