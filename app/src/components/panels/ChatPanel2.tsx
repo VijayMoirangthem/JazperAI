@@ -16,6 +16,7 @@ import { MausAvatar, lookFor, stateFromAgent, useBotLook, voiceOf, type MausMoti
 import { speakAs, stopSpeaking, useTts } from "@/voice/botVoice";
 import { OrgSidebar, ScoreBadge, type OrgGroup } from "@/components/chat/OrgSidebar";
 import { BotSettings } from "@/components/chat/BotSettings";
+import { ModelPicker } from "@/components/chat/ModelPicker";
 import { CredentialCard, OAuthCard, SuggestionCard } from "@/components/chat/ChatCards";
 import { CommsView, useCommsThreads } from "@/components/chat/CommsView";
 
@@ -403,6 +404,7 @@ export function ChatPanel2() {
           <span className="text-[17px] font-semibold">{nameOf(active)}</span>
           {active.kind === "dm" && <button onClick={() => setCustomize((v) => !v)} title="Bot settings" aria-label="Bot settings" data-testid="customize-btn" className="rounded-full p-1 opacity-50 hover:opacity-100"><Pencil size={13} /></button>}
           {activeBot && <ScoreBadge bot={activeBot} />}
+          {activeBot && active.kind === "dm" && <ModelPicker bot={activeBot} onChanged={loadTree} />}
           <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-xs opacity-70" data-testid="face-state">{face}</span>
           {activeBot && <span className="hidden truncate text-xs opacity-50 xl:block">{activeBot.position}</span>}
           <div className="ml-auto flex items-center gap-2">

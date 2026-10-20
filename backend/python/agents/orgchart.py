@@ -159,7 +159,7 @@ async def tree() -> dict:
             "enabled": r.get("enabled", True), "source": r.get("source", "dynamic"), "lifecycle": r.get("lifecycle"),
             "department": o.get("department", ""), "position": o.get("position") or r["role_title"], "sort_order": o.get("sort_order", 1000),
             "created_at": (created.get(r["slug"]) or o.get("created_at")), "started_at": o.get("started_at"), "has_prompt_override": bool(o.get("prompt_override")),
-            "tier": (r.get("model_policy") or {}).get("default_tier", "standard"), "tools": r.get("tools", []), **st,
+            "tier": (r.get("model_policy") or {}).get("default_tier", "standard"), "tools": r.get("tools", []), "settings": SETTINGS.get(r["slug"], {}), **st,
         })
     for g in groups:
         g["bots"].sort(key=lambda b: (b["sort_order"], b["slug"]))
@@ -198,7 +198,9 @@ def llm_kwargs(slug: str) -> dict:
     st = SETTINGS.get(slug, {})
     out: dict = {}
     if st.get("model"):
-        out["pin"] = st["model"]
+        from agents import jasper_tools
+        if not (st["model"].startswith("opencode-cli:") and jasper_tools.has_tools(slug)):  # CLI agents are never used for tool bots
+            out["pin"] = st["model"]
     if st.get("tier") in TIERS:
         out["tier"] = st["tier"]
     if isinstance(st.get("temperature"), (int, float)):

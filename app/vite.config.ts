@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
         { find: "next/dynamic", replacement: path.resolve(here, "src/shims/dynamic.tsx") },
       ],
     },
-    define: { "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(env.JASPER_API_URL || "http://localhost:8000") },
+    define: { "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(env.JASPER_API_URL || "http://127.0.0.1:8000") },
     build: { chunkSizeWarningLimit: 4000 },
   };
 });

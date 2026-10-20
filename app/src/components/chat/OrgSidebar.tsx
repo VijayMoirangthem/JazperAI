@@ -13,7 +13,7 @@ export interface OrgBot {
   slug: string; display_name: string; role_title: string; crew: string; reports_to?: string; enabled: boolean; source: string; lifecycle?: string;
   department: string; position: string; sort_order: number; created_at?: string; started_at?: string;
   score: number | null; grade: string; calls: number; errors: number; thumbs_up: number; thumbs_down: number; avg_latency_ms: number; last_active_at?: string;
-  tier?: string; tools?: string[];
+  tier?: string; tools?: string[]; settings?: { model?: string; tier?: string; temperature?: number; max_tokens?: number; memory?: boolean };
 }
 export interface OrgGroup { id: string; label: string; kind: string; sort_order: number; bots: OrgBot[] }
 export interface RoomRow { id: string; label: string }

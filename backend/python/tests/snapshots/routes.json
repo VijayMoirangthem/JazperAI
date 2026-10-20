@@ -4309,6 +4309,10 @@
  ],
  [
   "PUT",
+  "/api/bots/{slug}/settings"
+ ],
+ [
+  "PUT",
   "/api/connections/{cid}/secrets"
  ],
  [
@@ -4390,6 +4394,10 @@
  [
   "PUT",
   "/api/v1/bots/{slug}/prompt"
+ ],
+ [
+  "PUT",
+  "/api/v1/bots/{slug}/settings"
  ],
  [
   "PUT",

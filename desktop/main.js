@@ -4,7 +4,7 @@ const { spawn } = require("node:child_process");
 const http = require("node:http");
 const path = require("node:path");
 
-const API_URL = process.env.JASPER_API_URL || "http://localhost:8000";
+const API_URL = process.env.JASPER_API_URL || "http://127.0.0.1:8000";
 const PROD = process.env.JASPER_MODE === "prod"; // built UI served by the backend (no dev server)
 const UI_URL = process.env.JASPER_UI_URL || (PROD ? API_URL + "/ui/" : "http://localhost:5173");
 const ROOT = path.resolve(__dirname, "..");

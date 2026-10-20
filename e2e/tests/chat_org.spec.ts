@@ -16,8 +16,10 @@ test.beforeAll(async () => {
     env,
   });
   page = await app.firstWindow();
+  await page.waitForURL(/localhost:5173/, { timeout: 90_000 });
+  await page.evaluate(() => { location.hash = "team_chat"; });
   await page.waitForSelector("[data-testid=chat-panel]", { timeout: 60_000 });
-});
+}, 180_000);
 test.afterAll(async () => { await app?.close(); });
 
 test("bots are grouped into the Jazper Team and companies", async () => {

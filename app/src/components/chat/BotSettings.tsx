@@ -10,7 +10,7 @@ import { ScoreBadge, ago, type OrgBot, type OrgGroup } from "./OrgSidebar";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 type Card = OrgBot & { settings?: Settings; group: string; group_label: string; prompt: string; prompt_is_default: boolean; memory_namespace: string; has_prompt_override: boolean };
 const TABS = ["ID card", "Prompt", "Model", "Appearance", "Voice", "Organisation"] as const;
-interface Prov { slug: string; name: string; enabled: boolean; has_key: boolean; models: { model_id: string; enabled: boolean }[] }
+interface Prov { slug: string; name: string; enabled: boolean; has_key: boolean; local?: boolean; kind?: string; models: { model_id: string; enabled: boolean }[] }
 interface Settings { model?: string; tier?: string; temperature?: number; max_tokens?: number; memory?: boolean }
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
 
@@ -99,7 +99,7 @@ export function BotSettings({ slug, groups, onClose, onChanged }: { slug: string
               <label className="block text-xs opacity-60">Model</label>
               <select value={st.model ?? ""} onChange={(e) => setSt((s) => ({ ...s, model: e.target.value || undefined }))} aria-label="Model" className="w-full rounded-lg bg-white/10 px-2 py-1.5 outline-none">
                 <option value="" className="bg-[#1b1b1b]">Automatic (tier routing)</option>
-                {provs.filter((p) => p.enabled && p.has_key).map((p) => (
+                {provs.filter((p) => p.enabled && (p.has_key || p.local || p.kind === "cli")).map((p) => (
                   <optgroup key={p.slug} label={p.name} className="bg-[#1b1b1b]">
                     {p.models.filter((m) => m.enabled).map((m) => <option key={p.slug + m.model_id} value={`${p.slug}:${m.model_id}`} className="bg-[#1b1b1b]">{m.model_id}</option>)}
                   </optgroup>
