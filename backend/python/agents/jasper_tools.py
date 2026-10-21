@@ -36,9 +36,14 @@ HELP = {
     "find_tool": "find_tool {query} : search connected MCP tools (empty result = the service is probably not connected)",
     "use_tool": "use_tool {name,arguments} : run an MCP tool by full name (writes need approval)",
     "list_connections": "list_connections {} : every connector with status (connected / missing secrets / needs sign-in)",
-    "connect": "connect {connector} : connect a service (gmail, calendar, github, slack, notion, filesystem, memory). Uses secrets found in the vault or .env; otherwise shows the founder a secure card",
+    "connect": "connect {connector} : make a service work end to end and PROVE it with a real call (gmail, calendar, drive, docs, sheets, github, slack, notion, filesystem, memory). Fixes what it can by itself (restarts, scope checks); if only the founder can act it shows ONE click card",
     "suggest_connectors": "suggest_connectors {} : recommended connectors with live status; shows the founder one-click Connect cards. Use it for any question about what to connect or how to become more capable",
     "test_connection": "test_connection {connector} : run the harmless read check on a connector",
+    "llm_status": "llm_status {} : which model providers are configured, the fallback chain per tier, tokens and cost used today (per model), forecast, budgets, and which providers are cooling down. Use it for ANY question about usage, tokens left, or which provider is serving you",
+    "llm_fix": "llm_fix {} : self-heal the model layer: reset circuit breakers, rebuild the chains (adds free fallback models) and test every provider for real. Run it yourself whenever a provider error happens, then retry",
+    "system_status": "system_status {} : health of the whole system (database, redis, backend, connectors) in one call",
+    "read_logs": "read_logs {name,lines,contains} : recent backend log lines (secrets are redacted). Use it to diagnose errors yourself",
+    "clear_chat": "clear_chat {scope} : delete chat history. scope = before_now (everything above the founder's last message) | all | older_than_days:N. Shows the founder ONE confirm button (with Undo). Call it straight away; never ask first",
     "hold_meeting": "hold_meeting {group,topic} : the bots of a group (create_origins, baeit, boardmint, jazper_team) discuss a topic and their lead concludes; returns the conclusion",
     "fs_roots": "fs_roots {} : folders on this PC you may work in",
     "fs_list": "fs_list {path} : list a folder",
@@ -60,8 +65,8 @@ HELP = {
 FS = ["fs_roots", "fs_list", "fs_read", "fs_search", "fs_write"]
 LEADS = {"ceo-create-origins", "ceo-baeit", "lead-boardmint", "vp-tech-ops"}
 TOOLS_FOR: dict[str, list[str]] = {
-    "jasper": ["list_org", "find_bot", "remember", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
-    "connector": ["list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "list_skills", "view_skill", "save_skill"],
+    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
+    "connector": ["list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "use_tool", "list_skills", "view_skill", "save_skill"],
     "messenger": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
     "bot-reviewer": ["list_org", "bot_stats", "evaluate_bot", "improve_bot", "alerts", "list_skills", "view_skill"],
     "bot-creator": ["list_org", "evaluate_bot", "list_skills"],
@@ -70,6 +75,8 @@ TOOLS_FOR: dict[str, list[str]] = {
 INTRO = 'You have system access. To use a tool reply with ONLY one line: <tool>{"name":"NAME","args":{...}}</tool> and wait for the result, then continue. Tools:\n'
 RULES = ("\nHierarchy: Jasper delegates to group leads; leads delegate to their members, hold meetings for decisions and record lasting decisions with remember. Use find_bot to pick the right owner. Questions about what to connect or how to get smarter: call suggest_connectors, then give a short prioritised answer (top 3 and why for THIS founder) and mention the cards. Routing: anything about email goes to `messenger` (it checks Gmail and asks `connector` itself); connections go to `connector`. One tool call at a time. Delegate to the right specialist instead of doing everything yourself. If a service is not connected, ask `connector` to connect it "
          "(it checks the vault/.env and asks the founder only if something is missing). Never ask the founder to paste secrets into chat: a secure card is shown for that. "
+         "Never answer a question about usage, tokens, providers, errors or system health with \"I can't check\": call llm_status, system_status or read_logs and answer from the result; if a provider is failing, call llm_fix yourself first. When asked how to become smarter/more powerful, call suggest_connectors and list the top 3 in one line each. "
+         "Style: casual, short, straight to the point (1-2 sentences, result first; no greetings, no apologies, no menus of options). Power: you can really act (delegate, connect services, clear chat, run tools). Never say \"I can't\" until you have checked your tools and your team; if another bot can do it, delegate. Safety that is not dumb: reversible actions (create, edit, rename, copy, move) just do them and mention it; irreversible or outward-facing ones (delete, send, share, spend) get exactly ONE confirm tap, never a questionnaire. Proactive rule: never ask the founder to choose between solutions. Pick the one that needs the least effort from them, do it, and report the RESULT. Never say something is connected, done or available unless a tool result in this conversation proves it (quote the evidence in one line). If a capability is missing (Drive, Docs, Sheets, mail, calendar...), delegate to `connector` with the exact task, e.g. ask_bot connector: \"list the 10 most recently modified Drive files\"; it fixes what it can and shows the founder at most ONE click. Never say you will do something and then stop: finish it or say precisely what blocked it. "
          "Answer the founder concisely when done.")
 
 
@@ -220,17 +227,74 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
         lines = [f"{i + 1}. {x['name']} [{x['status']}]: {x['why']}" for i, x in enumerate(items)]
         return "One-click cards are shown to the founder. Recommendations in priority order (tailor your answer to what you know about them, say what each unlocks, and which to do first):\n" + "\n".join(lines)
     if name in ("connect", "test_connection"):
-        cid = connector.resolve(str(args.get("connector", "")))
+        raw = str(args.get("connector", ""))
+        cid = connector.resolve(raw) or (raw if connector.capability_of(raw) else None)
         if not cid:
             return f"error: unknown connector; choose from {list(connector.catalogue())}"
-        st = await (connector.connect(cid) if name == "connect" else connector.test(cid))
+        st = await (connector.connect(raw if connector.capability_of(raw) else cid) if name == "connect" else connector.test(cid))
         req = st.get("request")
         if req:
             _push_ui(req)
-            what = "a secure credentials card" if req["kind"] == "credentials" else "a Google sign-in button"
-            return (f"{cid} is not connected yet. The founder has been shown {what} in chat. Tell them what is needed and that you will "
-                    "finish connecting once they have done it. Do not ask them to type secrets in chat.")
+            what = "a secure credentials card" if req["kind"] == "credentials" else "ONE Google approval button"
+            return (f"Not working yet, and only the founder can do the next step. They are being shown {what} in chat ({req.get('reason', '')}). Say in ONE short sentence what to click; "
+                    "do not offer alternatives and do not ask questions. The moment they have clicked, call connect again and carry on with their original request. Never ask them to type secrets in chat.")
+        if st.get("ok") is False:
+            return _clip(f"NOT verified: {st.get('detail', 'unknown problem')}. Tell the founder exactly this in one or two sentences (include the link if there is one); do not claim success.")
+        if st.get("verified"):
+            return _clip(f"VERIFIED by a real call: {st.get('capability')} works ({st.get('tools')} tools). Evidence: {st.get('evidence', '')[:240]}. Now do the founder's original task with use_tool and show the actual result.")
         return _clip(_conn_line(st))
+    if name in ("llm_status", "llm_fix"):
+        from core.llm import registry as llm_reg
+        from memory.db import aio
+        router = await llm_reg.get_router()
+        if name == "llm_fix":  # self-heal: clear circuit breakers, rebuild the chains (adds the free safety net), then really test every provider
+            for r in router.routers.values():
+                r.reset_breakers()
+            llm_reg.invalidate()
+            router = await llm_reg.get_router()
+        provs = await aio.fetch("SELECT slug, kind, enabled, secret_env FROM shared.llm_providers ORDER BY slug")
+        chains = {t: [f"{getattr(p, 'name', '?')}" for p in r.chain] for t, r in router.routers.items()}
+        down = {t: {k: round(v - time.monotonic()) for k, v in r._open_until.items() if v > time.monotonic()} for t, r in router.routers.items()}
+        summary = await finops.summary()
+        out = {"providers": [{"slug": p["slug"], "kind": p["kind"], "enabled": p["enabled"]} for p in provs], "chains": chains,
+               "breaker_open_seconds_left": {t: d for t, d in down.items() if d},
+               "today": summary["today"], "by_model": summary["by_model"][:6], "forecast": summary["forecast"], "budgets": summary["budgets"]}
+        if name == "llm_fix":
+            async def probe(slug: str, model: str):
+                try:
+                    return slug, model, await asyncio.wait_for(llm_reg.test_provider(slug, model), 20)
+                except Exception as e:
+                    return slug, model, {"ok": False, "error": str(e)[:80]}
+            pairs, seen = [], set()
+            for r in router.routers.values():
+                for p in r.chain:
+                    k = getattr(p, "name", "")
+                    m = getattr(p, "models", {}).get("standard") if hasattr(p, "models") else None
+                    if k and m and (k, m) not in seen:
+                        seen.add((k, m))
+                        pairs.append((k, m))
+            res = await asyncio.gather(*[probe(s, m) for s, m in pairs[:8]])
+            out["tests"] = [{"provider": s, "model": m, "ok": r.get("ok"), "problem": r.get("status") or r.get("error")} for s, m, r in res]
+            out["note"] = "breakers reset and chains rebuilt; if every Groq test says rate_limited its free daily quota is used up and the free opencode models take over automatically"
+        return _clip(out, 3500)
+    if name == "system_status":
+        from api.routes import system as system_routes
+        h = await system_routes.health()
+        return _clip({"ok": h.get("ok"), "checks": {k: ("ok " if v.get("ok") else "FAIL ") + str(v.get("detail", ""))[:80] for k, v in h.get("checks", {}).items()},
+                      "connectors": [{"id": c["id"], "connected": c.get("connected")} for c in await connector.overview()]}, 3000)
+    if name == "read_logs":
+        from api.routes import system as system_routes
+        r = await system_routes.logs(str(args.get("name", "backend")), min(int(args.get("lines", 60) or 60), 200))
+        needle = str(args.get("contains", "")).lower()
+        lines = [l for l in r["lines"] if not needle or needle in l.lower()]
+        return _clip(lines[-60:], 3500)
+    if name == "clear_chat":
+        scope = str(args.get("scope", "before_now")).strip()
+        if not (scope in ("before_now", "all") or scope.startswith("older_than_days:")):
+            return "error: scope must be before_now, all or older_than_days:N"
+        label = {"before_now": "Delete everything above this line?", "all": "Delete this whole chat?"}.get(scope) or f"Delete messages older than {scope.split(':')[-1]} days?"
+        _push_ui({"kind": "confirm", "connector": "chat", "action": "clear_chat", "scope": scope, "label": label})
+        return "Showed ONE confirm button (it has Undo). Reply with one short line like 'Tap delete to confirm.' and nothing else."
     if name == "hold_meeting":
         from agents import discussion
         from core.llm.registry import get_router

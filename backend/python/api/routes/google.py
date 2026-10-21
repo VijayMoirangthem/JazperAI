@@ -35,14 +35,8 @@ def _run(fn):
 
 # ── Shared OAuth client config ────────────────────────────────────────────────
 
-_OAUTH_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
-    "https://www.googleapis.com/auth/gmail.modify",
-    "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/userinfo.email",
-    "openid",
-]
+from core.services.gmail_service import SCOPES as _SERVICE_SCOPES
+_OAUTH_SCOPES = [*_SERVICE_SCOPES, "openid"]  # single source of truth: gmail_service.SCOPES
 
 def _client_config():
     return {
@@ -155,6 +149,7 @@ async def oauth_callback(
             "refresh_token": creds.refresh_token,
             "expiry": creds.expiry.isoformat() if creds.expiry else None,
             "email": email,
+            "scopes": list(creds.scopes or []),
         }
         from core.services.gmail_service import save_token
         save_token(email, token_data)
@@ -167,6 +162,15 @@ async def oauth_callback(
     except Exception as e:
         log.error("OAuth callback failed", error=str(e))
         return _done_page(False, "The sign-in could not be completed. Close this tab and try again from Jazper.")
+
+
+@router.get("/capabilities")
+async def capabilities():
+    """What Google REALLY granted to the stored token (asked from Google, not assumed): gmail, calendar, drive, docs, sheets, slides."""
+    from core.services.gmail_service import CAPABILITY_SCOPES, capabilities as caps, list_connected_accounts
+    accounts = await _run(list_connected_accounts)
+    have = await _run(caps) if accounts else {k: False for k in CAPABILITY_SCOPES}
+    return {"connected": bool(accounts), "capabilities": have, "missing": [k for k, v in have.items() if not v]}
 
 
 @router.get("/oauth/status")

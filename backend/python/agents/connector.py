@@ -36,7 +36,22 @@ TESTS = {"google-workspace": ("gmail_search", {"query": "newer_than:1d", "max_re
 ALIASES = {"gmail": "google-workspace", "google": "google-workspace", "calendar": "google-workspace", "google calendar": "google-workspace", "drive": "google-workspace",
            "google-calendar": "google-workspace", "files": "filesystem", "knowledge": "memory"}
 
+# what the founder asks for ("drive", "google docs", "email"...) -> a Google capability that is proven by a real call, not by a connector label
+CAPABILITY_ALIASES = {"drive": "drive", "google drive": "drive", "gdrive": "drive", "files in drive": "drive", "docs": "docs", "google docs": "docs", "document": "docs",
+                      "sheets": "sheets", "google sheets": "sheets", "spreadsheet": "sheets", "gmail": "gmail", "email": "gmail", "mail": "gmail",
+                      "calendar": "calendar", "google calendar": "calendar"}
+CAPABILITIES = {"gmail": ("gmail_search", {"query": "newer_than:1d", "max_results": 1}), "calendar": ("calendar_today", {}),
+                "drive": ("drive_list_recent", {"limit": 1}),
+                "docs": ("drive_list_recent", {"limit": 1, "mime_type": "application/vnd.google-apps.document"}),
+                "sheets": ("drive_list_recent", {"limit": 1, "mime_type": "application/vnd.google-apps.spreadsheet"})}
+API_ENABLE_URL = {"drive": "https://console.cloud.google.com/apis/library/drive.googleapis.com", "docs": "https://console.cloud.google.com/apis/library/docs.googleapis.com",
+                  "sheets": "https://console.cloud.google.com/apis/library/sheets.googleapis.com"}
+
 _status: dict[str, dict] = {}
+
+
+def capability_of(name: str) -> str | None:
+    return CAPABILITY_ALIASES.get((name or "").strip().lower())
 
 
 def catalogue() -> dict[str, dict]:
@@ -140,9 +155,59 @@ def _why(st: dict) -> str:
     return "; ".join(bits)
 
 
+def _oauth_request(cid: str, cap: str, reason: str) -> dict:
+    return {"kind": "oauth", "connector": cid, "url": f"{API}/api/google/oauth/authorize", "provider": "google", "capability": cap, "reason": reason}
+
+
+async def ensure(name: str) -> dict:
+    """Make a Google capability (drive, docs, sheets, gmail, calendar) work END TO END with the least effort from the founder, then PROVE it with a real call.
+    Order: signed in? -> does Google really grant the scope? (asks Google) -> is the connector process running the tools? (restart it if it predates them) -> real read.
+    Returns {ok, verified, capability, evidence} on success, or {ok: False, request: <one-click card>} when only the founder can do the next step."""
+    import asyncio
+    import json
+    import re
+
+    from core.services import gmail_service
+    cap = capability_of(name)
+    if not cap:
+        return await connect(name)
+    cid = "google-workspace"
+    st = await check(cid)
+    if not st["oauth"]["connected"]:
+        return {**st, "ok": False, "verified": False, "capability": cap, "request": _oauth_request(cid, cap, f"Sign in with Google to enable {cap}")}
+    have = await asyncio.to_thread(gmail_service.capabilities)
+    if not have.get(cap):
+        return {**st, "ok": False, "verified": False, "capability": cap, "missing_scope": True,
+                "request": _oauth_request(cid, cap, f"Google needs one click from you to give Jazper {cap} access (full read and write)")}
+    tool, args = CAPABILITIES[cap]
+    spec = catalogue()[cid]
+    if cid in hub.manifests:
+        conn = await hub.ensure(cid)
+        if not any(t["name"] == tool for t in conn.tools):  # the connector process started before these tools existed: restart it (no founder action)
+            await hub.remove(cid)
+    if cid not in hub.manifests:
+        await hub.upsert(cid, spec["name"], spec["command"], spec.get("env_secrets") or None, spec.get("tool_tiers") or None)
+    conn = await hub.ensure(cid)
+    if not any(t["name"] == tool for t in conn.tools):
+        return {"id": cid, "ok": False, "verified": False, "capability": cap, "detail": f"the connector does not expose {tool}", "tools": len(conn.tools)}
+    r = await hub.use_tool(f"{cid}.{tool}", args, agent="connector")
+    body = json.dumps(r, default=str)
+    failed = bool(r.get("blocked") or r.get("is_error") or re.search(r'\\?"error\\?":', body))
+    if failed:
+        out = {"id": cid, "ok": False, "verified": False, "capability": cap, "detail": body[:300]}
+        if "not enabled" in body and cap in API_ENABLE_URL:
+            out["fix_url"] = API_ENABLE_URL[cap]
+            out["detail"] = f"Google has the {cap} API switched off for this Google Cloud project. Enable it with one click here, then I continue: {API_ENABLE_URL[cap]}"
+        return out
+    _status[cid] = {"ok": True, "at": time.time(), "detail": f"{len(conn.tools)} tools; {cap} verified", "tools": len(conn.tools), "ms": 0}
+    return {"id": cid, "ok": True, "verified": True, "capability": cap, "tools": len(conn.tools), "evidence": body[:400]}
+
+
 async def connect(cid: str) -> dict:
     """Connect if possible. Returns the status plus, when something is needed from the founder, a `request`:
     {"kind":"credentials","connector":id,"secrets":[{name,label}]} or {"kind":"oauth","connector":id,"url":...}."""
+    if capability_of(cid):
+        return await ensure(cid)
     cid = resolve(cid) or cid
     from memory.redis import layer
     async with layer.lock("platform", f"connect:{cid}", ttl_ms=60_000, wait_s=20):  # one connect per connector at a time (Redis down -> proceeds)

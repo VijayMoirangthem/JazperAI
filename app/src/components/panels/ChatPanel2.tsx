@@ -18,7 +18,7 @@ import { speakAs, stopSpeaking, useTts } from "@/voice/botVoice";
 import { OrgSidebar, ScoreBadge, type OrgGroup } from "@/components/chat/OrgSidebar";
 import { BotSettings } from "@/components/chat/BotSettings";
 import { ModelPicker } from "@/components/chat/ModelPicker";
-import { CredentialCard, OAuthCard, SuggestionCard } from "@/components/chat/ChatCards";
+import { ConfirmActionCard, CredentialCard, OAuthCard, SuggestionCard } from "@/components/chat/ChatCards";
 import { CommsView, useCommsThreads } from "@/components/chat/CommsView";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -70,7 +70,7 @@ function Bubble({ m, onAnswer, onRate, onCard, onDelete, onEdit, onSpeak, onRege
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(m.text);
   if (m.phase) return <div className="my-1 flex items-center gap-2 text-xs opacity-60" data-testid="phase"><span className="h-px flex-1 bg-white/15" />{m.text}<span className="h-px flex-1 bg-white/15" /></div>;
-  if (m.ui) return <div className="flex justify-start">{m.ui.kind === "suggestions" ? <SuggestionCard items={m.ui.items ?? []} onDone={(t) => onCard?.(t)} /> : m.ui.kind === "credentials" ? <CredentialCard req={m.ui} onDone={(t) => onCard?.(t)} /> : <OAuthCard req={m.ui} onDone={(t) => onCard?.(t)} />}</div>;
+  if (m.ui) return <div className="flex justify-start">{m.ui.kind === "suggestions" ? <SuggestionCard items={m.ui.items ?? []} onDone={(t) => onCard?.(t)} /> : m.ui.kind === "confirm" ? <ConfirmActionCard req={m.ui} messageId={m.id} /> : m.ui.kind === "credentials" ? <CredentialCard req={m.ui} onDone={(t) => onCard?.(t)} /> : <OAuthCard req={m.ui} onDone={(t) => onCard?.(t)} />}</div>;
   const system = m.from === "system";
   const [rated, setRated] = useState<boolean | null>(null);
   if (m.tool) {

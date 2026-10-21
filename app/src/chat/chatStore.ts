@@ -9,7 +9,7 @@ export interface ChatMessage {
   status?: "sent" | "delivered" | "read";
   streaming?: boolean;
   attachments?: Attachment[];
-  ui?: { kind: "credentials" | "oauth" | "suggestions"; items?: { id: string; name: string; why: string; status: string; connectable: boolean; untested?: boolean }[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean };
+  ui?: { kind: "credentials" | "oauth" | "suggestions" | "confirm"; action?: string; scope?: string; label?: string; capability?: string; reason?: string; items?: { id: string; name: string; why: string; status: string; connectable: boolean; untested?: boolean }[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean };
   phase?: boolean;
   tool?: { name: string; label: string; status: "running" | "ok" | "error"; result?: string; untrusted?: string };
   meta?: { route?: { slugs: string[]; source: string; confidence: number }; tokens?: number };

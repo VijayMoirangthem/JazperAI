@@ -21,6 +21,15 @@ class LLMRouter:
         self._fails: dict[str, int] = {}
         self._open_until: dict[str, float] = {}
 
+    def reset_breakers(self) -> None:
+        self._fails.clear()
+        self._open_until.clear()
+
+    def _usable(self) -> list[Provider]:
+        """Providers not in breaker cooldown; if EVERY provider is cooling down, try them all anyway (never fail with an empty attempt list)."""
+        live = [p for p in self.chain if not self._down(p)]
+        return live or list(self.chain)
+
     def _down(self, p: Provider) -> bool:
         return self._open_until.get(p.name, 0) > time.monotonic()
 
@@ -49,10 +58,7 @@ class LLMRouter:
 
     async def complete(self, req: LLMRequest) -> LLMResult:
         failed: list[str] = []
-        for p in self.chain:
-            if self._down(p):
-                failed.append(f"{p.name}(down)")
-                continue
+        for p in self._usable():
             try:
                 res = await self._with_retries(p, lambda p=p: p.complete(req))
                 self._record(p, True)
@@ -60,16 +66,14 @@ class LLMRouter:
                 return res
             except ProviderError as e:
                 self._record(p, False)
-                failed.append(p.name)
+                failed.append(f"{p.name}: {str(e)[:70]}")
                 log.warning("llm provider failed", provider=p.name, error=str(e))
         raise ProviderError(f"all providers failed: {failed}", retryable=False)
 
     async def stream(self, req: LLMRequest) -> AsyncIterator[str | Usage]:
         """Falls back only before the first token is emitted (mid-stream failures surface to the caller)."""
         failed: list[str] = []
-        for p in self.chain:
-            if self._down(p):
-                continue
+        for p in self._usable():
             started = False
             try:
                 async with aclosing(p.stream(req)) as it:  # closing the outer stream closes the provider stream
@@ -82,7 +86,7 @@ class LLMRouter:
                 self._record(p, False)
                 if started:
                     raise
-                failed.append(p.name)
+                failed.append(f"{p.name}: {str(e)[:70]}")
         raise ProviderError(f"all providers failed: {failed}", retryable=False)
 
     async def count_tokens(self, req: LLMRequest) -> int:

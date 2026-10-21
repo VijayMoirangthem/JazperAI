@@ -88,6 +88,7 @@ class TieredRouter:
         return await self._for(req).count_tokens(req)
 
 
+
 async def seed_if_empty() -> None:
     """First run: register the provider currently configured in .env (Groq today) and route all tiers through it."""
     if await aio.fetch("SELECT 1 FROM shared.llm_providers LIMIT 1"):
@@ -108,6 +109,10 @@ async def seed_if_empty() -> None:
         await aio.execute("INSERT INTO shared.llm_routing (tier, chain) VALUES ($1,$2::jsonb)", tier, json.dumps(chain))
 
 
+# Free models appended to EVERY tier chain as a last resort, so one exhausted provider (Groq free-tier daily limit) never leaves the founder with "all providers failed".
+SAFETY_NET = (("opencode-cli", "glm-5.3-flash-free"), ("opencode-cli", "nemotron-3-ultra-free"))  # the Zen API refuses free models outside OpenCode, the CLI route works (slow, always answers)
+
+
 async def build_router() -> TieredRouter:
     await seed_if_empty()
     provs = {r["slug"]: r for r in await aio.fetch("SELECT * FROM shared.llm_providers WHERE enabled")}
@@ -121,6 +126,11 @@ async def build_router() -> TieredRouter:
             if row["kind"] != "cli" and not _secret(row) and not row["local"]:
                 continue  # no key -> skip rather than fail every call
             chain.append(_make(row, e["model"], r["tier"]))
+        have = {(getattr(p, "name", ""), getattr(p, "model", "")) for p in chain}
+        for slug, model in SAFETY_NET:
+            row = provs.get(slug)
+            if row is not None and (row["kind"] == "cli" or _secret(row)) and (slug, model) not in have:
+                chain.append(_make(row, model, r["tier"]))
         routers[r["tier"]] = LLMRouter(chain or [StubProvider()])
     for t in TIERS:
         routers.setdefault(t, LLMRouter([StubProvider()]))

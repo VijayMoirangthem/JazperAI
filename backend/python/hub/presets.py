@@ -29,8 +29,10 @@ PRESETS: dict[str, dict] = {
         "command": [NPX, "-y", "@modelcontextprotocol/server-memory"], "env_secrets": {}, "needs": "", "tool_tiers": {},
     },
     "google-workspace": {
-        "name": "Google Workspace (Gmail + Calendar, read-only)",
+        "name": "Google Workspace (Gmail, Calendar, Drive, Docs, Sheets - read and write)",
         "command": [sys.executable, "-m", "hub.servers.google_workspace"], "env_secrets": {},
-        "needs": "Connect your Google account in the app's Google settings (OAuth) once.", "tool_tiers": {},
+        "needs": "Connect your Google account in the app's Google settings (OAuth) once.",
+        # reads default to Tier 1, creates/edits to Tier 2 (mcp.write); outward-facing or destructive actions are Tier 3
+        "tool_tiers": {"gmail_send": "mcp.admin", "drive_share": "mcp.admin", "drive_trash": "mcp.admin"},
     },
 }

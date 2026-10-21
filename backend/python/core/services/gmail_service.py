@@ -28,8 +28,21 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/presentations",
     "https://www.googleapis.com/auth/userinfo.email",
 ]
+# capability -> scope that must really be granted (checked against Google, not assumed)
+CAPABILITY_SCOPES = {
+    "gmail": "https://www.googleapis.com/auth/gmail.modify",
+    "calendar": "https://www.googleapis.com/auth/calendar",
+    "drive": "https://www.googleapis.com/auth/drive",
+    "docs": "https://www.googleapis.com/auth/documents",
+    "sheets": "https://www.googleapis.com/auth/spreadsheets",
+    "slides": "https://www.googleapis.com/auth/presentations",
+}
 
 # Cache TTLs (seconds)
 _TTL_LIST    = 180     # 3 min  — inbox list
@@ -175,7 +188,7 @@ def _build_credentials(token_data: dict):
         token_uri="https://oauth2.googleapis.com/token",
         client_id=settings.GOOGLE_CLIENT_ID,
         client_secret=settings.GOOGLE_CLIENT_SECRET,
-        scopes=SCOPES,
+        scopes=token_data.get("scopes") or None,  # never ask for more than the token was granted: a refresh with extra scopes fails with invalid_scope
     )
 
 
@@ -203,6 +216,49 @@ def _get_service(email: str = "default"):
         save_token(email_key, token_data)
 
     return build("gmail", "v1", credentials=creds), email_key
+
+
+def get_google_service(api: str, version: str):
+    """Authenticated Google API client (drive v3, docs v1, sheets v4, slides v1, ...). Refreshes and re-saves the token."""
+    from googleapiclient.discovery import build
+    from google.auth.transport.requests import Request
+
+    email_key, token_data = load_any_token()
+    if not token_data:
+        raise RuntimeError("No Google account connected. Authorise via /api/google/oauth/authorize")
+    creds = _build_credentials(token_data)
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        token_data.update({"access_token": creds.token, "refresh_token": creds.refresh_token,
+                           "expiry": creds.expiry.isoformat() if creds.expiry else None})
+        save_token(email_key, token_data)
+    return build(api, version, credentials=creds, cache_discovery=False)
+
+
+def granted_scopes() -> list[str]:
+    """The scopes Google REALLY granted to the stored token (asks Google; the token record alone is not trusted). [] when not connected."""
+    import requests
+    from google.auth.transport.requests import Request
+
+    email_key, token_data = load_any_token()
+    if not token_data:
+        return []
+    try:
+        creds = _build_credentials(token_data)
+        if creds.refresh_token:  # always refresh: a stale access token makes tokeninfo fail and would look like "no permissions"
+            creds.refresh(Request())
+            token_data.update({"access_token": creds.token, "expiry": creds.expiry.isoformat() if creds.expiry else None})
+            save_token(email_key, token_data)
+        r = requests.get("https://oauth2.googleapis.com/tokeninfo", params={"access_token": creds.token}, timeout=8)
+        return r.json().get("scope", "").split() if r.status_code == 200 else []
+    except Exception:
+        return []
+
+
+def capabilities() -> dict[str, bool]:
+    """{gmail, calendar, drive, docs, sheets, slides} -> really granted?"""
+    have = set(granted_scopes())
+    return {name: scope in have for name, scope in CAPABILITY_SCOPES.items()}
 
 
 # ── Decode helpers ────────────────────────────────────────────────────────────

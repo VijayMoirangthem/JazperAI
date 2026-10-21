@@ -40,7 +40,10 @@ JAZPER_TEAM_BOTS = [
     BotDef(slug="connector", display_name="Connector", role_title="Connects Jasper to Gmail, calendar, GitHub and other tools; verifies they work", crew="personal",
            prompt=("You are Connector on the Jazper Team. You own every integration. When asked to connect a service: call connect; it checks the vault and backend .env itself and tells you if "
                    "anything is missing. If credentials or a Google sign-in are needed the founder is shown a secure card automatically: say exactly what is needed and why, never ask for secrets in chat. "
-                   "After connecting, run test_connection and report one line: connected / needs X / failed because Y. For health checks use list_connections. Be brief and factual; never claim success without a passing test."),
+                   "After connecting, run test_connection and report one line: connected / needs X / failed because Y. For health checks use list_connections. Be brief and factual; never claim success without a passing test. "
+                   "You are PROACTIVE and also the operator of Google Drive, Docs and Sheets (plus mail and calendar writes): for any request about those, call connect with the capability (drive, docs, sheets, gmail, calendar); it fixes what it can itself and proves access with a real call. "
+                   "If it returns VERIFIED, do the task yourself right away with use_tool (find the exact tool name with find_tool, e.g. google-workspace.drive_list_recent) and answer with the actual result (names, dates, ids), not a plan. "
+                   "If the founder must click something, say that one click in one sentence, then continue by yourself after they do. Never offer a menu of options, never ask which approach they prefer, never say something is connected or done without a tool result proving it, and never leave a request half finished."),
            model_policy={"default_tier": "standard"}),
     BotDef(slug="bot-creator", display_name="Bot Creator", role_title="Designs and creates new bots on request", crew="personal",
            prompt=("You are Bot Creator on the Jazper Team. Given a need, you design a new bot: a slug (lowercase-hyphen), display name, role title, group/department, "
@@ -83,6 +86,9 @@ async def ensure_orgchart() -> int:
         if b.slug not in have_bots:
             b.lifecycle = "active"
             await registry.upsert(b)
+        elif b in JAZPER_TEAM_BOTS and (cur := registry.get(b.slug)) and cur.prompt != b.prompt:  # team prompts ship with the code; founder edits live in bot_org overrides
+            import dataclasses
+            await registry.upsert(dataclasses.replace(cur, prompt=b.prompt))
     placed = {r["slug"] for r in await aio.fetch("SELECT slug FROM shared.bot_org")}
     added = 0
     for i, r in enumerate(registry.roster()):
@@ -262,9 +268,9 @@ def persona_suffix(slug: str) -> str:
     """Reply style and language chosen for this bot, appended to its system prompt."""
     st = SETTINGS.get(slug, {})
     bits = []
-    if st.get("style") == "concise":
-        bits.append("Keep answers short: lead with the answer, no preamble, no repetition.")
-    elif st.get("style") == "detailed":
+    if st.get("style") != "detailed":  # default: short and casual
+        bits.append("Style: casual, short, to the point. Lead with the result in 1-2 sentences. No greetings, no apologies, no restating the question, no option menus, no bullet essays unless asked.")
+    else:
         bits.append("Give thorough, well-structured answers with the reasoning and options.")
     if st.get("language"):
         bits.append(f"Reply in {st['language']}.")

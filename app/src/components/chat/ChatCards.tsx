@@ -4,11 +4,12 @@
 // and Google sign-in (opens in the system browser; Electron's window-open handler does the hand-off, the backend receives the loopback callback).
 // Pattern: Project_References/OpenMausBot connected-apps cards.
 import { useEffect, useRef, useState } from "react";
-import { Check, ExternalLink, KeyRound, Loader2 } from "lucide-react";
+import { Check, ExternalLink, KeyRound, Loader2, Trash2, Undo2 } from "lucide-react";
+import { useChat, type ChatMessage } from "@/chat/chatStore";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface Suggestion { id: string; name: string; why: string; status: string; connectable: boolean; untested?: boolean }
-export interface UiRequest { kind: "credentials" | "oauth" | "suggestions"; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean }
+export interface UiRequest { kind: "credentials" | "oauth" | "suggestions" | "confirm"; action?: string; scope?: string; label?: string; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean; capability?: string; reason?: string }
 
 export function CredentialCard({ req, onDone }: { req: UiRequest; onDone: (summary: string) => void }) {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -60,12 +61,16 @@ export function OAuthCard({ req, onDone }: { req: UiRequest; onDone: (summary: s
     timer.current = setInterval(async () => {
       tries += 1;
       try {
-        const s = await fetch(`${API}/api/google/oauth/status`).then((r) => r.json());
-        if ((s.connected ?? []).length > 0) {
+        // a permission upgrade (capability set) is only done when Google reports that capability as granted; a first sign-in when any account exists
+        const s = req.capability
+          ? await fetch(`${API}/api/google/capabilities`).then((r) => r.json())
+          : await fetch(`${API}/api/google/oauth/status`).then((r) => r.json());
+        const ok = req.capability ? !!s.capabilities?.[req.capability] : (s.connected ?? []).length > 0;
+        if (ok) {
           if (timer.current) clearInterval(timer.current);
-          const t = await fetch(`${API}/api/v1/connections/${req.connector}/connect`, { method: "POST" }).then((r) => r.json());
+          const t = await fetch(`${API}/api/v1/connections/${req.capability ?? req.connector}/connect`, { method: "POST" }).then((r) => r.json());
           setState("done");
-          onDone(`I signed in to Google. Connection status: ${t.connected ? "connected" : t.detail || "unverified"}. Please continue.`);
+          onDone(`I approved Google${req.capability ? ` (${req.capability})` : ""}. Status: ${t.verified ? "verified" : t.connected ? "connected" : t.detail || "unverified"}. Continue with my original request now.`);
         }
       } catch { /* backend busy: keep polling */ }
       if (tries > 90 && timer.current) { clearInterval(timer.current); setState("idle"); }
@@ -74,10 +79,10 @@ export function OAuthCard({ req, onDone }: { req: UiRequest; onDone: (summary: s
   return (
     <div role="group" aria-label="Sign-in request" data-testid="oauth-card" className="w-full max-w-[520px] space-y-2 rounded-3xl bg-white/5 px-4 py-3 ring-1 ring-amber-400/40">
       <div className="flex items-center gap-2 text-sm font-semibold"><ExternalLink size={15} className="text-amber-400" />Sign in with Google</div>
-      <div className="text-xs opacity-60">Opens Google in your browser. You approve read access to Gmail and Calendar; the token is stored by the backend, not in chat.</div>
+      <div className="text-xs opacity-60">{req.reason ?? "Opens Google in your browser."} One click to approve; the token is stored by the backend, not in chat.</div>
       {state === "done" ? <div className="flex items-center gap-1 text-sm text-green-400"><Check size={14} />Signed in</div> : (
         <button onClick={start} disabled={state === "waiting"} className="rounded-full bg-blue-600 px-4 py-1.5 text-sm disabled:opacity-60">
-          {state === "waiting" ? <span className="inline-flex items-center gap-2"><Loader2 size={14} className="animate-spin" />Waiting for sign-in…</span> : "Sign in with Google"}
+          {state === "waiting" ? <span className="inline-flex items-center gap-2"><Loader2 size={14} className="animate-spin" />Waiting for sign-in…</span> : (req.capability ? "Approve in Google" : "Sign in with Google")}
         </button>
       )}
     </div>
@@ -121,6 +126,44 @@ export function SuggestionCard({ items, onDone }: { items: Suggestion[]; onDone:
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** One-tap confirm for destructive actions Jazper proposes (clear chat). Runs locally, shows what was removed and offers Undo. */
+export function ConfirmActionCard({ req, messageId }: { req: UiRequest; messageId: string }) {
+  const [state, setState] = useState<"ask" | "done" | "undone" | "cancelled">("ask");
+  const removed = useRef<{ ch: string; msgs: ChatMessage[] } | null>(null);
+  const run = () => {
+    const st = useChat.getState();
+    const ch = Object.keys(st.threads).find((c) => st.threads[c].some((m) => m.id === messageId));
+    if (!ch) return;
+    const list = st.threads[ch], at = list.findIndex((m) => m.id === messageId);
+    const days = req.scope?.startsWith("older_than_days:") ? Number(req.scope.split(":")[1]) : 0;
+    const cut = days > 0 ? Date.now() - days * 86_400_000 : 0;
+    const drop = (m: ChatMessage, i: number) => (req.scope === "all" ? m.id !== messageId : days > 0 ? m.ts < cut && m.id !== messageId : i < at);
+    const msgs = list.filter(drop);
+    removed.current = { ch, msgs };
+    useChat.setState((s) => ({ threads: { ...s.threads, [ch]: list.filter((m, i) => !drop(m, i)) } }));
+    setState("done");
+  };
+  const undo = () => {
+    const r = removed.current;
+    if (!r) return;
+    useChat.setState((s) => ({ threads: { ...s.threads, [r.ch]: [...r.msgs, ...(s.threads[r.ch] ?? [])].sort((a, b) => a.ts - b.ts) } }));
+    setState("undone");
+  };
+  return (
+    <div role="group" aria-label="Confirm" data-testid="confirm-card" className="flex max-w-[520px] items-center gap-3 rounded-3xl bg-white/5 px-4 py-3 ring-1 ring-red-400/40">
+      {state === "ask" && <>
+        <Trash2 size={16} className="text-red-400" /><span className="text-sm">{req.label ?? "Are you sure?"}</span>
+        <button onClick={run} className="rounded-full bg-red-600 px-4 py-1.5 text-sm" data-testid="confirm-yes">Delete</button>
+        <button onClick={() => setState("cancelled")} className="rounded-full border border-white/20 px-3 py-1.5 text-sm">Keep</button>
+      </>}
+      {state === "done" && <><Check size={14} className="text-green-400" /><span className="text-sm">Deleted {removed.current?.msgs.length ?? 0} messages.</span>
+        <button onClick={undo} className="flex items-center gap-1 rounded-full border border-white/20 px-3 py-1 text-sm"><Undo2 size={13} />Undo</button></>}
+      {state === "undone" && <span className="text-sm opacity-70">Restored.</span>}
+      {state === "cancelled" && <span className="text-sm opacity-70">Kept.</span>}
     </div>
   );
 }
