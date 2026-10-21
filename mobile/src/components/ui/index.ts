@@ -8,3 +8,4 @@ export { Divider } from './Divider';
 export { EmptyState } from './EmptyState';
 export { Spinner } from './Spinner';
 export { SheetModal } from './SheetModal';
+export { Switch } from './Switch';

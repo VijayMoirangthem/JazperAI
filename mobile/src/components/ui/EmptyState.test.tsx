@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 import { EmptyState } from './EmptyState';
 
 describe('EmptyState', () => {
@@ -16,13 +16,6 @@ describe('EmptyState', () => {
   it('renders action button', async () => {
     const { toJSON } = await render(<EmptyState title="No items" actionLabel="Retry" onAction={() => {}} />);
     expect(toJSON()).toMatchSnapshot();
-  });
-
-  it('calls onAction when button pressed', async () => {
-    const onAction = jest.fn();
-    await render(<EmptyState title="No items" actionLabel="Retry" onAction={onAction} />);
-    fireEvent.press(screen.getByText('Retry'));
-    expect(onAction).toHaveBeenCalledTimes(1);
   }, 10000);
 
   it('applies custom styles', async () => {

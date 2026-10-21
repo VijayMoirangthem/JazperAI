@@ -1,0 +1,101 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Switch applies custom thumb color 1`] = `
+<RCTSwitch
+  accessibilityRole="switch"
+  accessibilityState={
+    {
+      "checked": true,
+      "disabled": false,
+    }
+  }
+  disabled={false}
+  onChange={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  onTintColor="#2563eb"
+  style={
+    {
+      "alignSelf": "flex-start",
+    }
+  }
+  thumbTintColor="blue"
+  tintColor="rgba(255,255,255,0.10)"
+  value={true}
+/>
+`;
+
+exports[`Switch applies custom track colors 1`] = `
+<RCTSwitch
+  accessibilityRole="switch"
+  accessibilityState={
+    {
+      "checked": true,
+      "disabled": false,
+    }
+  }
+  disabled={false}
+  onChange={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  onTintColor="green"
+  style={
+    {
+      "alignSelf": "flex-start",
+    }
+  }
+  thumbTintColor="#f2f2f2"
+  tintColor="red"
+  value={true}
+/>
+`;
+
+exports[`Switch renders with correct initial value 1`] = `
+<RCTSwitch
+  accessibilityRole="switch"
+  accessibilityState={
+    {
+      "checked": false,
+      "disabled": false,
+    }
+  }
+  disabled={false}
+  onChange={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  onTintColor="#2563eb"
+  style={
+    {
+      "alignSelf": "flex-start",
+    }
+  }
+  thumbTintColor="rgba(255,255,255,0.10)"
+  tintColor="rgba(255,255,255,0.10)"
+  value={false}
+/>
+`;
+
+exports[`Switch respects disabled prop 1`] = `
+<RCTSwitch
+  accessibilityRole="switch"
+  accessibilityState={
+    {
+      "checked": false,
+      "disabled": true,
+    }
+  }
+  disabled={true}
+  onChange={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  onTintColor="#2563eb"
+  style={
+    {
+      "alignSelf": "flex-start",
+    }
+  }
+  thumbTintColor="rgba(255,255,255,0.10)"
+  tintColor="rgba(255,255,255,0.10)"
+  value={false}
+/>
+`;
