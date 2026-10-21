@@ -31,8 +31,7 @@
       "expo-image-picker",
       "expo-document-picker",
       "expo-av",
-      "expo-notifications",
-      "expo-screen-capture"
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

@@ -5,6 +5,7 @@
   "dependencies": {
     "@shopify/flash-list": "2.3.2",
     "csstype": "^3.2.3",
+    "es-abstract": "^1.24.2",
     "expo": "~58.0.16",
     "expo-av": "^16.0.8",
     "expo-camera": "~58.0.11",
@@ -29,10 +30,13 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@react-native/jest-preset": "^0.88.0",
     "@testing-library/react-native": "^14.1.0",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.3.0",
     "eslint-config-expo": "^58.0.4",
+    "hermes-parser": "^0.25.1",
+    "jest": "^30.5.2",
     "jest-expo": "^58.0.11",
     "prettier": "^3.9.10",
     "typescript": "~6.0.3"

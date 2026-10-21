@@ -1,13 +1,6 @@
 import { Stack } from 'expo-router';
-import { useAuth } from '@/auth/useAuth';
 
 export default function RootLayout() {
-  const { hydrated } = useAuth();
-
-  if (!hydrated) {
-    return null;
-  }
-
   return (
     <Stack
       screenOptions={{

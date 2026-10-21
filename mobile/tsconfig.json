@@ -3,11 +3,16 @@
     "allowJs": true,
     "esModuleInterop": true,
     "jsx": "react-jsx",
-    "lib": ["DOM", "ESNext"],
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
     "module": "preserve",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
-    "customConditions": ["react-native"],
+    "customConditions": [
+      "react-native"
+    ],
     "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
@@ -15,11 +20,28 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "#/*": ["./*"]
+      "@/*": [
+        "src/*"
+      ],
+      "#/*": [
+        "./*"
+      ]
     },
-    "types": ["jest", "@testing-library/jest-native"],
+    "types": [
+      "jest"
+    ],
     "ignoreDeprecations": "6.0"
   },
-  "exclude": ["node_modules", "android", "ios"]
+  "exclude": [
+    "node_modules",
+    "android",
+    "ios"
+  ],
+  "extends": "expo/tsconfig.base",
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
 }

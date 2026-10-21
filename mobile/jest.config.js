@@ -6,5 +6,4 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  setupFilesAfterSetup: ['@testing-library/jest-native/extend-expect'],
 };
