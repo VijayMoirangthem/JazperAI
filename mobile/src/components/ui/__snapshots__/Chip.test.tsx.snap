@@ -1,0 +1,69 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Chip applies selected styles 1`] = `
+<View
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "selected": true,
+    }
+  }
+  style={
+    {
+      "backgroundColor": "#2563eb",
+      "borderColor": "#2563eb",
+      "borderRadius": 999,
+      "borderWidth": 1,
+      "paddingHorizontal": 12,
+      "paddingVertical": 4,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#ffffff",
+        "fontSize": 11,
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    Selected
+  </Text>
+</View>
+`;
+
+exports[`Chip renders children 1`] = `
+<View
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "selected": false,
+    }
+  }
+  style={
+    {
+      "backgroundColor": "#1f1f1f",
+      "borderColor": "rgba(255,255,255,0.10)",
+      "borderRadius": 999,
+      "borderWidth": 1,
+      "paddingHorizontal": 12,
+      "paddingVertical": 4,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 11,
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    Chip label
+  </Text>
+</View>
+`;

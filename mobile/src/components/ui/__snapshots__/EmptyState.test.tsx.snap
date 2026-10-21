@@ -1,0 +1,184 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`EmptyState applies custom styles 1`] = `
+<View
+  accessibilityRole="region"
+  style={
+    {
+      "alignItems": "center",
+      "flex": 1,
+      "justifyContent": "center",
+      "paddingHorizontal": 24,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "red",
+        "fontSize": 24,
+        "fontWeight": "600",
+        "marginBottom": 8,
+        "textAlign": "center",
+      }
+    }
+  >
+    No items
+  </Text>
+</View>
+`;
+
+exports[`EmptyState renders action button 1`] = `
+<View
+  accessibilityRole="region"
+  style={
+    {
+      "alignItems": "center",
+      "flex": 1,
+      "justifyContent": "center",
+      "paddingHorizontal": 24,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 24,
+        "fontWeight": "600",
+        "marginBottom": 8,
+        "textAlign": "center",
+      }
+    }
+  >
+    No items
+  </Text>
+  <View
+    accessibilityLabel="Retry"
+    accessibilityRole="button"
+    accessibilityState={
+      {
+        "busy": false,
+        "checked": undefined,
+        "disabled": false,
+        "expanded": undefined,
+        "selected": undefined,
+      }
+    }
+    accessibilityValue={
+      {
+        "max": undefined,
+        "min": undefined,
+        "now": undefined,
+        "text": undefined,
+      }
+    }
+    accessible={true}
+    collapsable={false}
+    focusable={true}
+    onClick={[Function]}
+    onResponderGrant={[Function]}
+    onResponderMove={[Function]}
+    onResponderRelease={[Function]}
+    onResponderTerminate={[Function]}
+    onResponderTerminationRequest={[Function]}
+    onStartShouldSetResponder={[Function]}
+    style={
+      {
+        "alignItems": "center",
+        "backgroundColor": "#2563eb",
+        "borderColor": undefined,
+        "borderRadius": 12,
+        "borderWidth": 1,
+        "justifyContent": "center",
+        "marginTop": 12,
+        "minHeight": 44,
+        "opacity": 1,
+        "paddingHorizontal": 16,
+        "paddingVertical": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 15,
+          "fontWeight": "600",
+        }
+      }
+    >
+      Retry
+    </Text>
+  </View>
+</View>
+`;
+
+exports[`EmptyState renders subtitle 1`] = `
+<View
+  accessibilityRole="region"
+  style={
+    {
+      "alignItems": "center",
+      "flex": 1,
+      "justifyContent": "center",
+      "paddingHorizontal": 24,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 24,
+        "fontWeight": "600",
+        "marginBottom": 8,
+        "textAlign": "center",
+      }
+    }
+  >
+    No items
+  </Text>
+  <Text
+    style={
+      {
+        "color": "rgba(255,255,255,0.55)",
+        "fontSize": 15,
+        "lineHeight": 22,
+        "marginBottom": 24,
+        "textAlign": "center",
+      }
+    }
+  >
+    Try again later
+  </Text>
+</View>
+`;
+
+exports[`EmptyState renders title 1`] = `
+<View
+  accessibilityRole="region"
+  style={
+    {
+      "alignItems": "center",
+      "flex": 1,
+      "justifyContent": "center",
+      "paddingHorizontal": 24,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 24,
+        "fontWeight": "600",
+        "marginBottom": 8,
+        "textAlign": "center",
+      }
+    }
+  >
+    No items
+  </Text>
+</View>
+`;

@@ -1,0 +1,70 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Text applies caption variant styles 1`] = `
+<Text
+  style={
+    {
+      "color": "rgba(255,255,255,0.55)",
+      "fontSize": 11,
+      "letterSpacing": 0.5,
+      "textTransform": "uppercase",
+    }
+  }
+>
+  Caption
+</Text>
+`;
+
+exports[`Text applies muted variant styles 1`] = `
+<Text
+  style={
+    {
+      "color": "rgba(255,255,255,0.55)",
+      "fontSize": 15,
+    }
+  }
+>
+  Muted text
+</Text>
+`;
+
+exports[`Text applies title variant styles 1`] = `
+<Text
+  style={
+    {
+      "color": "#f2f2f2",
+      "fontSize": 24,
+      "fontWeight": "600",
+    }
+  }
+>
+  Title
+</Text>
+`;
+
+exports[`Text passes numberOfLines prop 1`] = `
+<Text
+  numberOfLines={2}
+  style={
+    {
+      "color": "#f2f2f2",
+      "fontSize": 15,
+    }
+  }
+>
+  Long text
+</Text>
+`;
+
+exports[`Text renders children 1`] = `
+<Text
+  style={
+    {
+      "color": "#f2f2f2",
+      "fontSize": 15,
+    }
+  }
+>
+  Hello world
+</Text>
+`;

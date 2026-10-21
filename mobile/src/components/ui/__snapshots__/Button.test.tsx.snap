@@ -1,0 +1,301 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Button applies danger variant styles 1`] = `
+<View
+  accessibilityLabel="Danger"
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "busy": false,
+      "checked": undefined,
+      "disabled": false,
+      "expanded": undefined,
+      "selected": undefined,
+    }
+  }
+  accessibilityValue={
+    {
+      "max": undefined,
+      "min": undefined,
+      "now": undefined,
+      "text": undefined,
+    }
+  }
+  accessible={true}
+  collapsable={false}
+  focusable={false}
+  onClick={[Function]}
+  onResponderGrant={[Function]}
+  onResponderMove={[Function]}
+  onResponderRelease={[Function]}
+  onResponderTerminate={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#ef4444",
+      "borderColor": undefined,
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "justifyContent": "center",
+      "minHeight": 44,
+      "opacity": 1,
+      "paddingHorizontal": 16,
+      "paddingVertical": 12,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#ffffff",
+        "fontSize": 15,
+        "fontWeight": "600",
+      }
+    }
+  >
+    Danger
+  </Text>
+</View>
+`;
+
+exports[`Button applies primary variant styles 1`] = `
+<View
+  accessibilityLabel="Primary"
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "busy": false,
+      "checked": undefined,
+      "disabled": false,
+      "expanded": undefined,
+      "selected": undefined,
+    }
+  }
+  accessibilityValue={
+    {
+      "max": undefined,
+      "min": undefined,
+      "now": undefined,
+      "text": undefined,
+    }
+  }
+  accessible={true}
+  collapsable={false}
+  focusable={false}
+  onClick={[Function]}
+  onResponderGrant={[Function]}
+  onResponderMove={[Function]}
+  onResponderRelease={[Function]}
+  onResponderTerminate={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#2563eb",
+      "borderColor": undefined,
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "justifyContent": "center",
+      "minHeight": 44,
+      "opacity": 1,
+      "paddingHorizontal": 16,
+      "paddingVertical": 12,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#ffffff",
+        "fontSize": 15,
+        "fontWeight": "600",
+      }
+    }
+  >
+    Primary
+  </Text>
+</View>
+`;
+
+exports[`Button applies secondary variant styles 1`] = `
+<View
+  accessibilityLabel="Secondary"
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "busy": false,
+      "checked": undefined,
+      "disabled": false,
+      "expanded": undefined,
+      "selected": undefined,
+    }
+  }
+  accessibilityValue={
+    {
+      "max": undefined,
+      "min": undefined,
+      "now": undefined,
+      "text": undefined,
+    }
+  }
+  accessible={true}
+  collapsable={false}
+  focusable={false}
+  onClick={[Function]}
+  onResponderGrant={[Function]}
+  onResponderMove={[Function]}
+  onResponderRelease={[Function]}
+  onResponderTerminate={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#1f1f1f",
+      "borderColor": "rgba(255,255,255,0.10)",
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "justifyContent": "center",
+      "minHeight": 44,
+      "opacity": 1,
+      "paddingHorizontal": 16,
+      "paddingVertical": 12,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 15,
+        "fontWeight": "600",
+      }
+    }
+  >
+    Secondary
+  </Text>
+</View>
+`;
+
+exports[`Button renders title 1`] = `
+<View
+  accessibilityLabel="Press me"
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "busy": false,
+      "checked": undefined,
+      "disabled": false,
+      "expanded": undefined,
+      "selected": undefined,
+    }
+  }
+  accessibilityValue={
+    {
+      "max": undefined,
+      "min": undefined,
+      "now": undefined,
+      "text": undefined,
+    }
+  }
+  accessible={true}
+  collapsable={false}
+  focusable={false}
+  onClick={[Function]}
+  onResponderGrant={[Function]}
+  onResponderMove={[Function]}
+  onResponderRelease={[Function]}
+  onResponderTerminate={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#2563eb",
+      "borderColor": undefined,
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "justifyContent": "center",
+      "minHeight": 44,
+      "opacity": 1,
+      "paddingHorizontal": 16,
+      "paddingVertical": 12,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#ffffff",
+        "fontSize": 15,
+        "fontWeight": "600",
+      }
+    }
+  >
+    Press me
+  </Text>
+</View>
+`;
+
+exports[`Button shows loading text when loading 1`] = `
+<View
+  accessibilityLabel="Press me"
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "busy": true,
+      "checked": undefined,
+      "disabled": true,
+      "expanded": undefined,
+      "selected": undefined,
+    }
+  }
+  accessibilityValue={
+    {
+      "max": undefined,
+      "min": undefined,
+      "now": undefined,
+      "text": undefined,
+    }
+  }
+  accessible={true}
+  collapsable={false}
+  focusable={false}
+  onClick={[Function]}
+  onResponderGrant={[Function]}
+  onResponderMove={[Function]}
+  onResponderRelease={[Function]}
+  onResponderTerminate={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "rgba(255,255,255,0.10)",
+      "borderColor": undefined,
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "justifyContent": "center",
+      "minHeight": 44,
+      "opacity": 1,
+      "paddingHorizontal": 16,
+      "paddingVertical": 12,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#ffffff",
+        "fontSize": 15,
+        "fontWeight": "600",
+      }
+    }
+  >
+    Loading...
+  </Text>
+</View>
+`;

@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Divider applies custom style 1`] = `
+<View
+  accessibilityRole="separator"
+  style={
+    {
+      "backgroundColor": "rgba(255,255,255,0.10)",
+      "height": 1,
+      "marginVertical": 20,
+    }
+  }
+/>
+`;
+
+exports[`Divider renders without crashing 1`] = `
+<View
+  accessibilityRole="separator"
+  style={
+    {
+      "backgroundColor": "rgba(255,255,255,0.10)",
+      "height": 1,
+      "marginVertical": 12,
+    }
+  }
+/>
+`;

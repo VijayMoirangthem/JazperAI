@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Spinner applies color prop 1`] = `
+<ActivityIndicator
+  accessibilityLabel="Loading"
+  accessibilityRole="progressbar"
+  accessibilityState={
+    {
+      "busy": true,
+    }
+  }
+  color="#ff0000"
+  size="large"
+/>
+`;
+
+exports[`Spinner applies size prop 1`] = `
+<ActivityIndicator
+  accessibilityLabel="Loading"
+  accessibilityRole="progressbar"
+  accessibilityState={
+    {
+      "busy": true,
+    }
+  }
+  color="#2563eb"
+  size="small"
+/>
+`;
+
+exports[`Spinner renders without crashing 1`] = `
+<ActivityIndicator
+  accessibilityLabel="Loading"
+  accessibilityRole="progressbar"
+  accessibilityState={
+    {
+      "busy": true,
+    }
+  }
+  color="#2563eb"
+  size="large"
+/>
+`;

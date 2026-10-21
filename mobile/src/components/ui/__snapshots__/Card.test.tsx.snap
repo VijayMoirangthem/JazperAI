@@ -1,0 +1,80 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Card applies custom padding 1`] = `
+<View
+  accessibilityRole="group"
+  style={
+    {
+      "backgroundColor": "#161616",
+      "borderColor": "rgba(255,255,255,0.10)",
+      "borderRadius": 16,
+      "borderWidth": 1,
+      "padding": 8,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 15,
+      }
+    }
+  >
+    Content
+  </Text>
+</View>
+`;
+
+exports[`Card applies custom style 1`] = `
+<View
+  accessibilityRole="group"
+  style={
+    {
+      "backgroundColor": "#161616",
+      "borderColor": "rgba(255,255,255,0.10)",
+      "borderRadius": 16,
+      "borderWidth": 1,
+      "marginTop": 10,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 15,
+      }
+    }
+  >
+    Content
+  </Text>
+</View>
+`;
+
+exports[`Card renders children 1`] = `
+<View
+  accessibilityRole="group"
+  style={
+    {
+      "backgroundColor": "#161616",
+      "borderColor": "rgba(255,255,255,0.10)",
+      "borderRadius": 16,
+      "borderWidth": 1,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 15,
+      }
+    }
+  >
+    Card content
+  </Text>
+</View>
+`;

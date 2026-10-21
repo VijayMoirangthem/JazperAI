@@ -1,0 +1,187 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Badge applies amber for score >= 60 1`] = `
+<View
+  accessibilityLabel="Score: 70"
+  accessibilityRole="status"
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#f59e0b",
+      "borderRadius": 999,
+      "minWidth": 36,
+      "paddingHorizontal": 8,
+      "paddingVertical": 2,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#000000",
+        "fontSize": 11,
+        "fontWeight": "600",
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    70
+  </Text>
+</View>
+`;
+
+exports[`Badge applies green for score >= 80 1`] = `
+<View
+  accessibilityLabel="Score: 90"
+  accessibilityRole="status"
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#22c55e",
+      "borderRadius": 999,
+      "minWidth": 36,
+      "paddingHorizontal": 8,
+      "paddingVertical": 2,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#ffffff",
+        "fontSize": 11,
+        "fontWeight": "600",
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    90
+  </Text>
+</View>
+`;
+
+exports[`Badge applies grey for null score 1`] = `
+<View
+  accessibilityLabel="Score: new"
+  accessibilityRole="status"
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "rgba(255,255,255,0.10)",
+      "borderRadius": 999,
+      "minWidth": 36,
+      "paddingHorizontal": 8,
+      "paddingVertical": 2,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "rgba(255,255,255,0.55)",
+        "fontSize": 11,
+        "fontWeight": "600",
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    new
+  </Text>
+</View>
+`;
+
+exports[`Badge applies red for score < 60 1`] = `
+<View
+  accessibilityLabel="Score: 50"
+  accessibilityRole="status"
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#ef4444",
+      "borderRadius": 999,
+      "minWidth": 36,
+      "paddingHorizontal": 8,
+      "paddingVertical": 2,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#ffffff",
+        "fontSize": 11,
+        "fontWeight": "600",
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    50
+  </Text>
+</View>
+`;
+
+exports[`Badge renders "new" for null score 1`] = `
+<View
+  accessibilityLabel="Score: new"
+  accessibilityRole="status"
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "rgba(255,255,255,0.10)",
+      "borderRadius": 999,
+      "minWidth": 36,
+      "paddingHorizontal": 8,
+      "paddingVertical": 2,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "rgba(255,255,255,0.55)",
+        "fontSize": 11,
+        "fontWeight": "600",
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    new
+  </Text>
+</View>
+`;
+
+exports[`Badge renders score number 1`] = `
+<View
+  accessibilityLabel="Score: 85"
+  accessibilityRole="status"
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#22c55e",
+      "borderRadius": 999,
+      "minWidth": 36,
+      "paddingHorizontal": 8,
+      "paddingVertical": 2,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#ffffff",
+        "fontSize": 11,
+        "fontWeight": "600",
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    85
+  </Text>
+</View>
+`;

@@ -1,0 +1,48 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Screen applies custom style 1`] = `
+<SafeAreaView
+  accessibilityRole="region"
+  style={
+    {
+      "backgroundColor": "#0b0b0b",
+      "flex": 1,
+      "padding": 20,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 15,
+      }
+    }
+  >
+    Content
+  </Text>
+</SafeAreaView>
+`;
+
+exports[`Screen renders children 1`] = `
+<SafeAreaView
+  accessibilityRole="region"
+  style={
+    {
+      "backgroundColor": "#0b0b0b",
+      "flex": 1,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 15,
+      }
+    }
+  >
+    Test content
+  </Text>
+</SafeAreaView>
+`;

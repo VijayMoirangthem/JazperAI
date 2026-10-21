@@ -1,0 +1,175 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`SheetModal renders children when visible 1`] = `
+<Modal
+  animationType="none"
+  onRequestClose={[Function]}
+  presentationStyle="overFullScreen"
+  transparent={true}
+  visible={true}
+>
+  <View
+    collapsable={false}
+    style={
+      {
+        "backgroundColor": "rgba(0,0,0,0.5)",
+        "flex": 1,
+        "justifyContent": "flex-end",
+        "opacity": 0,
+      }
+    }
+  >
+    <View
+      onLayout={[Function]}
+      style={
+        [
+          {
+            "flex": 1,
+            "justifyContent": "flex-end",
+          },
+          {
+            "paddingBottom": 0,
+          },
+        ]
+      }
+    >
+      <View
+        accessibilityRole="dialog"
+        collapsable={false}
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderTopLeftRadius": 16,
+            "borderTopRightRadius": 16,
+            "maxHeight": "85%",
+            "overflow": "hidden",
+            "transform": [
+              {
+                "translateY": 300,
+              },
+            ],
+          }
+        }
+      >
+        <View
+          style={
+            {
+              "flex": 1,
+              "padding": 16,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+              }
+            }
+          >
+            Modal content
+          </Text>
+        </View>
+      </View>
+    </View>
+  </View>
+</Modal>
+`;
+
+exports[`SheetModal renders title 1`] = `
+<Modal
+  animationType="none"
+  onRequestClose={[Function]}
+  presentationStyle="overFullScreen"
+  transparent={true}
+  visible={true}
+>
+  <View
+    collapsable={false}
+    style={
+      {
+        "backgroundColor": "rgba(0,0,0,0.5)",
+        "flex": 1,
+        "justifyContent": "flex-end",
+        "opacity": 0,
+      }
+    }
+  >
+    <View
+      onLayout={[Function]}
+      style={
+        [
+          {
+            "flex": 1,
+            "justifyContent": "flex-end",
+          },
+          {
+            "paddingBottom": 0,
+          },
+        ]
+      }
+    >
+      <View
+        accessibilityRole="dialog"
+        collapsable={false}
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderTopLeftRadius": 16,
+            "borderTopRightRadius": 16,
+            "maxHeight": "85%",
+            "overflow": "hidden",
+            "transform": [
+              {
+                "translateY": 300,
+              },
+            ],
+          }
+        }
+      >
+        <View
+          style={
+            {
+              "borderBottomColor": "rgba(255,255,255,0.10)",
+              "borderBottomWidth": 1,
+              "paddingHorizontal": 16,
+              "paddingVertical": 12,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 24,
+                "fontWeight": "600",
+              }
+            }
+          >
+            Modal Title
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "flex": 1,
+              "padding": 16,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+              }
+            }
+          >
+            Content
+          </Text>
+        </View>
+      </View>
+    </View>
+  </View>
+</Modal>
+`;
