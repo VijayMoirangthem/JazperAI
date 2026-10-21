@@ -5,3 +5,4 @@ Founder decision 2026-10-21: personal, local-only app, copying allowed. If this 
 | our file | source (Project_References/workadventure/...) | what | licence |
 |---|---|---|---|
 | app/public/office2/woka/{body,eyes,hair,clothes,hat,accessory}/*.png + manifest.json | play/public/resources/customisation/* (listed by play/src/pusher/data/woka.json) | layered 96x128 avatar parts (same 3x4 sheet format as ours) | no licence text in repo (UNVERIFIED) |
+| app/public/office3/{characters,models}/*.glb | Project_References/deskrpg/public/assets/{characters/office,shared/*} | 50 animated characters (idle/walk/sit) + furniture GLBs for Office 3 (3D) | CC0 (Quaternius bases, per deskrpg LICENSES.md); DeskRPG's own models under its Sustainable Use License |
