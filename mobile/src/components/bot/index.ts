@@ -1,1 +1,4 @@
-// Bot components - placeholder
+import BotCardSheet from './BotCardSheet';
+
+export { BotCardSheet };
+export default BotCardSheet;

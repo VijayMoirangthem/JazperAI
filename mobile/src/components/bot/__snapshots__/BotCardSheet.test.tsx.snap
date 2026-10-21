@@ -1,0 +1,2305 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`BotCardSheet handles null score 1`] = `
+<SafeAreaView
+  accessibilityRole="region"
+  style={
+    {
+      "backgroundColor": "#0b0b0b",
+      "flex": 1,
+    }
+  }
+>
+  <View
+    style={
+      {
+        "alignSelf": "center",
+        "backgroundColor": "rgba(255,255,255,0.2)",
+        "borderRadius": 2,
+        "height": 4,
+        "marginBottom": 16,
+        "marginTop": 8,
+        "width": 40,
+      }
+    }
+  />
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 24,
+        "fontWeight": "600",
+        "marginBottom": 4,
+        "textAlign": "center",
+      }
+    }
+  >
+    Jasper
+  </Text>
+  <Text
+    style={
+      {
+        "color": "rgba(255,255,255,0.55)",
+        "fontSize": 11,
+        "letterSpacing": 0.5,
+        "marginBottom": 24,
+        "opacity": 0.7,
+        "textAlign": "center",
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    Founder
+  </Text>
+  <RCTScrollView
+    contentContainerStyle={
+      {
+        "padding": 16,
+        "paddingBottom": 32,
+      }
+    }
+  >
+    <View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Overview
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Status
+          </Text>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "selected": true,
+              }
+            }
+            style={
+              {
+                "backgroundColor": "#2563eb",
+                "borderColor": "#2563eb",
+                "borderRadius": 999,
+                "borderWidth": 1,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#ffffff",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Active
+            </Text>
+          </View>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Score
+          </Text>
+          <View
+            accessibilityLabel="Score: 95"
+            accessibilityRole="status"
+            style={
+              {
+                "alignItems": "center",
+                "backgroundColor": "#22c55e",
+                "borderRadius": 999,
+                "minWidth": 36,
+                "paddingHorizontal": 8,
+                "paddingVertical": 2,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#ffffff",
+                  "fontSize": 11,
+                  "fontWeight": "600",
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              95
+            </Text>
+          </View>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Grade
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            A
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Tier
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            1
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Group
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            Jasper Team
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Department
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            Core
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Reports To
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            —
+          </Text>
+        </View>
+      </View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Timeline
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Created
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            1/1/2024, 5:30:00 am
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Started
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            2/1/2024, 5:30:00 am
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Lifecycle
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            active
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Last Active
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            1/12/2024, 5:30:00 am
+          </Text>
+        </View>
+      </View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Statistics
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "flexDirection": "row",
+              "flexWrap": "wrap",
+              "justifyContent": "space-between",
+            }
+          }
+        >
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Calls
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              1000
+            </Text>
+          </View>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Errors
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              5
+            </Text>
+          </View>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Thumbs Up
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              50
+            </Text>
+          </View>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Thumbs Down
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              2
+            </Text>
+          </View>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Avg Latency
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              150
+              ms
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Tools
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "flexDirection": "row",
+              "flexWrap": "wrap",
+              "gap": 8,
+            }
+          }
+        >
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "selected": false,
+              }
+            }
+            style={
+              {
+                "backgroundColor": "#1f1f1f",
+                "borderColor": "rgba(255,255,255,0.10)",
+                "borderRadius": 999,
+                "borderWidth": 1,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              web.search
+            </Text>
+          </View>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "selected": false,
+              }
+            }
+            style={
+              {
+                "backgroundColor": "#1f1f1f",
+                "borderColor": "rgba(255,255,255,0.10)",
+                "borderRadius": 999,
+                "borderWidth": 1,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              code.execute
+            </Text>
+          </View>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "selected": false,
+              }
+            }
+            style={
+              {
+                "backgroundColor": "#1f1f1f",
+                "borderColor": "rgba(255,255,255,0.10)",
+                "borderRadius": 999,
+                "borderWidth": 1,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              file.read
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Advanced
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Source
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            custom
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Memory Namespace
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            jasper
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Role Title
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            Founder AI
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Slug
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "maxWidth": "65%",
+                "textAlign": "right",
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            jasper
+          </Text>
+        </View>
+      </View>
+    </View>
+  </RCTScrollView>
+</SafeAreaView>
+`;
+
+exports[`BotCardSheet renders bot info 1`] = `
+<SafeAreaView
+  accessibilityRole="region"
+  style={
+    {
+      "backgroundColor": "#0b0b0b",
+      "flex": 1,
+    }
+  }
+>
+  <View
+    style={
+      {
+        "alignSelf": "center",
+        "backgroundColor": "rgba(255,255,255,0.2)",
+        "borderRadius": 2,
+        "height": 4,
+        "marginBottom": 16,
+        "marginTop": 8,
+        "width": 40,
+      }
+    }
+  />
+  <Text
+    style={
+      {
+        "color": "#f2f2f2",
+        "fontSize": 24,
+        "fontWeight": "600",
+        "marginBottom": 4,
+        "textAlign": "center",
+      }
+    }
+  >
+    Jasper
+  </Text>
+  <Text
+    style={
+      {
+        "color": "rgba(255,255,255,0.55)",
+        "fontSize": 11,
+        "letterSpacing": 0.5,
+        "marginBottom": 24,
+        "opacity": 0.7,
+        "textAlign": "center",
+        "textTransform": "uppercase",
+      }
+    }
+  >
+    Founder
+  </Text>
+  <RCTScrollView
+    contentContainerStyle={
+      {
+        "padding": 16,
+        "paddingBottom": 32,
+      }
+    }
+  >
+    <View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Overview
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Status
+          </Text>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "selected": true,
+              }
+            }
+            style={
+              {
+                "backgroundColor": "#2563eb",
+                "borderColor": "#2563eb",
+                "borderRadius": 999,
+                "borderWidth": 1,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#ffffff",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Active
+            </Text>
+          </View>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Score
+          </Text>
+          <View
+            accessibilityLabel="Score: 95"
+            accessibilityRole="status"
+            style={
+              {
+                "alignItems": "center",
+                "backgroundColor": "#22c55e",
+                "borderRadius": 999,
+                "minWidth": 36,
+                "paddingHorizontal": 8,
+                "paddingVertical": 2,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#ffffff",
+                  "fontSize": 11,
+                  "fontWeight": "600",
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              95
+            </Text>
+          </View>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Grade
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            A
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Tier
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            1
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Group
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            Jasper Team
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Department
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            Core
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Reports To
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            —
+          </Text>
+        </View>
+      </View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Timeline
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Created
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            1/1/2024, 5:30:00 am
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Started
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            2/1/2024, 5:30:00 am
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Lifecycle
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            active
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Last Active
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            1/12/2024, 5:30:00 am
+          </Text>
+        </View>
+      </View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Statistics
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "flexDirection": "row",
+              "flexWrap": "wrap",
+              "justifyContent": "space-between",
+            }
+          }
+        >
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Calls
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              1000
+            </Text>
+          </View>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Errors
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              5
+            </Text>
+          </View>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Thumbs Up
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              50
+            </Text>
+          </View>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Thumbs Down
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              2
+            </Text>
+          </View>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 12,
+                "width": "30%",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "rgba(255,255,255,0.55)",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "marginBottom": 4,
+                  "textAlign": "center",
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              Avg Latency
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 18,
+                  "fontWeight": "600",
+                  "textAlign": "center",
+                }
+              }
+            >
+              150
+              ms
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Tools
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "flexDirection": "row",
+              "flexWrap": "wrap",
+              "gap": 8,
+            }
+          }
+        >
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "selected": false,
+              }
+            }
+            style={
+              {
+                "backgroundColor": "#1f1f1f",
+                "borderColor": "rgba(255,255,255,0.10)",
+                "borderRadius": 999,
+                "borderWidth": 1,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              web.search
+            </Text>
+          </View>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "selected": false,
+              }
+            }
+            style={
+              {
+                "backgroundColor": "#1f1f1f",
+                "borderColor": "rgba(255,255,255,0.10)",
+                "borderRadius": 999,
+                "borderWidth": 1,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              code.execute
+            </Text>
+          </View>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "selected": false,
+              }
+            }
+            style={
+              {
+                "backgroundColor": "#1f1f1f",
+                "borderColor": "rgba(255,255,255,0.10)",
+                "borderRadius": 999,
+                "borderWidth": 1,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#f2f2f2",
+                  "fontSize": 11,
+                  "letterSpacing": 0.5,
+                  "textTransform": "uppercase",
+                }
+              }
+            >
+              file.read
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View
+        accessibilityRole="group"
+        style={
+          {
+            "backgroundColor": "#161616",
+            "borderColor": "rgba(255,255,255,0.10)",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "marginBottom": 16,
+            "padding": 16,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "rgba(255,255,255,0.55)",
+              "fontSize": 11,
+              "letterSpacing": 0.5,
+              "marginBottom": 8,
+              "textTransform": "uppercase",
+            }
+          }
+        >
+          Advanced
+        </Text>
+        <View
+          accessibilityRole="separator"
+          style={
+            {
+              "backgroundColor": "rgba(255,255,255,0.10)",
+              "height": 1,
+              "marginVertical": 12,
+            }
+          }
+        />
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Source
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            custom
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Memory Namespace
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            jasper
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Role Title
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#f2f2f2",
+                "fontSize": 15,
+                "maxWidth": "65%",
+                "textAlign": "right",
+              }
+            }
+          >
+            Founder AI
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "borderBottomColor": "rgba(255,255,255,0.05)",
+              "borderBottomWidth": 1,
+              "flexDirection": "row",
+              "justifyContent": "space-between",
+              "paddingVertical": 10,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "opacity": 0.6,
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            Slug
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={
+              {
+                "color": "rgba(255,255,255,0.55)",
+                "fontSize": 11,
+                "letterSpacing": 0.5,
+                "maxWidth": "65%",
+                "textAlign": "right",
+                "textTransform": "uppercase",
+              }
+            }
+          >
+            jasper
+          </Text>
+        </View>
+      </View>
+    </View>
+  </RCTScrollView>
+</SafeAreaView>
+`;
