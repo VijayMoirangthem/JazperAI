@@ -123,7 +123,7 @@ def test_default_router_without_key_uses_stub_and_endpoint_works(monkeypatch):
     from core.llm.registry import invalidate
     invalidate()
     from main import app
-    r = TestClient(app).post("/api/v1/llm/complete", json={"prompt": "hello"})
+    r = TestClient(app, base_url="http://localhost").post("/api/v1/llm/complete", json={"prompt": "hello"})
     assert r.status_code == 200 and r.json()["usage"]["provider"] == "stub"
 
 

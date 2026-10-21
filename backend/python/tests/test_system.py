@@ -13,7 +13,7 @@ def client(monkeypatch):
     monkeypatch.setattr(vault, "set", lambda n, v: store.__setitem__(n, v))
     monkeypatch.setattr(vault, "delete", lambda n: store.pop(n, None))
     from main import app
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://localhost")
     try:
         c.get("/api/v1/system/health").raise_for_status()
     except Exception:

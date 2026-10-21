@@ -59,7 +59,7 @@ async def test_publish_to_subscriber_latency_p95_under_100ms():
 def test_rpc_websocket_subscribe_and_errors():
     from core.eventbus import bus
     from main import app
-    with TestClient(app).websocket_connect("/ws/rpc") as ws:
+    with TestClient(app, base_url="http://localhost").websocket_connect("/ws/rpc", headers={"host": "localhost"}) as ws:
         ws.send_json({"jsonrpc": "2.0", "id": 1, "method": "subscribe", "params": {"topics": ["bogus"]}})
         assert ws.receive_json()["error"]["code"] == -32602
         ws.send_json({"jsonrpc": "2.0", "id": 2, "method": "subscribe", "params": {"topics": ["agent-state-change"]}})

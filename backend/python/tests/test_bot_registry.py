@@ -15,7 +15,7 @@ def client(monkeypatch):
     from core.llm.registry import invalidate
     invalidate()
     from main import app
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://localhost")
     try:
         c.get("/api/v1/bots/").raise_for_status()
     except Exception:

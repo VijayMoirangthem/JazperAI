@@ -56,7 +56,7 @@ def test_directive_endpoint(monkeypatch):
     from core.llm.registry import invalidate
     invalidate()
     from main import app
-    r = TestClient(app).post("/api/v1/directive/", json={"text": "hello there"})
+    r = TestClient(app, base_url="http://localhost").post("/api/v1/directive/", json={"text": "hello there"})
     assert r.status_code == 200 and r.json()["status"] == "complete"
 
 

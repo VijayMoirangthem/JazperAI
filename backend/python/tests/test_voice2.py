@@ -19,7 +19,7 @@ def client(monkeypatch, chunks):
     fake.Communicate = Communicate
     monkeypatch.setitem(sys.modules, "edge_tts", fake)
     from main import app
-    return TestClient(app)
+    return TestClient(app, base_url="http://localhost")
 
 
 def test_streams_audio_chunks_in_order_and_skips_metadata(monkeypatch):

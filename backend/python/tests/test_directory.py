@@ -13,7 +13,7 @@ def test_seed_counts_and_lifecycles():
 
 def test_directory_endpoint_v1():
     from main import app
-    r = TestClient(app).get("/api/v1/directory/")
+    r = TestClient(app, base_url="http://localhost").get("/api/v1/directory/")
     assert r.status_code == 200
     body = r.json()
     assert body["humans"] and body["bots"]

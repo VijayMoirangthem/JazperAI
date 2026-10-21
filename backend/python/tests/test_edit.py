@@ -49,7 +49,7 @@ def test_streaming_emits_stable_hunks_incrementally_and_matches_final():
 
 def test_path_safety():
     from main import app
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://localhost")
     for bad in ["../outside.txt", "backend/python/.env", ".git/config", "storage/user/x", "node_modules/x/y.js"]:
         assert c.get("/api/v1/edit/file", params={"path": bad}).status_code in (403, 404), bad
 
@@ -67,12 +67,12 @@ def test_edit_stream_endpoint_with_stub_model(monkeypatch, tmp_path):
             return stub
         monkeypatch.setattr(edit, "get_router", fake)
         from main import app
-        r = TestClient(app).post("/api/v1/edit/stream", json={"path": "docs/_edit_test.txt", "instruction": "replace c"})
+        r = TestClient(app, base_url="http://localhost").post("/api/v1/edit/stream", json={"path": "docs/_edit_test.txt", "instruction": "replace c"})
         evs = [json.loads(line) for line in r.text.splitlines()]
         assert evs[0]["op"] == "begin" and evs[-1]["op"] == "end"
         hunks = [h for e in evs if e["op"] == "hunk" for h in e["hunks"]]
         assert len(hunks) == 1 and "+X" in hunks[0]["patch"] and "-c" in hunks[0]["patch"]
-        ap = TestClient(app).post("/api/v1/edit/apply", json={"path": "docs/_edit_test.txt", "content": "a\nb\nX\nd\n"})
+        ap = TestClient(app, base_url="http://localhost").post("/api/v1/edit/apply", json={"path": "docs/_edit_test.txt", "content": "a\nb\nX\nd\n"})
         assert ap.status_code == 200 and target.read_text() == "a\nb\nX\nd\n"
     finally:
         target.unlink(missing_ok=True)

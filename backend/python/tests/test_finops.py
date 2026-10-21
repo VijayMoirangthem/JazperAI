@@ -81,7 +81,7 @@ async def test_summary_and_endpoint():
     assert any(x["k"] == "boardmint" for x in s["by_division"]) and s["forecast"]["tokens_per_hour"] >= 0
     from fastapi.testclient import TestClient
     from main import app
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://localhost")
     assert c.put("/api/v1/finops/budgets", json={"scope": "agent:fo-d", "daily_hard": 10}).status_code == 200
     assert c.get("/api/v1/finops/summary").json()["today"]["calls"] >= 1
 

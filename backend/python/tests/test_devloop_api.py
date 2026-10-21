@@ -52,7 +52,7 @@ async def env(tmp_path, monkeypatch):
     monkeypatch.setitem(dl.PRESETS, "tmp-pytest", ([sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider"], ""))
     dl.RUNS.clear()
     from main import app
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://localhost") as c:
         yield repo, c
     await aio.execute("DELETE FROM shared.hitl_requests WHERE requester='forge' AND summary LIKE 'Merge agent-patch/%'")
     await aio.close_pool()
@@ -99,7 +99,7 @@ async def test_logs_endpoint_whitelist_and_redaction(tmp_path, monkeypatch):
     (tmp_path / "storage" / "logs" / "launcher.log").write_text("ok line\nkey sk-abcdefghijklmnopqrstuvwxyz leaked\n")
     monkeypatch.setattr(sysr, "ROOT", tmp_path)
     from main import app
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://localhost") as c:
         r = await c.get("/api/v1/system/logs", params={"name": "launcher"})
         assert r.status_code == 200 and "<redacted>" in r.text and "sk-abcdef" not in r.text
         assert (await c.get("/api/v1/system/logs", params={"name": "../../etc/passwd"})).status_code == 404

@@ -52,7 +52,7 @@ async def test_each_executive_returns_structured_report_with_trace_ids():
 @pytest.mark.db
 def test_company_api(monkeypatch):
     from main import app
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://localhost")
     s = c.get("/api/v1/company/structure").json()
     assert len(s["executives"]) == 7 and "baeit" in s["crews"]
     assert c.post("/api/v1/company/directive", json={"text": "x", "executive": "nope"}).status_code == 404
