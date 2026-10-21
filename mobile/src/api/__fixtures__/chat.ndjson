@@ -1,0 +1,14 @@
+{"t":"speaker","slug":"jasper"}
+{"t":"delta","slug":"jasper","text":"Hello! "}
+{"t":"delta","slug":"jasper","text":"How can I help you today?"}
+{"t":"done","slug":"jasper","usage":{"prompt_tokens":10,"completion_tokens":20}}
+{"t":"speaker","slug":"analyst"}
+{"t":"delta","slug":"analyst","text":"Looking at the data..."}
+{"t":"tool","slug":"analyst","name":"query_db","label":"db.query","status":"running"}
+{"t":"tool","slug":"analyst","name":"query_db","label":"db.query","status":"ok","result":{"rows":5}}
+{"t":"delta","slug":"analyst","text":"Found 5 results."}
+{"t":"done","slug":"analyst","usage":{"prompt_tokens":15,"completion_tokens":25}}
+{"t":"ui","slug":"jasper","kind":"suggestions","connector":"jira","items":[{"name":"Create ticket","why":"User requested","status":"pending"}]}
+{"t":"phase","text":"--- Meeting started ---"}
+{"t":"route","slugs":["jasper","analyst"],"source":"router","confidence":0.95}
+{"t":"error","slug":"jasper","message":"Connection timeout"}
