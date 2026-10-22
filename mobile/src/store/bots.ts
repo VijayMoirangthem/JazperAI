@@ -16,9 +16,8 @@ interface BotsState {
 }
 
 type SetState = (partial: BotsState | Partial<BotsState> | ((state: BotsState) => BotsState | Partial<BotsState>)) => void;
-type GetState = () => BotsState;
 
-export const useBots = create<BotsState>((set: SetState, get: () => BotsState) => ({
+export const useBots = create<BotsState>()((set: SetState) => ({
   groups: [],
   loading: false,
   error: null,
