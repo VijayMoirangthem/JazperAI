@@ -94,13 +94,13 @@ class Hub:
         return c
 
     async def catalogue(self, only: str | None = None) -> list[dict]:
-        """Tools of the registered connectors. `only` limits it to ONE connector (what a tool call needs); otherwise all are started IN PARALLEL with a 25 s
+        """Tools of the registered connectors. `only` limits it to ONE connector (what a tool call needs); otherwise all are started IN PARALLEL with a 60 s
         cap each, so one slow or broken connector (npx download, bad token) can no longer stall every tool call."""
         targets = [only] if only else list(self.manifests)
 
         async def one(cid: str):
             try:
-                return cid, await asyncio.wait_for(self.ensure(cid), 25)
+                return cid, await asyncio.wait_for(self.ensure(cid), 60)
             except (ToolError, asyncio.TimeoutError) as e:
                 log.warning("connector unavailable", id=cid, error=str(e)[:120])
                 return cid, None

@@ -43,6 +43,8 @@ HELP = {
     "llm_fix": "llm_fix {} : self-heal the model layer: reset circuit breakers, rebuild the chains (adds free fallback models) and test every provider for real. Run it yourself whenever a provider error happens, then retry",
     "system_status": "system_status {} : health of the whole system (database, redis, backend, connectors) in one call",
     "read_logs": "read_logs {name,lines,contains} : recent backend log lines (secrets are redacted). Use it to diagnose errors yourself",
+    "gaps": "gaps {} : recurring tool/connector failures of the last 7 days and how each was resolved (fixed, needed the founder, unfixed). Use it when asked what keeps going wrong",
+    "diagnose": "diagnose {text} : classify an error message (google_scope, api_disabled, connector_down, rate_limited...)",
     "clear_chat": "clear_chat {scope} : delete chat history. scope = before_now (everything above the founder's last message) | all | older_than_days:N. Shows the founder ONE confirm button (with Undo). Call it straight away; never ask first",
     "hold_meeting": "hold_meeting {group,topic} : the bots of a group (create_origins, baeit, boardmint, jazper_team) discuss a topic and their lead concludes; returns the conclusion",
     "fs_roots": "fs_roots {} : folders on this PC you may work in",
@@ -65,7 +67,7 @@ HELP = {
 FS = ["fs_roots", "fs_list", "fs_read", "fs_search", "fs_write"]
 LEADS = {"ceo-create-origins", "ceo-baeit", "lead-boardmint", "vp-tech-ops"}
 TOOLS_FOR: dict[str, list[str]] = {
-    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
+    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "gaps", "diagnose", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
     "connector": ["list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "use_tool", "list_skills", "view_skill", "save_skill"],
     "messenger": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
     "bot-reviewer": ["list_org", "bot_stats", "evaluate_bot", "improve_bot", "alerts", "list_skills", "view_skill"],
@@ -213,12 +215,32 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
             return "no connected tool matches; the service is probably not connected (ask connector to connect it)"
         return _clip([{"name": t["name"], "tier": t["tier"], "description": t["description"][:100], "args": list(t["schema"].get("properties", {}))} for t in found])
     if name == "use_tool":
-        try:
-            tname = str(args.get("name", ""))
-            res = await hub.use_tool(tname, args.get("arguments") or {}, agent=agent, taint=untrusted.is_tainted(), note=untrusted.approval_note())
-            return _ext(tname.split(".")[0] or "mcp", agent, _clip(res), always=not res.get("blocked"))
-        except ToolError as e:
-            return f"error: {str(e)[:300]}"
+        from agents import healer
+        tname, targs, fixed_note = str(args.get("name", "")), args.get("arguments") or {}, ""
+        for attempt in (1, 2):  # a failure is diagnosed and healed (restart, scope, API, rate limit...) and the call retried once, before the model sees an error
+            try:
+                res = await hub.use_tool(tname, targs, agent=agent, taint=untrusted.is_tainted(), note=untrusted.approval_note())
+                err = json.dumps(res, default=str)[:500] if healer.is_failure(res) else None
+            except ToolError as e:
+                res, err = None, str(e)[:500]
+            if err is None:
+                return _ext(tname.split(".")[0] or "mcp", agent, _clip(res), always=not res.get("blocked")) + fixed_note
+            out = await healer.heal(tname, targs, err, agent, attempt)
+            if out.request:
+                _push_ui(out.request)
+                return f"Needs ONE founder click: {out.message} The card is shown. Say it in one short sentence; when they have clicked, repeat this call."
+            if out.retry and attempt == 1:
+                fixed_note = f" [auto-fixed: {out.message}]"
+                continue
+            return f"error ({out.kind}): {out.message}"
+        return "error: still failing after auto-fix"
+    if name == "gaps":
+        from agents import healer
+        return _clip(await healer.recent_gaps(), 2500)
+    if name == "diagnose":
+        from agents import healer
+        kind, why = healer.classify(str(args.get("text", "")))
+        return f"{kind}: {why}"
     if name == "list_connections":
         return _clip([_conn_line(c) for c in await connector.overview()], 3000)
     if name == "suggest_connectors":
@@ -469,7 +491,12 @@ async def _stream_retry(r, req):
             if got or attempt == 3:
                 yield "(The model provider is busy or rate-limited right now - " + str(e)[:80] + ". Please try again in a minute.)"
                 return
-            await asyncio.sleep(6 * attempt)  # 6 s, then 12 s: lets a per-minute limit on the free tier recover
+            try:  # heal between attempts: a tripped circuit breaker must not keep every provider "down"
+                for rr in r.routers.values():
+                    rr.reset_breakers()
+            except Exception:
+                pass
+            await asyncio.sleep(3 * attempt)  # 3 s, then 6 s: lets a per-minute limit on the free tier recover
 
 
 async def _rounds(r, slug: str, system: str, msgs: list[dict], tier: str, trace: list[str]) -> AsyncIterator[dict]:

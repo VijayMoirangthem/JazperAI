@@ -67,16 +67,18 @@ async def test_connector_crash_restarts_and_new_connector_appears_without_restar
     assert "t-demo2.echo" not in {t["name"] for t in await hub.catalogue()}
 
 
-async def test_google_workspace_preset_lists_read_only_tools_offline():
+async def test_google_workspace_preset_tiers_reads_writes_and_dangerous_actions():
     from hub.presets import PRESETS
     p = PRESETS["google-workspace"]
     h = Hub()
     await h.upsert("t-gw", p["name"], p["command"], p["env_secrets"], p["tool_tiers"])
     try:
-        cat = await h.catalogue()
+        cat = await h.catalogue(only="t-gw")
         mine = {t["tool"]: t for t in cat if t["connector"] == "t-gw"}
-        assert {"gmail_search", "gmail_read", "calendar_today", "calendar_range"} <= set(mine)
-        assert all(t["action"] == "mcp.read" for t in mine.values())  # read-only: Tier 1, no approval wait
+        assert {"gmail_search", "gmail_read", "calendar_today", "calendar_range", "drive_list_recent", "drive_read_file", "docs_read", "sheets_read"} <= set(mine)
+        assert all(mine[t]["action"] == "mcp.read" for t in ("gmail_search", "drive_list_recent", "drive_read_file", "docs_read", "sheets_read"))  # reads: Tier 1, no approval wait
+        assert all(mine[t]["action"] == "mcp.write" for t in ("drive_create_file", "docs_append", "sheets_write", "calendar_create_event", "gmail_create_draft"))  # edits: Tier 2
+        assert all(mine[t]["action"] == "mcp.admin" for t in ("gmail_send", "drive_share", "drive_trash"))  # outward-facing or destructive: Tier 3
     finally:
         await h.remove("t-gw")
         await h.shutdown()
