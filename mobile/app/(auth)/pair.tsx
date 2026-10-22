@@ -5,6 +5,7 @@ import * as Constants from 'expo-constants';
 import Camera, { CameraView, BarcodeScanningResult } from 'expo-camera';
 import { useAuth } from '@/auth/useAuth';
 import { saveCredentials } from '@/auth/secureStore';
+import { registerForPushNotifications } from '@/notifications/setup';
 import { JasperClient, AuthRevokedError } from '@/api/client';
 import { StoredCredentials } from '@/api/types';
 import {
@@ -116,6 +117,7 @@ export default function PairScreen() {
       await saveCredentials(credentials);
       setCredentials(credentials);
       setTokens(response.access_token, response.device_id, deviceName.trim() || defaultName);
+      void registerForPushNotifications();
 
       router.replace('/(tabs)/chats' as any);
     } catch (err) {

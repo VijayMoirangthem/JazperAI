@@ -1,28 +1,26 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
+import * as SecureStore from 'expo-secure-store';
+import { NotificationToggles } from '@/notifications/routing';
 
 interface SettingsState {
   appLock: boolean;
-  notificationToggles: {
-    approvals: boolean;
-    mail: boolean;
-    feature: boolean;
-    alert: boolean;
-  };
+  notificationToggles: NotificationToggles;
   setAppLock: (enabled: boolean) => void;
-  setNotificationToggle: (type: keyof SettingsState['notificationToggles'], enabled: boolean) => void;
+  setNotificationToggle: (type: keyof NotificationToggles, enabled: boolean) => void;
 }
 
 const storage: StateStorage = {
-  getItem: (name: string) => {
-    const value = localStorage.getItem(name);
-    return value ? JSON.parse(value) : null;
-  },
-  setItem: (name: string, value: string) => localStorage.setItem(name, value),
-  removeItem: (name: string) => localStorage.removeItem(name),
+  getItem: (name: string) => SecureStore.getItemAsync(name),
+  setItem: (name: string, value: string) => SecureStore.setItemAsync(name, value),
+  removeItem: (name: string) => SecureStore.deleteItemAsync(name),
 };
 
-const createSettingsState = (set: (partial: SettingsState | Partial<SettingsState> | ((state: SettingsState) => SettingsState | Partial<SettingsState>)) => void) => ({
+const createSettingsState = (
+  set: (
+    partial: SettingsState | Partial<SettingsState> | ((state: SettingsState) => SettingsState | Partial<SettingsState>)
+  ) => void
+) => ({
   appLock: false,
   notificationToggles: {
     approvals: true,
@@ -31,18 +29,15 @@ const createSettingsState = (set: (partial: SettingsState | Partial<SettingsStat
     alert: true,
   },
   setAppLock: (enabled: boolean) => set({ appLock: enabled }),
-  setNotificationToggle: (type: keyof SettingsState['notificationToggles'], enabled: boolean) =>
+  setNotificationToggle: (type: keyof NotificationToggles, enabled: boolean) =>
     set((state: SettingsState) => ({
       notificationToggles: { ...state.notificationToggles, [type]: enabled },
     })),
 });
 
 export const useSettings = create<SettingsState>()(
-  persist(
-    createSettingsState,
-    {
-      name: 'jasper-settings',
-      storage: createJSONStorage(() => storage),
-    }
-  )
+  persist(createSettingsState, {
+    name: 'jasper-settings',
+    storage: createJSONStorage(() => storage),
+  })
 );
