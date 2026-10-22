@@ -32,6 +32,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/documents",
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/presentations",
+    "https://www.googleapis.com/auth/cloud-platform",  # lets Jazper switch Google APIs on for its own project by itself
     "https://www.googleapis.com/auth/userinfo.email",
 ]
 # capability -> scope that must really be granted (checked against Google, not assumed)
@@ -42,6 +43,7 @@ CAPABILITY_SCOPES = {
     "docs": "https://www.googleapis.com/auth/documents",
     "sheets": "https://www.googleapis.com/auth/spreadsheets",
     "slides": "https://www.googleapis.com/auth/presentations",
+    "cloud": "https://www.googleapis.com/auth/cloud-platform",
 }
 
 # Cache TTLs (seconds)

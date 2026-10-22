@@ -93,14 +93,23 @@ class Hub:
             self.conns[cid] = c
         return c
 
-    async def catalogue(self) -> list[dict]:
-        out = []
-        for cid, m in self.manifests.items():
+    async def catalogue(self, only: str | None = None) -> list[dict]:
+        """Tools of the registered connectors. `only` limits it to ONE connector (what a tool call needs); otherwise all are started IN PARALLEL with a 25 s
+        cap each, so one slow or broken connector (npx download, bad token) can no longer stall every tool call."""
+        targets = [only] if only else list(self.manifests)
+
+        async def one(cid: str):
             try:
-                conn = await self.ensure(cid)
-            except ToolError as e:
+                return cid, await asyncio.wait_for(self.ensure(cid), 25)
+            except (ToolError, asyncio.TimeoutError) as e:
                 log.warning("connector unavailable", id=cid, error=str(e)[:120])
+                return cid, None
+
+        out = []
+        for cid, conn in await asyncio.gather(*(one(c) for c in targets if c in self.manifests)):
+            if conn is None:
                 continue
+            m = self.manifests[cid]
             for t in conn.tools:
                 out.append({"name": f"{cid}.{t['name']}", "connector": cid, "tool": t["name"], "description": t["description"], "schema": t["schema"],
                             "action": m["tool_tiers"].get(t["name"]) or ("mcp.read" if t["read_only"] else "mcp.write")})
@@ -118,7 +127,7 @@ class Hub:
         return [{**t, "tier": hitl.tier_of(t["action"])} for _, t in scored[:k]]
 
     async def use_tool(self, name: str, arguments: dict, agent: str = "system", gate_ttl_s: float = hitl.DEFAULT_TTL_S, taint: bool = False, note: str = "") -> dict:
-        tool = next((t for t in await self.catalogue() if t["name"] == name), None)
+        tool = next((t for t in await self.catalogue(only=name.split(".", 1)[0]) if t["name"] == name), None)
         if tool is None:
             raise ToolError(f"unknown tool {name}")
         from jsonschema import Draft7Validator  # lazy: ~2.5 s import

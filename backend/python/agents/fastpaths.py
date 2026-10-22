@@ -15,7 +15,7 @@ Event = dict
 
 DRIVE = re.compile(r"\b(g\s?drive|google\s?drive|drive)\b", re.I)
 DRIVE_LIST = re.compile(r"\b(latest|recent|newest|last|names?|list|show|get|files?|modified)\b", re.I)
-APPROVED = re.compile(r"i approved google \((drive|docs|sheets|gmail|calendar)\)", re.I)
+APPROVED = re.compile(r"i approved google \((drive|docs|sheets|gmail|calendar|cloud)\)", re.I)
 CLEAR = re.compile(r"\b(delete|clear|wipe|remove|erase)\b.*\b(chats?|history|messages?|conversation)\b|\b(chats?|history)\b.*\b(delete|clear|wipe|remove)\b", re.I)
 USAGE = re.compile(r"\b(tokens?|usage|quota|credits?|provider|which model|what model|how much)\b.*\b(left|remaining|used|using|use|usage|provider|model|spent|cost)\b|\bwhich provider\b", re.I)
 HEALTH = re.compile(r"\b(system|backend|everything)\b.*\b(health|status|ok|working|running)\b|\bhealth check\b", re.I)
@@ -38,7 +38,7 @@ async def _drive_list(text: str) -> AsyncIterator[Event]:
     if st.get("request"):
         yield _tool("connect", "Checking Google Drive access", "ok", st["request"].get("reason", ""))
         yield {"ui": st["request"]}
-        yield {"delta": "One click needed: approve Google Drive access above, then I'll list your files straight away."}
+        yield {"delta": f"One click: {st['request'].get('reason', 'approve Google access')}. Tap the button above, then I list your files right away."}
         return
     if not st.get("ok"):
         yield _tool("connect", "Checking Google Drive access", "error", str(st.get("detail", "")))
