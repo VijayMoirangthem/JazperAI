@@ -116,5 +116,20 @@ describe('MessageBubble', () => {
     const { getByText } = await render(<MessageBubble message={makeMessage({ role: 'ui', ui_json: ui })} />);
     expect(getByText('Finish this on your computer')).toBeTruthy();
     expect(getByText('google')).toBeTruthy();
+    expect(getByText('Connect on desktop')).toBeTruthy();
+  });
+
+  it('renders suggestion items as read-only cards', async () => {
+    const ui = JSON.stringify({
+      kind: 'suggestions',
+      connector: 'Connections',
+      items: [{ name: 'Send email', why: 'You asked to reply', status: 'new' }],
+    });
+    const { getByText } = await render(<MessageBubble message={makeMessage({ role: 'ui', ui_json: ui })} />);
+    expect(getByText('Suggestions')).toBeTruthy();
+    expect(getByText('Send email')).toBeTruthy();
+    expect(getByText('You asked to reply')).toBeTruthy();
+    expect(getByText('new')).toBeTruthy();
+    expect(getByText('Connect on desktop')).toBeTruthy();
   });
 });

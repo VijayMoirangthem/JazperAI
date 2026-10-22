@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import React from 'react';
 import { Message } from '@/db/chat';
 import { getToolPayload, getUiPayload } from '@/utils/chatPayload';
-import { Spinner } from '@/components/ui';
+import { Chip, Spinner } from '@/components/ui';
 import { MarkdownLite } from './MarkdownLite';
 import { theme } from '@/theme/tokens';
 
@@ -133,15 +133,29 @@ function CardMessage({ message }: { message: Message }) {
     return null;
   }
 
+  const isSuggestions = payload.kind === 'suggestions';
+
   return (
     <View style={styles.toolRow}>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>
-          {payload.kind === 'credentials' || payload.kind === 'oauth'
-            ? 'Finish this on your computer'
-            : 'Suggestions'}
+          {isSuggestions ? 'Suggestions' : 'Finish this on your computer'}
         </Text>
         <Text style={styles.cardSubtitle}>{payload.connector}</Text>
+
+        {payload.items.map((item) => (
+          <View key={item.name} style={styles.suggestionRow}>
+            <View style={styles.suggestionText}>
+              <Text style={styles.suggestionName}>{item.name}</Text>
+              <Text style={styles.suggestionWhy}>{item.why}</Text>
+            </View>
+            <Chip textStyle={styles.suggestionStatus}>{item.status}</Chip>
+          </View>
+        ))}
+
+        <View style={styles.desktopBadge}>
+          <Text style={styles.desktopBadgeText}>Connect on desktop</Text>
+        </View>
       </View>
     </View>
   );
@@ -270,5 +284,41 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: theme.fontSizes.sm,
     marginTop: 2,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  suggestionText: {
+    flex: 1,
+  },
+  suggestionName: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.sm,
+    fontWeight: '600',
+  },
+  suggestionWhy: {
+    color: theme.colors.muted,
+    fontSize: theme.fontSizes.xs,
+  },
+  suggestionStatus: {
+    textTransform: 'none',
+  },
+  desktopBadge: {
+    alignSelf: 'flex-start',
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  desktopBadgeText: {
+    color: theme.colors.muted,
+    fontSize: theme.fontSizes.xs,
   },
 });
