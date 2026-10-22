@@ -13,7 +13,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from agents import discussion, jasper_tools, orgchart, workspaces
+from agents import fastpaths, discussion, jasper_tools, orgchart, workspaces
 from agents.decision import decide
 from agents.registry import registry
 from core import directory, finops
@@ -124,8 +124,10 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     try:
         b = registry.routable(slug)
         with finops.attribute(slug, b.crew if b else None):
+            fast = fastpaths.match(slug, text)  # known intents (Drive files, clear chat, usage, health) run deterministically: instant and model-independent
             if jasper_tools.has_tools(slug):  # bots with a tool allowlist (Jasper, Connector, ...) use the tool loop
-                async for ev in jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier, agent=slug):
+                events = fast() if fast else jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier, agent=slug)
+                async for ev in events:
                     if "delta" in ev:
                         reply_parts.append(ev["delta"])
                         yield _line({"t": "delta", "slug": slug, "text": ev["delta"]})
@@ -135,6 +137,8 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
                         yield _line({"t": "ui", "slug": slug, **ev["ui"]})
                     else:
                         yield _line({"t": "done", "slug": slug, "usage": ev["usage"].model_dump()})
+                if fast:
+                    yield _line({"t": "done", "slug": slug, "usage": Usage(provider="fast", model="fastpath").model_dump()})
             else:
                 async for item in r.stream(LLMRequest(**{"system": system, "messages": msgs, "tier": tier or default_tier, "max_tokens": 1024, **orgchart.llm_kwargs(slug)})):
                     if isinstance(item, Usage):
