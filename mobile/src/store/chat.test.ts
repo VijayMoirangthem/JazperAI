@@ -329,6 +329,17 @@ describe('chat store', () => {
     expect(body.history).toEqual([]);
   });
 
+  it('sends attachment-only messages without local-only fields', async () => {
+    await useChat.getState().send('jasper', '', [
+      { name: 'scan.png', mime: 'image/png', uri: 'file:///scan.png' },
+    ]);
+
+    const body = (streamChat as jest.Mock).mock.calls[0][1];
+    expect(body.text).toBe('');
+    expect(body.attachments).toEqual([{ name: 'scan.png', mime: 'image/png' }]);
+    expect(useChat.getState().messagesByBot.jasper[0].attachments_json).toContain('scan.png');
+  });
+
   it('sends the previous conversation as history', async () => {
     useChat.setState({
       messagesByBot: {

@@ -119,6 +119,43 @@ describe('MessageBubble', () => {
     expect(getByText('Connect on desktop')).toBeTruthy();
   });
 
+  it('renders attachment chips with readability notes', async () => {
+    const attachments = JSON.stringify([
+      { name: 'notes.txt', mime: 'text/plain', text: 'hi' },
+      { name: 'report.pdf', mime: 'application/pdf' },
+    ]);
+    const { getByText } = await render(
+      <MessageBubble message={makeMessage({ role: 'user', attachments_json: attachments })} />
+    );
+
+    expect(getByText('notes.txt')).toBeTruthy();
+    expect(getByText('text included')).toBeTruthy();
+    expect(getByText('report.pdf')).toBeTruthy();
+    expect(getByText('not readable by the AI')).toBeTruthy();
+  });
+
+  it('starts reading a bot message', async () => {
+    const onSpeak = jest.fn();
+    const { getByLabelText } = await render(
+      <MessageBubble message={makeMessage()} onSpeak={onSpeak} onStopSpeak={jest.fn()} />
+    );
+
+    fireEvent.press(getByLabelText('Read aloud'));
+
+    expect(onSpeak).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops reading while speaking', async () => {
+    const onStopSpeak = jest.fn();
+    const { getByLabelText } = await render(
+      <MessageBubble message={makeMessage()} speaking onSpeak={jest.fn()} onStopSpeak={onStopSpeak} />
+    );
+
+    fireEvent.press(getByLabelText('Stop reading'));
+
+    expect(onStopSpeak).toHaveBeenCalledTimes(1);
+  });
+
   it('renders suggestion items as read-only cards', async () => {
     const ui = JSON.stringify({
       kind: 'suggestions',

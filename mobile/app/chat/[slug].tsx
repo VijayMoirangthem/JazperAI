@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, StyleSheet, Text, Alert, TouchableOpacity, Linking, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { Attachment } from '@/api/types';
 import { useChat } from '@/store/chat';
 import { useBots } from '@/store/bots';
 import { useAuth } from '@/auth/useAuth';
@@ -10,6 +13,10 @@ import { Spinner, SheetModal, Button, EmptyState } from '@/components/ui';
 import { Composer } from '@/components/chat/Composer';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { copyToClipboard } from '@/utils/clipboard';
+import { MAX_ATTACHMENTS } from '@/utils/attachments';
+import { attachmentFromFile, attachmentFromImage } from '@/attachments/files';
+import { useVoiceRecorder } from '@/voice/useVoiceRecorder';
+import { useSpeech } from '@/store/speech';
 import { theme } from '@/theme/tokens';
 
 const BOTTOM_TOLERANCE = 80;
@@ -48,10 +55,30 @@ export default function ChatScreen() {
   }, [groups, botSlug]);
 
   const [draft, setDraft] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [pendingLink, setPendingLink] = useState<string | null>(null);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const atBottom = useRef(true);
   const listRef = useRef<FlashListRef<Message> | null>(null);
+
+  const speakingMessageId = useSpeech((state) => state.messageId);
+  const speak = useSpeech((state) => state.speak);
+  const stopSpeaking = useSpeech((state) => state.stop);
+  const speechError = useSpeech((state) => state.error);
+  const clearSpeechError = useSpeech((state) => state.clearError);
+
+  useEffect(() => {
+    if (speechError) {
+      Alert.alert('Read aloud', speechError);
+      clearSpeechError();
+    }
+  }, [speechError, clearSpeechError]);
+
+  const recorder = useVoiceRecorder(
+    useCallback((text: string) => {
+      setDraft((current) => (current.trim().length > 0 ? `${current} ${text}` : text));
+    }, [])
+  );
 
   useEffect(() => {
     if (credentials && botSlug) {
@@ -85,10 +112,70 @@ export default function ChatScreen() {
 
   const handleSend = useCallback(() => {
     const text = draft.trim();
-    if (!text) return;
+    if (!text && attachments.length === 0) return;
+    const outgoing = attachments;
     setDraft('');
-    void send(botSlug, text, []);
-  }, [botSlug, draft, send]);
+    setAttachments([]);
+    void send(botSlug, text, outgoing);
+  }, [attachments, botSlug, draft, send]);
+
+  const addAttachments = useCallback((next: Attachment[]) => {
+    setAttachments((current) => {
+      const room = MAX_ATTACHMENTS - current.length;
+      if (room <= 0) return current;
+      return [...current, ...next.slice(0, room)];
+    });
+  }, []);
+
+  const handleCamera = useCallback(async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Camera permission needed', 'Allow camera access to take a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (!result.canceled && result.assets[0]) {
+      addAttachments([attachmentFromImage(result.assets[0])]);
+    }
+  }, [addAttachments]);
+
+  const handleGallery = useCallback(async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Photo permission needed', 'Allow photo access to attach an image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (!result.canceled && result.assets[0]) {
+      addAttachments([attachmentFromImage(result.assets[0])]);
+    }
+  }, [addAttachments]);
+
+  const handleFiles = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        multiple: true,
+      });
+      if (result.canceled) return;
+      const picked: Attachment[] = [];
+      for (const asset of result.assets) {
+        picked.push(
+          await attachmentFromFile({
+            name: asset.name,
+            uri: asset.uri,
+            mimeType: asset.mimeType,
+          })
+        );
+      }
+      addAttachments(picked);
+    } catch (err) {
+      Alert.alert(
+        'Could not attach the file',
+        err instanceof Error ? err.message : 'Please try another file.'
+      );
+    }
+  }, [addAttachments]);
 
   const handleCopy = useCallback(async (message: Message) => {
     const copied = await copyToClipboard(message.text);
@@ -193,6 +280,13 @@ export default function ChatScreen() {
             onCopyCode={(code: string) => void copyToClipboard(code)}
             onThumbsUp={() => setThumbs(botSlug, item.id, true)}
             onThumbsDown={() => setThumbs(botSlug, item.id, false)}
+            speaking={speakingMessageId === item.id}
+            onSpeak={
+              item.role === 'assistant' && item.text.trim().length > 0
+                ? () => void speak(item)
+                : undefined
+            }
+            onStopSpeak={() => void stopSpeaking()}
           />
         )}
         onScroll={handleScroll}
@@ -232,6 +326,21 @@ export default function ChatScreen() {
         onSend={handleSend}
         onStop={() => stop(botSlug)}
         placeholder={`Message ${bot?.display_name ?? botSlug}`}
+        attachments={attachments}
+        onAddFromCamera={() => void handleCamera()}
+        onAddFromGallery={() => void handleGallery()}
+        onAddFromFiles={() => void handleFiles()}
+        onRemoveAttachment={(index) =>
+          setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))
+        }
+        recording={recorder.recording}
+        recordingSeconds={recorder.seconds}
+        transcribing={recorder.transcribing}
+        onStartRecording={() => void recorder.start()}
+        onStopRecording={() => void recorder.stop()}
+        onCancelRecording={() => void recorder.cancel()}
+        voiceError={recorder.error}
+        onDismissVoiceError={recorder.clearError}
       />
 
       <SheetModal visible={pendingLink !== null} onClose={() => setPendingLink(null)} title="Open link">

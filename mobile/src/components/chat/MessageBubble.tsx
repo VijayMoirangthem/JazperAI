@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import React from 'react';
 import { Message } from '@/db/chat';
-import { getToolPayload, getUiPayload } from '@/utils/chatPayload';
+import { getToolPayload, getUiPayload, parseAttachments } from '@/utils/chatPayload';
+import { isImageAttachment, isReadableAttachment } from '@/utils/attachments';
 import { Chip, Spinner } from '@/components/ui';
 import { MarkdownLite } from './MarkdownLite';
 import { theme } from '@/theme/tokens';
@@ -15,6 +16,9 @@ export interface MessageBubbleProps {
   onCopyCode?: (code: string) => void;
   onThumbsUp?: () => void;
   onThumbsDown?: () => void;
+  speaking?: boolean;
+  onSpeak?: () => void;
+  onStopSpeak?: () => void;
 }
 
 function formatTime(ts: number): string {
@@ -31,6 +35,9 @@ export function MessageBubble({
   onCopyCode,
   onThumbsUp,
   onThumbsDown,
+  speaking = false,
+  onSpeak,
+  onStopSpeak,
 }: MessageBubbleProps) {
   if (message.role === 'tool') {
     return <ToolChip message={message} />;
@@ -59,6 +66,7 @@ export function MessageBubble({
 
   const isUser = message.role === 'user';
   const showThumbs = isLastBotMessage && message.status === 'done' && (onThumbsUp !== undefined || onThumbsDown !== undefined);
+  const attachments = parseAttachments(message);
 
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowBot]}>
@@ -69,8 +77,43 @@ export function MessageBubble({
         accessibilityRole="button"
         accessibilityLabel={isUser ? 'Your message' : 'Bot message'}
       >
+        {attachments.length > 0 ? (
+          <View style={styles.attachments}>
+            {attachments.map((attachment, index) =>
+              isImageAttachment(attachment) ? (
+                <View key={`${attachment.name}-${index}`} style={styles.attachmentImageWrap}>
+                  <Image
+                    source={{ uri: attachment.uri }}
+                    style={styles.attachmentImage}
+                    accessibilityLabel={`Image ${attachment.name}`}
+                  />
+                  <Text style={styles.attachmentNote}>not readable by the AI</Text>
+                </View>
+              ) : (
+                <View key={`${attachment.name}-${index}`} style={styles.attachmentFile}>
+                  <Text style={styles.attachmentName} numberOfLines={1}>
+                    {attachment.name}
+                  </Text>
+                  <Text style={styles.attachmentNote}>
+                    {isReadableAttachment(attachment) ? 'text included' : 'not readable by the AI'}
+                  </Text>
+                </View>
+              )
+            )}
+          </View>
+        ) : null}
         <MarkdownLite text={message.text} onPressLink={onPressLink} onCopyCode={onCopyCode} />
         <View style={styles.meta}>
+          {!isUser && onSpeak ? (
+            <TouchableOpacity
+              onPress={speaking ? onStopSpeak : onSpeak}
+              style={styles.speakButton}
+              accessibilityRole="button"
+              accessibilityLabel={speaking ? 'Stop reading' : 'Read aloud'}
+            >
+              <Text style={styles.speakIcon}>{speaking ? '\u25A0' : '\u25B6'}</Text>
+            </TouchableOpacity>
+          ) : null}
           <Text style={styles.time}>{formatTime(message.ts)}</Text>
           {showThumbs ? (
             <View style={styles.thumbs}>
@@ -188,15 +231,24 @@ const styles = StyleSheet.create({
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    gap: theme.spacing.sm,
     marginTop: 4,
   },
   time: {
     fontSize: theme.fontSizes.xs,
     color: theme.colors.muted,
   },
+  speakButton: {
+    paddingHorizontal: 2,
+  },
+  speakIcon: {
+    fontSize: 11,
+    color: theme.colors.muted,
+  },
   thumbs: {
     flexDirection: 'row',
+    marginLeft: 'auto',
     gap: 4,
   },
   thumbButton: {
@@ -268,6 +320,35 @@ const styles = StyleSheet.create({
   },
   untrustedText: {
     color: theme.colors.warning,
+    fontSize: theme.fontSizes.xs,
+  },
+  attachments: {
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
+  attachmentImageWrap: {
+    alignSelf: 'flex-start',
+    gap: 2,
+  },
+  attachmentImage: {
+    width: 160,
+    height: 160,
+    borderRadius: theme.radii.button,
+  },
+  attachmentFile: {
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.radii.button,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  attachmentName: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.xs,
+  },
+  attachmentNote: {
+    color: theme.colors.muted,
     fontSize: theme.fontSizes.xs,
   },
   card: {

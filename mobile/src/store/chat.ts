@@ -21,6 +21,7 @@ import {
   parseAttachments,
   toolStatusToMessageStatus,
 } from '@/utils/chatPayload';
+import { toApiAttachment } from '@/utils/attachments';
 
 export { getToolPayload, getUiPayload, parseAttachments };
 export type { ToolPayload, UiPayload };
@@ -351,7 +352,7 @@ async function runStream(
     const client = createClient(credentials, auth.accessToken);
     const events = await streamChat(
       client,
-      { text, slug, history, attachments },
+      { text, slug, history, attachments: attachments.map(toApiAttachment) },
       controller.signal,
       { deviceId: credentials.deviceId, deviceSecret: credentials.deviceSecret }
     );
@@ -390,7 +391,7 @@ export const useChat = create<ChatState>((set: SetState, get: GetState) => ({
 
   send: async (slug: string, text: string, attachments: Attachment[]): Promise<void> => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed && attachments.length === 0) return;
 
     const existing = get().messagesByBot[slug] ?? [];
     const history = buildHistory(existing);

@@ -161,6 +161,7 @@ export interface Attachment {
   name: string;
   mime: string;
   text?: string;
+  uri?: string;
 }
 
 export interface VoiceTranscribeResponse {
