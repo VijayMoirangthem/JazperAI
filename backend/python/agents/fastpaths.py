@@ -22,9 +22,21 @@ HEALTH = re.compile(r"\b(system|backend|everything)\b.*\b(health|status|ok|worki
 SMARTER = re.compile(r"\b(smarter|more powerful|more capable|upgrade you|improve you|what should i connect)\b", re.I)
 
 
-OPEN = re.compile(r"\b(open|show|view|play|let me see|display|pull up)\b", re.I)
+OPEN = re.compile(r"\b(open(?:ing)?|show(?:ing)?|view(?:ing)?|play(?:ing)?|let me see|display(?:ing)?|pull(?:ing)? up)\b", re.I)
 READ = re.compile(r"\b(overview|summar(y|ise|ize)|what'?s (in|inside)|contents?|read|tell me what)\b", re.I)
-FILE_NAME = re.compile(r"(?:called|named|name|file|doc(?:ument)?|sheet|song|audio|pdf|video)\s+[\"'“]?([A-Za-z0-9][^\"'”.?!]{2,70})", re.I)
+_NAME_BEFORE_KIND = re.compile(r"\b(?:open(?:ing)?|show(?:ing)?|view(?:ing)?|play(?:ing)?|read(?:ing)?|see|pull(?:ing)? up|summari[sz]e)\s+(?:me\s+)?(?:the\s+|my\s+|that\s+)?[\"'“]?([A-Za-z0-9][^\"'”.?!]{2,70}?)[\"'”]?\s+(?:doc|document|file|sheet|spreadsheet|pdf|song|video|audio|presentation|slides)\b", re.I)
+_NAME_AFTER_KIND = re.compile(r"(?:(?:with\s+)?the\s+name|called|named|name|file|doc(?:ument)?|sheet|song|audio|pdf|video)\s+(?:(?:called|named|of)\s+)?[\"'“]?(?!(?:with|the|called|named|of|again|please|something)\b)([A-Za-z0-9][^\"'”.?!]{2,70})", re.I)
+
+
+class _FileName:
+    """File reference in a sentence: 'open the Sir Jasper AI doc' (name before the kind) or 'the doc called Sir Jasper AI' (name after). `.search(text)` returns a match whose group(1) is the name."""
+
+    @staticmethod
+    def search(text: str):
+        return _NAME_BEFORE_KIND.search(text) or _NAME_AFTER_KIND.search(text)
+
+
+FILE_NAME = _FileName()
 
 
 def _n(text: str, default: int = 10) -> int:
