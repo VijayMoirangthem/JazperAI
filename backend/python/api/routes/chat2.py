@@ -124,7 +124,7 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     try:
         b = registry.routable(slug)
         with finops.attribute(slug, b.crew if b else None):
-            fast = fastpaths.match(slug, text)  # known intents (Drive files, clear chat, usage, health) run deterministically: instant and model-independent
+            fast = fastpaths.match(slug, text, history)  # known intents (Drive files, clear chat, usage, health) run deterministically: instant and model-independent
             if jasper_tools.has_tools(slug):  # bots with a tool allowlist (Jasper, Connector, ...) use the tool loop
                 events = fast() if fast else jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier, agent=slug)
                 async for ev in events:

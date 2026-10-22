@@ -43,6 +43,7 @@ HELP = {
     "llm_fix": "llm_fix {} : self-heal the model layer: reset circuit breakers, rebuild the chains (adds free fallback models) and test every provider for real. Run it yourself whenever a provider error happens, then retry",
     "system_status": "system_status {} : health of the whole system (database, redis, backend, connectors) in one call",
     "read_logs": "read_logs {name,lines,contains} : recent backend log lines (secrets are redacted). Use it to diagnose errors yourself",
+    "google": "google {action,...} : YOUR OWN direct access to Google Drive/Docs/Sheets, real data, no delegation needed. actions: list {limit}, search {query}, read {name|file_id}, create_doc {title,text}, append {name|file_id,text}, replace {name|file_id,find,replace}, create_sheet {title}, sheet_read {name|file_id,range}, sheet_write/sheet_append {name|file_id,range,values}, create_file {title,text}, rename {name|file_id,new_name}, copy, trash, share {email,role}. Edits ask the founder to approve. NEVER describe Drive contents from memory: only copy what this tool returned",
     "gaps": "gaps {} : recurring tool/connector failures of the last 7 days and how each was resolved (fixed, needed the founder, unfixed). Use it when asked what keeps going wrong",
     "diagnose": "diagnose {text} : classify an error message (google_scope, api_disabled, connector_down, rate_limited...)",
     "clear_chat": "clear_chat {scope} : delete chat history. scope = before_now (everything above the founder's last message) | all | older_than_days:N. Shows the founder ONE confirm button (with Undo). Call it straight away; never ask first",
@@ -67,8 +68,8 @@ HELP = {
 FS = ["fs_roots", "fs_list", "fs_read", "fs_search", "fs_write"]
 LEADS = {"ceo-create-origins", "ceo-baeit", "lead-boardmint", "vp-tech-ops"}
 TOOLS_FOR: dict[str, list[str]] = {
-    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "gaps", "diagnose", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
-    "connector": ["list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "use_tool", "list_skills", "view_skill", "save_skill"],
+    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "google", "gaps", "diagnose", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
+    "connector": ["google", "list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "use_tool", "list_skills", "view_skill", "save_skill"],
     "messenger": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
     "bot-reviewer": ["list_org", "bot_stats", "evaluate_bot", "improve_bot", "alerts", "list_skills", "view_skill"],
     "bot-creator": ["list_org", "evaluate_bot", "list_skills"],
@@ -77,6 +78,7 @@ TOOLS_FOR: dict[str, list[str]] = {
 INTRO = 'You have system access. To use a tool reply with ONLY one line: <tool>{"name":"NAME","args":{...}}</tool> and wait for the result, then continue. Tools:\n'
 RULES = ("\nHierarchy: Jasper delegates to group leads; leads delegate to their members, hold meetings for decisions and record lasting decisions with remember. Use find_bot to pick the right owner. Questions about what to connect or how to get smarter: call suggest_connectors, then give a short prioritised answer (top 3 and why for THIS founder) and mention the cards. Routing: anything about email goes to `messenger` (it checks Gmail and asks `connector` itself); connections go to `connector`. One tool call at a time. Delegate to the right specialist instead of doing everything yourself. If a service is not connected, ask `connector` to connect it "
          "(it checks the vault/.env and asks the founder only if something is missing). Never ask the founder to paste secrets into chat: a secure card is shown for that. "
+         "Google Drive, Docs and Sheets: use the `google` tool YOURSELF (list, search, read, append, replace, create...). Do not delegate Drive work to other bots and never state file names, dates or document contents that a tool result did not show; if a call fails say so plainly. "
          "Never answer a question about usage, tokens, providers, errors or system health with \"I can't check\": call llm_status, system_status or read_logs and answer from the result; if a provider is failing, call llm_fix yourself first. When asked how to become smarter/more powerful, call suggest_connectors and list the top 3 in one line each. "
          "Style: casual, short, straight to the point (1-2 sentences, result first; no greetings, no apologies, no menus of options). Power: you can really act (delegate, connect services, clear chat, run tools). Never say \"I can't\" until you have checked your tools and your team; if another bot can do it, delegate. Safety that is not dumb: reversible actions (create, edit, rename, copy, move) just do them and mention it; irreversible or outward-facing ones (delete, send, share, spend) get exactly ONE confirm tap, never a questionnaire. Proactive rule: never ask the founder to choose between solutions. Pick the one that needs the least effort from them, do it, and report the RESULT. Never say something is connected, done or available unless a tool result in this conversation proves it (quote the evidence in one line). If a capability is missing (Drive, Docs, Sheets, mail, calendar...), delegate to `connector` with the exact task, e.g. ask_bot connector: \"list the 10 most recently modified Drive files\"; it fixes what it can and shows the founder at most ONE click. Never say you will do something and then stop: finish it or say precisely what blocked it. "
          "Answer the founder concisely when done.")
@@ -234,6 +236,83 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
                 continue
             return f"error ({out.kind}): {out.message}"
         return "error: still failing after auto-fix"
+    if name == "google":
+        from agents import healer
+        from core.services import drive_service as ds
+        act = str(args.get("action", "")).strip().lower()
+        TOOL = {"list": "drive_list_recent", "search": "drive_search", "read": "drive_read_file", "create_doc": "docs_create", "append": "docs_append", "replace": "docs_replace",
+                "create_sheet": "sheets_create", "sheet_read": "sheets_read", "sheet_write": "sheets_write", "sheet_append": "sheets_append", "create_file": "drive_create_file",
+                "rename": "drive_rename", "copy": "drive_copy", "trash": "drive_trash", "share": "drive_share"}
+        WRITES = {"create_doc", "append", "replace", "create_sheet", "sheet_write", "sheet_append", "create_file", "rename", "copy", "trash", "share"}
+        if act not in TOOL:
+            return "error: action must be one of " + ", ".join(TOOL)
+
+        async def file_id() -> str | None:
+            i = args.get("file_id") or args.get("id")
+            if i:
+                return str(i)
+            q = str(args.get("name") or args.get("query") or "").strip()
+            hits = await asyncio.to_thread(ds.search, q, 5) if q else []
+            return hits[0]["id"] if hits else None
+
+        def table(files: list[dict]) -> str:
+            kind = {"application/vnd.google-apps.document": "Doc", "application/vnd.google-apps.spreadsheet": "Sheet", "application/vnd.google-apps.presentation": "Slides", "application/vnd.google-apps.folder": "Folder", "application/pdf": "PDF"}
+            return "\n".join(f"{i + 1}. {f['name']} ({kind.get(f.get('mimeType', ''), 'File')}, modified {str(f.get('modifiedTime', ''))[:10]}, id {f['id']})" for i, f in enumerate(files)) or "(no files)"
+
+        async def run() -> str:
+            fid = await file_id() if act not in ("list", "search", "create_doc", "create_sheet", "create_file") else None
+            if act in ("read", "append", "replace", "sheet_read", "sheet_write", "sheet_append", "rename", "copy", "trash", "share") and not fid:
+                return "error: no such file found; give a file_id or a name that exists in Drive"
+            if act in WRITES:  # edits need approval (Tier 2); trash/share are Tier 3 - same gate as every other write
+                tier_action = "mcp.admin" if act in ("trash", "share") else "mcp.write"
+                if not await hitl.gate(tier_action, f"google {act} {json.dumps({k: str(v)[:80] for k, v in args.items()})[:260]}", agent):
+                    return "blocked: the founder did not approve this change"
+            if act == "list":
+                return "REAL Drive data, newest first (copy it exactly, add nothing):\n" + table(await asyncio.to_thread(ds.list_recent, min(int(args.get("limit", 10) or 10), 50), args.get("folder_id")))
+            if act == "search":
+                return "REAL Drive data (copy exactly):\n" + table(await asyncio.to_thread(ds.search, str(args.get("query") or args.get("name") or ""), 20))
+            if act == "read":
+                r = await asyncio.to_thread(ds.read_file, fid, int(args.get("max_chars", 12000) or 12000))
+                return f"REAL content of '{r.get('name')}' (modified {str(r.get('modifiedTime', ''))[:10]}):\n{r.get('content') or r.get('note')}"
+            if act == "create_doc":
+                f = await asyncio.to_thread(ds.create_doc, str(args.get("title") or args.get("name") or "Untitled"), str(args.get("text", "")), args.get("parent_id"))
+                return f"created Doc '{f['name']}' id {f['id']} {f.get('webViewLink', '')}"
+            if act == "create_sheet":
+                f = await asyncio.to_thread(ds.create_sheet, str(args.get("title") or args.get("name") or "Untitled"), args.get("parent_id"))
+                return f"created Sheet '{f['name']}' id {f['id']} {f.get('webViewLink', '')}"
+            if act == "create_file":
+                f = await asyncio.to_thread(ds.create_file, str(args.get("title") or args.get("name") or "note.txt"), str(args.get("text", "")), str(args.get("mime_type", "text/plain")), args.get("parent_id"))
+                return f"created file '{f['name']}' id {f['id']}"
+            if act == "append":
+                return str(await asyncio.to_thread(ds.docs_append, fid, str(args.get("text", ""))))
+            if act == "replace":
+                return str(await asyncio.to_thread(ds.docs_replace, fid, str(args.get("find", "")), str(args.get("replace", ""))))
+            if act == "sheet_read":
+                return str(await asyncio.to_thread(ds.sheets_read, fid, str(args.get("range", "A1:Z50"))))
+            if act in ("sheet_write", "sheet_append"):
+                fn = ds.sheets_write if act == "sheet_write" else ds.sheets_append
+                vals = args.get("values")
+                vals = json.loads(vals) if isinstance(vals, str) else vals
+                return str(await asyncio.to_thread(fn, fid, str(args.get("range", "A1")), vals or []))
+            if act == "rename":
+                return str(await asyncio.to_thread(ds.rename_file, fid, str(args.get("new_name", ""))))
+            if act == "copy":
+                return str(await asyncio.to_thread(ds.copy_file, fid, args.get("new_name"), args.get("parent_id")))
+            if act == "trash":
+                return str(await asyncio.to_thread(ds.trash_file, fid))
+            return str(await asyncio.to_thread(ds.share_file, fid, str(args.get("email", "")), str(args.get("role", "reader"))))
+
+        for attempt in (1, 2):  # a failure is diagnosed and healed (API off, scope, sign-in...) and retried once; only then does the founder get ONE card
+            try:
+                return _clip(await run(), 4000)
+            except Exception as e:
+                out = await healer.heal("google-workspace." + TOOL[act], args, str(e), agent, attempt)
+                if out.request:
+                    _push_ui(out.request)
+                    return f"Needs ONE founder click: {out.message} The card is shown. Say it in one short sentence; when they click, repeat this call."
+                if out.retry and attempt == 1:
+                    continue
+                return f"error ({out.kind}): {out.message}"
     if name == "gaps":
         from agents import healer
         return _clip(await healer.recent_gaps(), 2500)

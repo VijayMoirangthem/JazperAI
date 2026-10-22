@@ -109,14 +109,15 @@ async def _smarter(_: str) -> AsyncIterator[Event]:
     yield {"delta": "Fastest upgrades: " + "; ".join(f"{i['name']} ({i['why'].split(':')[0][:60]})" for i in todo) + ". Tap Connect on the cards."}
 
 
-def match(slug: str, text: str):
+def match(slug: str, text: str, history=None):
     """Returns an async-generator factory for a known intent, else None. Only Jasper and Connector use fast paths."""
     if slug not in ("jasper", "connector"):
         return None
     t = text.strip()
     if len(t) > 400:
         return None
-    if APPROVED.search(t) or (DRIVE.search(t) and DRIVE_LIST.search(t) and not re.search(r"\b(create|write|upload|share|delete|trash|move|rename|edit)\b", t, re.I)):
+    recent = " ".join(str(getattr(h, "content", "")) for h in (history or [])[-6:] if getattr(h, "role", "") == "user")
+    if APPROVED.search(t) or (re.search(r"i approved google", t, re.I) and DRIVE.search(recent)) or (DRIVE.search(t) and DRIVE_LIST.search(t) and not re.search(r"\b(create|write|upload|share|delete|trash|move|rename|edit)\b", t, re.I)):
         return lambda: _drive_list(t)
     if CLEAR.search(t):
         return lambda: _clear(t)

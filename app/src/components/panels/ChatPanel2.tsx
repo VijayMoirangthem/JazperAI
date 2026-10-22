@@ -328,7 +328,7 @@ export function ChatPanel2() {
         if (ev.t === "route") route = ev as never;
         else if (ev.t === "speaker") { startMsg(slug); patch(ch, mine.id, { status: "read" }); }
         else if (ev.t === "phase") push(ch, { id: uid(), from: "system", text: String(ev.text), ts: Date.now(), phase: true });
-        else if (ev.t === "ui") { push(ch, { id: uid(), from: slug, text: "", ts: Date.now(), ui: { kind: ev.kind as "credentials" | "oauth" | "suggestions", items: ev.items as never, connector: String(ev.connector ?? ""), secrets: ev.secrets as { name: string; label: string }[] | undefined, url: ev.url as string | undefined, provider: ev.provider as string | undefined } }); ids.delete(slug); }
+        else if (ev.t === "ui") { push(ch, { id: uid(), from: slug, text: "", ts: Date.now(), ui: { ...(ev as object), kind: ev.kind as "credentials" | "oauth" | "suggestions" | "confirm", connector: String(ev.connector ?? "") } as never }); ids.delete(slug); } // keep EVERY field (capability, reason, scope, label...): dropping them made the Drive card finish instantly
         else if (ev.t === "tool") {
           const label = String(ev.label ?? ev.name); const status = ev.status as "running" | "ok" | "error";
           const open = [...(useChat.getState().threads[ch] ?? [])].reverse().find((x) => x.tool && x.tool.status === "running" && x.tool.label === label);
