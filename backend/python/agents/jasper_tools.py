@@ -44,6 +44,8 @@ HELP = {
     "system_status": "system_status {} : health of the whole system (database, redis, backend, connectors) in one call",
     "read_logs": "read_logs {name,lines,contains} : recent backend log lines (secrets are redacted). Use it to diagnose errors yourself",
     "google": "google {action,...} : YOUR OWN direct access to Google Drive/Docs/Sheets, real data, no delegation needed. actions: list {limit}, search {query}, read {name|file_id}, create_doc {title,text}, append {name|file_id,text}, replace {name|file_id,find,replace}, create_sheet {title}, sheet_read {name|file_id,range}, sheet_write/sheet_append {name|file_id,range,values}, create_file {title,text}, rename {name|file_id,new_name}, copy, trash, share {email,role}. Edits ask the founder to approve. NEVER describe Drive contents from memory: only copy what this tool returned",
+    "open_file": "open_file {name|file_id} : OPEN a Drive file for the founder in the in-app viewer (Docs, Sheets, PDFs, images, audio/video player, text/code). Use it whenever they say open/show/play/let me see a file",
+    "capability_plan": "capability_plan {need,build} : when you LACK a tool or ability, call this instead of saying you can't. It checks connected tools, connectors and skills; if one exists it says which to connect/use; if none, it files the gap and (build=true) starts a sandboxed build of the missing capability by the team (tests run, the founder approves the merge). Always follow its result",
     "gaps": "gaps {} : recurring tool/connector failures of the last 7 days and how each was resolved (fixed, needed the founder, unfixed). Use it when asked what keeps going wrong",
     "diagnose": "diagnose {text} : classify an error message (google_scope, api_disabled, connector_down, rate_limited...)",
     "clear_chat": "clear_chat {scope} : delete chat history. scope = before_now (everything above the founder's last message) | all | older_than_days:N. Shows the founder ONE confirm button (with Undo). Call it straight away; never ask first",
@@ -68,8 +70,8 @@ HELP = {
 FS = ["fs_roots", "fs_list", "fs_read", "fs_search", "fs_write"]
 LEADS = {"ceo-create-origins", "ceo-baeit", "lead-boardmint", "vp-tech-ops"}
 TOOLS_FOR: dict[str, list[str]] = {
-    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "google", "gaps", "diagnose", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
-    "connector": ["google", "list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "use_tool", "list_skills", "view_skill", "save_skill"],
+    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "google", "open_file", "capability_plan", "gaps", "diagnose", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
+    "connector": ["google", "open_file", "capability_plan", "list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "use_tool", "list_skills", "view_skill", "save_skill"],
     "messenger": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
     "bot-reviewer": ["list_org", "bot_stats", "evaluate_bot", "improve_bot", "alerts", "list_skills", "view_skill"],
     "bot-creator": ["list_org", "evaluate_bot", "list_skills"],
@@ -78,6 +80,7 @@ TOOLS_FOR: dict[str, list[str]] = {
 INTRO = 'You have system access. To use a tool reply with ONLY one line: <tool>{"name":"NAME","args":{...}}</tool> and wait for the result, then continue. Tools:\n'
 RULES = ("\nHierarchy: Jasper delegates to group leads; leads delegate to their members, hold meetings for decisions and record lasting decisions with remember. Use find_bot to pick the right owner. Questions about what to connect or how to get smarter: call suggest_connectors, then give a short prioritised answer (top 3 and why for THIS founder) and mention the cards. Routing: anything about email goes to `messenger` (it checks Gmail and asks `connector` itself); connections go to `connector`. One tool call at a time. Delegate to the right specialist instead of doing everything yourself. If a service is not connected, ask `connector` to connect it "
          "(it checks the vault/.env and asks the founder only if something is missing). Never ask the founder to paste secrets into chat: a secure card is shown for that. "
+         "Missing ability? Never say \"I can't\" or \"I don't have a tool\": call capability_plan {need} and follow it (use an existing tool, connect a connector, or start a sandboxed build). "
          "Google Drive, Docs and Sheets: use the `google` tool YOURSELF (list, search, read, append, replace, create...). Do not delegate Drive work to other bots and never state file names, dates or document contents that a tool result did not show; if a call fails say so plainly. "
          "Never answer a question about usage, tokens, providers, errors or system health with \"I can't check\": call llm_status, system_status or read_logs and answer from the result; if a provider is failing, call llm_fix yourself first. When asked how to become smarter/more powerful, call suggest_connectors and list the top 3 in one line each. "
          "Style: casual, short, straight to the point (1-2 sentences, result first; no greetings, no apologies, no menus of options). Power: you can really act (delegate, connect services, clear chat, run tools). Never say \"I can't\" until you have checked your tools and your team; if another bot can do it, delegate. Safety that is not dumb: reversible actions (create, edit, rename, copy, move) just do them and mention it; irreversible or outward-facing ones (delete, send, share, spend) get exactly ONE confirm tap, never a questionnaire. Proactive rule: never ask the founder to choose between solutions. Pick the one that needs the least effort from them, do it, and report the RESULT. Never say something is connected, done or available unless a tool result in this conversation proves it (quote the evidence in one line). If a capability is missing (Drive, Docs, Sheets, mail, calendar...), delegate to `connector` with the exact task, e.g. ask_bot connector: \"list the 10 most recently modified Drive files\"; it fixes what it can and shows the founder at most ONE click. Never say you will do something and then stop: finish it or say precisely what blocked it. "
@@ -313,6 +316,36 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
                 if out.retry and attempt == 1:
                     continue
                 return f"error ({out.kind}): {out.message}"
+    if name == "open_file":
+        from core.services import drive_service as ds
+        try:
+            fid = args.get("file_id") or args.get("id")
+            hits = [await asyncio.to_thread(ds.get_file, str(fid))] if fid else await asyncio.to_thread(ds.search, str(args.get("name") or args.get("query") or ""), 5)
+        except Exception as e:
+            return f"error: {str(e)[:200]}"
+        if not hits:
+            return "error: no file with that name in Drive"
+        f = hits[0]
+        _push_ui({"kind": "file", "connector": "drive", "file_id": f["id"], "name": f["name"], "mime": f.get("mimeType", ""), "open": True})
+        return f"Opened '{f['name']}' in the viewer window (the founder sees it now). One short line to confirm, nothing else."
+    if name == "capability_plan":
+        from agents import healer
+        need = str(args.get("need", "")).strip()[:300]
+        if not need:
+            return "error: say what you need to be able to do"
+        words = [w for w in re.findall(r"[a-z0-9]+", need.lower()) if len(w) > 3]
+        found = await hub.find_tool(need, 3)
+        have = [f"{h['name']}: {str(h.get('description', ''))[:80]}" for h in found]
+        options = [f"{c} ({spec['name']})" for c, spec in connector.catalogue().items() if any(w in (c + " " + spec["name"] + " " + spec.get("needs", "")).lower() for w in words)]
+        if have:
+            return "You already have tool(s) that may do it: " + "; ".join(have) + ". Use them (use_tool) instead of saying you cannot."
+        if options:
+            return "No connected tool yet, but a connector exists: " + "; ".join(options[:3]) + ". Call connect on it now, then continue the task."
+        await healer._ledger("missing_capability", need, "no tool, no connector", "gap_filed")
+        if str(args.get("build", "true")).lower() in ("true", "1", "yes"):
+            res = await run_tool("build_feature", {"group": "jazper_team", "task": f"Add a capability to Sir Jasper AI so that the assistant can: {need}. Prefer an MCP connector or a small tool in backend/python; include tests."}, agent)
+            return f"Nothing existing covers '{need}'. I filed the gap and started a sandboxed build: {str(res)[:200]}. Tell the founder in one line; they approve the merge when tests pass."
+        return f"Nothing existing covers '{need}'. Gap filed. Offer to build it (capability_plan with build=true)."
     if name == "gaps":
         from agents import healer
         return _clip(await healer.recent_gaps(), 2500)

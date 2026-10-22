@@ -207,3 +207,43 @@ def sheets_append(spreadsheet_id: str, range_a1: str, values: list[list]) -> dic
     r = _call(lambda: s.spreadsheets().values().append(spreadsheetId=spreadsheet_id, range=range_a1, valueInputOption="USER_ENTERED", insertDataOption="INSERT_ROWS",
                                                        body={"values": values}).execute())
     return {"updated_cells": r.get("updates", {}).get("updatedCells", 0), "range": r.get("updates", {}).get("updatedRange")}
+
+
+# ── Viewing: bytes for the in-app file viewer ───────────────────────────────────────────────────
+
+CACHE_DIR = None  # set lazily to storage/drive_cache
+MAX_VIEW_BYTES = 200 * 1024 * 1024
+EXPORT = {GDOC: ("text/html", ".html"), GSHEET: ("text/csv", ".csv"), GSLIDES: ("application/pdf", ".pdf")}
+
+
+def view_file(file_id: str, mode: str = "auto"):
+    """Returns (path, content_type, meta). Google files are exported (Doc -> html, Sheet -> csv, Slides -> pdf; mode=pdf forces pdf), other files downloaded.
+    The result is cached on disk per (id, modified time) so audio/video can be served with Range requests."""
+    import re
+    from pathlib import Path
+
+    from googleapiclient.http import MediaIoBaseDownload
+    global CACHE_DIR
+    if CACHE_DIR is None:
+        CACHE_DIR = Path(__file__).resolve().parents[3] / "storage" / "drive_cache"
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    meta = get_file(file_id)
+    mt = meta.get("mimeType", "")
+    size = int(meta.get("size") or 0)
+    if size > MAX_VIEW_BYTES:
+        raise RuntimeError(f"That file is {size // 1_000_000} MB; the viewer opens files up to {MAX_VIEW_BYTES // 1_000_000} MB.")
+    exp = ("application/pdf", ".pdf") if (mode == "pdf" and mt in EXPORT) else EXPORT.get(mt)
+    ctype, ext = exp if exp else (mt or "application/octet-stream", "")
+    key = re.sub(r"[^A-Za-z0-9_-]", "", file_id) + "-" + re.sub(r"[^0-9]", "", str(meta.get("modifiedTime", ""))) + ext
+    path = CACHE_DIR / key
+    if not path.exists():
+        d = _drive()
+        req = d.files().export_media(fileId=file_id, mimeType=ctype) if exp else d.files().get_media(fileId=file_id, supportsAllDrives=True)
+        tmp = path.with_suffix(path.suffix + ".part")
+        with open(tmp, "wb") as fh:
+            dl = MediaIoBaseDownload(fh, req, chunksize=8 * 1024 * 1024)
+            done = False
+            while not done:
+                _, done = _call(lambda: dl.next_chunk())
+        tmp.replace(path)
+    return path, ctype, meta

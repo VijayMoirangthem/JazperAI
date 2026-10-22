@@ -4,6 +4,7 @@ Runs subprocess.run in a worker thread: asyncio subprocesses are unavailable on 
 import asyncio
 import re
 import shlex
+import os
 import subprocess
 import tempfile
 import time
@@ -23,6 +24,17 @@ def _clean(out: str) -> str:
     return "\n".join(ln for ln in lines if not _HEADER.match(ln)).strip()
 
 
+def _kill_tree(proc) -> None:
+    """Kill a CLI call and its children (opencode.cmd spawns node processes; Popen.kill alone leaves them running)."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True, timeout=10)
+        else:
+            proc.kill()
+    except Exception:
+        pass
+
+
 class CliProvider(Provider):
     def __init__(self, slug: str, command: str, model: str = "", timeout_s: float = 300):
         # {model} in the command line is replaced by the selected model id, so one provider row can serve many models
@@ -38,7 +50,16 @@ class CliProvider(Provider):
         t0 = time.perf_counter()
         try:
             with tempfile.TemporaryDirectory(prefix="jasper-cli-") as empty:  # an empty working folder: the CLI agent has nothing to read or change
-                p = await asyncio.to_thread(subprocess.run, self.cmd, input=self._prompt(req).encode(), capture_output=True, timeout=self.timeout, cwd=empty)
+                proc = subprocess.Popen(self.cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=empty)
+                try:
+                    out, err = await asyncio.to_thread(proc.communicate, self._prompt(req).encode(), self.timeout)
+                except asyncio.CancelledError:  # the founder pressed Stop: kill the whole process tree now instead of letting it run to its timeout
+                    _kill_tree(proc)
+                    raise
+                except subprocess.TimeoutExpired:
+                    _kill_tree(proc)
+                    raise
+                p = subprocess.CompletedProcess(self.cmd, proc.returncode, out, err)
         except FileNotFoundError as e:
             raise ProviderError("cli not found", retryable=False) from e
         except subprocess.TimeoutExpired as e:

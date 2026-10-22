@@ -10,6 +10,7 @@ const CODE: Record<string, () => Promise<unknown>> = {
   office: () => import("@/components/panels/OfficePanel"),
   office2: () => import("@/components/panels/Office2Panel"),
   office3: () => import("@/components/panels/Office3Panel"),
+  files: () => import("@/components/panels/FilesPanel"),
   org_chart: () => import("@/components/panels/CompanyPanel"),
   dev_loop: () => import("@/components/panels/DevLoopPanel"),
   diff_editor: () => import("@/components/panels/DiffEditorPanel"),

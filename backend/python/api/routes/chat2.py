@@ -146,6 +146,9 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
                     else:
                         reply_parts.append(item)
                         yield _line({"t": "delta", "slug": slug, "text": item})
+    except asyncio.CancelledError:  # the founder pressed Stop (client disconnected): free the bot's status and let the cancellation propagate
+        announce(slug, "idle")
+        raise
     except Exception as e:
         announce(slug, "error", reason=str(e))
         await orgchart.record_call(slug, False, int((time.monotonic() - t0) * 1000))

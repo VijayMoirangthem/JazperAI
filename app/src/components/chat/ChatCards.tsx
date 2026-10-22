@@ -4,12 +4,13 @@
 // and Google sign-in (opens in the system browser; Electron's window-open handler does the hand-off, the backend receives the loopback callback).
 // Pattern: Project_References/OpenMausBot connected-apps cards.
 import { useEffect, useRef, useState } from "react";
-import { Check, ExternalLink, KeyRound, Loader2, Trash2, Undo2 } from "lucide-react";
+import { Check, ExternalLink, FileText, KeyRound, Loader2, Trash2, Undo2 } from "lucide-react";
 import { useChat, type ChatMessage } from "@/chat/chatStore";
+import { useFileViewer } from "@/stores/fileViewerStore";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface Suggestion { id: string; name: string; why: string; status: string; connectable: boolean; untested?: boolean }
-export interface UiRequest { kind: "credentials" | "oauth" | "suggestions" | "confirm"; action?: string; scope?: string; label?: string; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean; capability?: string; reason?: string }
+export interface UiRequest { kind: "credentials" | "oauth" | "suggestions" | "confirm" | "file"; file_id?: string; name?: string; mime?: string; open?: boolean; action?: string; scope?: string; label?: string; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean; capability?: string; reason?: string }
 
 export function CredentialCard({ req, onDone }: { req: UiRequest; onDone: (summary: string) => void }) {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -165,5 +166,17 @@ export function ConfirmActionCard({ req, messageId }: { req: UiRequest; messageI
       {state === "undone" && <span className="text-sm opacity-70">Restored.</span>}
       {state === "cancelled" && <span className="text-sm opacity-70">Kept.</span>}
     </div>
+  );
+}
+
+/** A Drive file Jazper opened: shows a button and (for a fresh message) opens the in-app viewer tab by itself. */
+export function FileCard({ req, fresh }: { req: UiRequest; fresh: boolean }) {
+  const opened = useRef(false);
+  const open = () => { useFileViewer.getState().open({ id: req.file_id ?? "", name: req.name ?? "file", mime: req.mime ?? "" }); window.location.hash = "files"; };
+  useEffect(() => { if (req.open && fresh && !opened.current) { opened.current = true; open(); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <button onClick={open} data-testid="file-card" className="flex max-w-[520px] items-center gap-3 rounded-3xl bg-white/5 px-4 py-3 text-left ring-1 ring-white/15 hover:bg-white/10">
+      <FileText size={18} className="shrink-0 opacity-70" /><span className="min-w-0 flex-1 truncate text-sm">{req.name}</span><span className="rounded-full bg-blue-600 px-3 py-1 text-xs">Open</span>
+    </button>
   );
 }

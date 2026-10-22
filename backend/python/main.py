@@ -379,6 +379,8 @@ from api.routes import company as company_route
 app.include_router(company_route.router, prefix="/api/company", tags=["company"])
 from api.routes import finops as finops_route
 app.include_router(finops_route.router, prefix="/api/finops", tags=["finops"])
+from api.routes import drive as drive_route
+app.include_router(drive_route.router, prefix="/api/v1/drive", tags=["drive"])
 from api.routes import mcp_hub as mcp_hub_route
 app.include_router(mcp_hub_route.router, prefix="/api/mcp-hub", tags=["mcp-hub"])
 from api.routes import system as system_route

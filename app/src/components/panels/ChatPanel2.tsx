@@ -13,12 +13,13 @@ import { Speaker } from "@/voice/speaker";
 import { useVoiceMode } from "@/voice/useVoiceMode";
 import { useLiveAgents } from "@/stores/liveAgentsStore";
 import { useChatIntent } from "@/stores/chatIntentStore";
+import { useDrafts } from "@/chat/draftStore";
 import { MausAvatar, lookFor, stateFromAgent, useBotLook, voiceOf, type MausMotion, type MausState } from "@/mascot/MausAvatar";
 import { speakAs, stopSpeaking, useTts } from "@/voice/botVoice";
 import { OrgSidebar, ScoreBadge, type OrgGroup } from "@/components/chat/OrgSidebar";
 import { BotSettings } from "@/components/chat/BotSettings";
 import { ModelPicker } from "@/components/chat/ModelPicker";
-import { ConfirmActionCard, CredentialCard, OAuthCard, SuggestionCard } from "@/components/chat/ChatCards";
+import { ConfirmActionCard, FileCard, CredentialCard, OAuthCard, SuggestionCard } from "@/components/chat/ChatCards";
 import { CommsView, useCommsThreads } from "@/components/chat/CommsView";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -70,7 +71,7 @@ function Bubble({ m, onAnswer, onRate, onCard, onDelete, onEdit, onSpeak, onRege
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(m.text);
   if (m.phase) return <div className="my-1 flex items-center gap-2 text-xs opacity-60" data-testid="phase"><span className="h-px flex-1 bg-white/15" />{m.text}<span className="h-px flex-1 bg-white/15" /></div>;
-  if (m.ui) return <div className="flex justify-start">{m.ui.kind === "suggestions" ? <SuggestionCard items={m.ui.items ?? []} onDone={(t) => onCard?.(t)} /> : m.ui.kind === "confirm" ? <ConfirmActionCard req={m.ui} messageId={m.id} /> : m.ui.kind === "credentials" ? <CredentialCard req={m.ui} onDone={(t) => onCard?.(t)} /> : <OAuthCard req={m.ui} onDone={(t) => onCard?.(t)} />}</div>;
+  if (m.ui) return <div className="flex justify-start">{m.ui.kind === "suggestions" ? <SuggestionCard items={m.ui.items ?? []} onDone={(t) => onCard?.(t)} /> : m.ui.kind === "file" ? <FileCard req={m.ui} fresh={Date.now() - m.ts < 15000} /> : m.ui.kind === "confirm" ? <ConfirmActionCard req={m.ui} messageId={m.id} /> : m.ui.kind === "credentials" ? <CredentialCard req={m.ui} onDone={(t) => onCard?.(t)} /> : <OAuthCard req={m.ui} onDone={(t) => onCard?.(t)} />}</div>;
   const system = m.from === "system";
   const [rated, setRated] = useState<boolean | null>(null);
   if (m.tool) {
@@ -144,7 +145,8 @@ function Composer({ channel, label, members, onSend, onMeeting, busy, onStop, le
   channel: string; label: string; members: Bot[]; onSend: (text: string, atts: Attachment[]) => void; busy: boolean; onStop: () => void;
   level: ApprovalLevel | null; onLevel: (l: ApprovalLevel) => void; rec: boolean; onRec: (addFiles: (f: File[]) => Promise<void>, setText: (fn: (t: string) => string) => void) => void;
 }) {
-  const [text, setText] = useState("");
+  const text = useDrafts((s) => s.text[channel] ?? ""); // draft survives switching chats/tabs
+  const setText = (v: string | ((t: string) => string)) => useDrafts.getState().set(channel, typeof v === "function" ? v(useDrafts.getState().text[channel] ?? "") : v);
   const [atts, setAtts] = useState<Attachment[]>([]);
   const [menu, setMenu] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -244,6 +246,11 @@ export function ChatPanel2() {
   const [motion, setMotion] = useState<{ m: MausMotion; k: number }>({ m: "arrive", k: 0 });
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const abort = useRef<AbortController | null>(null);
+  useEffect(() => { // Esc stops whatever Jasper is doing right now
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && abort.current && busy) abort.current.abort(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy]);
   const kick = (m: MausMotion) => setMotion((p) => ({ m, k: p.k + 1 }));
   // voice conversation: Silero VAD -> transcription -> chat -> sentence-by-sentence streamed speech, with barge-in
   const speaker = useRef<Speaker | null>(null);
@@ -328,7 +335,7 @@ export function ChatPanel2() {
         if (ev.t === "route") route = ev as never;
         else if (ev.t === "speaker") { startMsg(slug); patch(ch, mine.id, { status: "read" }); }
         else if (ev.t === "phase") push(ch, { id: uid(), from: "system", text: String(ev.text), ts: Date.now(), phase: true });
-        else if (ev.t === "ui") { push(ch, { id: uid(), from: slug, text: "", ts: Date.now(), ui: { ...(ev as object), kind: ev.kind as "credentials" | "oauth" | "suggestions" | "confirm", connector: String(ev.connector ?? "") } as never }); ids.delete(slug); } // keep EVERY field (capability, reason, scope, label...): dropping them made the Drive card finish instantly
+        else if (ev.t === "ui") { push(ch, { id: uid(), from: slug, text: "", ts: Date.now(), ui: { ...(ev as object), kind: ev.kind as "credentials" | "oauth" | "suggestions" | "confirm" | "file", connector: String(ev.connector ?? "") } as never }); ids.delete(slug); } // keep EVERY field (capability, reason, scope, label...): dropping them made the Drive card finish instantly
         else if (ev.t === "tool") {
           const label = String(ev.label ?? ev.name); const status = ev.status as "running" | "ok" | "error";
           const open = [...(useChat.getState().threads[ch] ?? [])].reverse().find((x) => x.tool && x.tool.status === "running" && x.tool.label === label);
@@ -349,6 +356,7 @@ export function ChatPanel2() {
       }
     } catch (e) {
       if ((e as Error).name !== "AbortError") { failed = true; push(ch, { id: uid(), from: "system", text: "Could not reach the backend.", ts: Date.now() }); }
+      else push(ch, { id: uid(), from: "system", text: "Stopped.", ts: Date.now() });
     } finally {
       const rest = voice.enabled && active.kind === "dm" ? splitterRef.current.flush() : "";
       if (rest) speaker.current!.speak(rest);

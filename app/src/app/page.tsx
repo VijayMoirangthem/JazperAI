@@ -6,6 +6,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { ChatPanel2 } from "@/components/panels/ChatPanel2";
 const OfficePanel = lazy(() => import("@/components/panels/OfficePanel").then((m) => ({ default: m.OfficePanel })));
 const Office2Panel = lazy(() => import("@/components/panels/Office2Panel").then((m) => ({ default: m.Office2Panel })));
+const FilesPanel = lazy(() => import("@/components/panels/FilesPanel").then((m) => ({ default: m.FilesPanel })));
 const Office3Panel = lazy(() => import("@/components/panels/Office3Panel").then((m) => ({ default: m.Office3Panel })));
 const AiProvidersPanel = lazy(() => import("@/components/panels/AiProvidersPanel").then((m) => ({ default: m.AiProvidersPanel })));
 const BusinessPanel = lazy(() => import("@/components/panels/BusinessPanel").then((m) => ({ default: m.BusinessPanel })));
@@ -258,6 +259,7 @@ export default function Home() {
     office:         <OfficePanel />,
     office2:        <Office2Panel />,
     office3:        <Office3Panel />,
+    files:          <FilesPanel />,
     team_chat:      <ChatPanel2 />,
     mind_map:       <MindMapPanel />,
     connections:    <ConnectionsPanel />,

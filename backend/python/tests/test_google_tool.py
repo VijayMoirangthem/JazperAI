@@ -57,3 +57,20 @@ def test_api_disabled_is_healed_into_one_card(monkeypatch):
 
 def test_unknown_action():
     assert run({"action": "launch_rockets"}).startswith("error: action must be one of")
+
+
+def test_capability_plan_prefers_existing_connector_then_files_gap(monkeypatch):
+    from hub.hub import hub
+
+    async def none(q, k=3):
+        return []
+    monkeypatch.setattr(hub, "find_tool", none)
+    out = asyncio.run(jt.run_tool("capability_plan", {"need": "post a message to slack", "build": "false"}, "jasper"))
+    assert "slack" in out.lower() and "connect" in out.lower()
+
+
+def test_fastpath_routes_open_and_overview():
+    from agents import fastpaths
+    assert fastpaths.match("jasper", "Can you get the file with the name 'Sir Jasper AI' something.. just open it") is not None
+    assert fastpaths.match("jasper", "Provide the overview whats inside the doc called Sir Jasper AI") is not None
+    assert fastpaths.match("jasper", "what is the capital of France") is None

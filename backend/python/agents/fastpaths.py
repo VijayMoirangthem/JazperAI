@@ -22,6 +22,11 @@ HEALTH = re.compile(r"\b(system|backend|everything)\b.*\b(health|status|ok|worki
 SMARTER = re.compile(r"\b(smarter|more powerful|more capable|upgrade you|improve you|what should i connect)\b", re.I)
 
 
+OPEN = re.compile(r"\b(open|show|view|play|let me see|display|pull up)\b", re.I)
+READ = re.compile(r"\b(overview|summar(y|ise|ize)|what'?s (in|inside)|contents?|read|tell me what)\b", re.I)
+FILE_NAME = re.compile(r"(?:called|named|name|file|doc(?:ument)?|sheet|song|audio|pdf|video)\s+[\"'“]?([A-Za-z0-9][^\"'”.?!]{2,70})", re.I)
+
+
 def _n(text: str, default: int = 10) -> int:
     m = re.search(r"\b(\d{1,2})\b", text)
     return max(1, min(int(m.group(1)), 30)) if m else default
@@ -61,6 +66,72 @@ async def _drive_list(text: str) -> AsyncIterator[Event]:
             "application/vnd.google-apps.folder": "Folder", "application/pdf": "PDF"}
     lines = [f"{i + 1}. {f['name']} ({kind.get(f.get('mimeType', ''), 'File')}, {str(f.get('modifiedTime', ''))[:10]})" for i, f in enumerate(files)]
     yield {"delta": f"Your {len(files)} latest Drive files:\n" + "\n".join(lines)}
+
+
+async def _open(text: str, history=None) -> AsyncIterator[Event]:
+    from core.services import drive_service
+    m = FILE_NAME.search(text)
+    q = (m.group(1).strip() if m else "").strip(" '\"")
+    if not q and history:  # "just open it": the file named earlier in this conversation
+        for h in reversed(history[-8:]):
+            mm = FILE_NAME.search(str(getattr(h, "content", "")))
+            if mm:
+                q = mm.group(1).strip(" '\"")
+                break
+    if not q:
+        yield {"delta": "Which file? Give me a name (or part of it)."}
+        return
+    yield _tool("open_file", f"Finding {q}", "running")
+    try:
+        hits = await asyncio.to_thread(drive_service.search, q, 5)
+    except Exception as e:
+        yield _tool("open_file", f"Finding {q}", "error", str(e))
+        yield {"delta": f"Couldn't reach Drive: {str(e)[:160]}"}
+        return
+    yield _tool("open_file", f"Finding {q}", "ok", f"{len(hits)} match(es)")
+    if not hits:
+        yield {"delta": f"No file matching '{q}' in Drive."}
+        return
+    f = hits[0]
+    yield {"ui": {"kind": "file", "connector": "drive", "file_id": f["id"], "name": f["name"], "mime": f.get("mimeType", ""), "open": True}}
+    more = f" ({len(hits) - 1} similar: " + ", ".join(h["name"] for h in hits[1:3]) + ")" if len(hits) > 1 else ""
+    yield {"delta": f"Opened {f['name']}.{more}"}
+
+
+async def _summarize(text: str, history=None) -> AsyncIterator[Event]:
+    """Fetch the document FIRST, then ask the model to summarise the real text (the model never has to find or call a tool, so even a weak one succeeds)."""
+    from core.llm.registry import get_router
+    from core.llm.types import LLMRequest
+    from core.services import drive_service
+    m = FILE_NAME.search(text)
+    q = (m.group(1).strip(" '\"") if m else "")
+    if not q and history:
+        for h in reversed(history[-8:]):
+            mm = FILE_NAME.search(str(getattr(h, "content", "")))
+            if mm:
+                q = mm.group(1).strip(" '\"")
+                break
+    if not q:
+        return
+    yield _tool("google", f"Reading {q}", "running")
+    try:
+        hits = await asyncio.to_thread(drive_service.search, q, 3)
+        doc = await asyncio.to_thread(drive_service.read_file, hits[0]["id"], 14000) if hits else None
+    except Exception as e:
+        yield _tool("google", f"Reading {q}", "error", str(e))
+        yield {"delta": f"Couldn't read it: {str(e)[:160]}"}
+        return
+    if not doc or not doc.get("content"):
+        yield _tool("google", f"Reading {q}", "error", "nothing")
+        yield {"delta": f"I found no readable file called '{q}'."}
+        return
+    yield _tool("google", f"Reading {doc['name']}", "ok", f"{doc.get('chars', 0)} chars")
+    try:
+        r = await get_router()
+        res = await r.complete(LLMRequest(system="Summarise the document for the founder: 5-8 short bullet points, only facts from the text, no preamble.", messages=[{"role": "user", "content": f"Document '{doc['name']}':\n\n{doc['content']}"}], tier="standard", max_tokens=700))
+        yield {"delta": f"**{doc['name']}**\n{res.text.strip()}"}
+    except Exception:
+        yield {"delta": f"**{doc['name']}** (summary model unavailable, start of the text):\n{doc['content'][:700]}"}
 
 
 async def _clear(text: str) -> AsyncIterator[Event]:
@@ -109,6 +180,19 @@ async def _smarter(_: str) -> AsyncIterator[Event]:
     yield {"delta": "Fastest upgrades: " + "; ".join(f"{i['name']} ({i['why'].split(':')[0][:60]})" for i in todo) + ". Tap Connect on the cards."}
 
 
+def recent_has_file(history) -> bool:
+    return any(FILE_NAME.search(str(getattr(h, "content", ""))) for h in (history or [])[-8:])
+
+
+async def _summarize_or_chat(text: str, history=None) -> AsyncIterator[Event]:
+    got = False
+    async for ev in _summarize(text, history):
+        got = True
+        yield ev
+    if not got:
+        yield {"delta": "Which file should I read? Give me its name."}
+
+
 def match(slug: str, text: str, history=None):
     """Returns an async-generator factory for a known intent, else None. Only Jasper and Connector use fast paths."""
     if slug not in ("jasper", "connector"):
@@ -119,6 +203,10 @@ def match(slug: str, text: str, history=None):
     recent = " ".join(str(getattr(h, "content", "")) for h in (history or [])[-6:] if getattr(h, "role", "") == "user")
     if APPROVED.search(t) or (re.search(r"i approved google", t, re.I) and DRIVE.search(recent)) or (DRIVE.search(t) and DRIVE_LIST.search(t) and not re.search(r"\b(create|write|upload|share|delete|trash|move|rename|edit)\b", t, re.I)):
         return lambda: _drive_list(t)
+    if READ.search(t) and (FILE_NAME.search(t) or re.search(r"\b(it|that|this|the doc|the file)\b", t, re.I)) and not re.search(r"\b(drive files|my files)\b", t, re.I) and (recent_has_file(history) or FILE_NAME.search(t)):
+        return lambda: _summarize_or_chat(t, history)
+    if OPEN.search(t) and (FILE_NAME.search(t) or re.search(r"\b(it|that|this)\b", t, re.I)) and not READ.search(t) and re.search(r"\b(file|doc|document|sheet|pdf|song|audio|video|it|that)\b", t, re.I) and (DRIVE.search(t) or FILE_NAME.search(t) or re.search(r"\b(open|show|view|play) (it|that|this)\b", t, re.I)):
+        return lambda: _open(t, history)
     if CLEAR.search(t):
         return lambda: _clear(t)
     if USAGE.search(t):
