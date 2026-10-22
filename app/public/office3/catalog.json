@@ -1,0 +1,1770 @@
+[
+  {
+    "id": "workstations-desk-v1",
+    "name": "desk",
+    "category": "Workstations",
+    "tags": [
+      "workstations",
+      "desk"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "workstations-standing-desk-v1",
+    "name": "standing desk",
+    "category": "Workstations",
+    "tags": [
+      "workstations",
+      "standing-desk"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "workstations-workbench-v1",
+    "name": "workbench",
+    "category": "Workstations",
+    "tags": [
+      "workstations",
+      "workbench"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "workstations-terminal-v1",
+    "name": "terminal",
+    "category": "Workstations",
+    "tags": [
+      "workstations",
+      "terminal"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "workstations-cabinet-v1",
+    "name": "cabinet",
+    "category": "Workstations",
+    "tags": [
+      "workstations",
+      "cabinet"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "workstations-monitor-v1",
+    "name": "monitor",
+    "category": "Workstations",
+    "tags": [
+      "workstations",
+      "monitor"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "workstations-laptop-v1",
+    "name": "laptop",
+    "category": "Workstations",
+    "tags": [
+      "workstations",
+      "laptop"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "workstations-divider-v1",
+    "name": "divider",
+    "category": "Workstations",
+    "tags": [
+      "workstations",
+      "divider"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "seating-task-chair-v1",
+    "name": "task chair",
+    "category": "Seating",
+    "tags": [
+      "seating",
+      "task-chair"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "seating-stool-v1",
+    "name": "stool",
+    "category": "Seating",
+    "tags": [
+      "seating",
+      "stool"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "seating-armchair-v1",
+    "name": "armchair",
+    "category": "Seating",
+    "tags": [
+      "seating",
+      "armchair"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "seating-bench-v1",
+    "name": "bench",
+    "category": "Seating",
+    "tags": [
+      "seating",
+      "bench"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "seating-beanbag-v1",
+    "name": "beanbag",
+    "category": "Seating",
+    "tags": [
+      "seating",
+      "beanbag"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "seating-dining-chair-v1",
+    "name": "dining chair",
+    "category": "Seating",
+    "tags": [
+      "seating",
+      "dining-chair"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "seating-high-chair-v1",
+    "name": "high chair",
+    "category": "Seating",
+    "tags": [
+      "seating",
+      "high-chair"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "seating-ottoman-v1",
+    "name": "ottoman",
+    "category": "Seating",
+    "tags": [
+      "seating",
+      "ottoman"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tables-round-table-v1",
+    "name": "round table",
+    "category": "Tables",
+    "tags": [
+      "tables",
+      "round-table"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tables-long-table-v1",
+    "name": "long table",
+    "category": "Tables",
+    "tags": [
+      "tables",
+      "long-table"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tables-side-table-v1",
+    "name": "side table",
+    "category": "Tables",
+    "tags": [
+      "tables",
+      "side-table"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tables-coffee-table-v1",
+    "name": "coffee table",
+    "category": "Tables",
+    "tags": [
+      "tables",
+      "coffee-table"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tables-console-v1",
+    "name": "console",
+    "category": "Tables",
+    "tags": [
+      "tables",
+      "console"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tables-island-v1",
+    "name": "island",
+    "category": "Tables",
+    "tags": [
+      "tables",
+      "island"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tables-drafting-table-v1",
+    "name": "drafting table",
+    "category": "Tables",
+    "tags": [
+      "tables",
+      "drafting-table"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tables-folding-table-v1",
+    "name": "folding table",
+    "category": "Tables",
+    "tags": [
+      "tables",
+      "folding-table"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "meeting-conference-table-v1",
+    "name": "conference table",
+    "category": "Meeting",
+    "tags": [
+      "meeting",
+      "conference-table"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "meeting-whiteboard-v1",
+    "name": "whiteboard",
+    "category": "Meeting",
+    "tags": [
+      "meeting",
+      "whiteboard"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "meeting-screen-v1",
+    "name": "screen",
+    "category": "Meeting",
+    "tags": [
+      "meeting",
+      "screen"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": false,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "meeting-lectern-v1",
+    "name": "lectern",
+    "category": "Meeting",
+    "tags": [
+      "meeting",
+      "lectern"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "meeting-meeting-chair-v1",
+    "name": "meeting chair",
+    "category": "Meeting",
+    "tags": [
+      "meeting",
+      "meeting-chair"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "meeting-video-bar-v1",
+    "name": "video bar",
+    "category": "Meeting",
+    "tags": [
+      "meeting",
+      "video-bar"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "meeting-task-board-v1",
+    "name": "task board",
+    "category": "Meeting",
+    "tags": [
+      "meeting",
+      "task-board"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "meeting-planner-v1",
+    "name": "planner",
+    "category": "Meeting",
+    "tags": [
+      "meeting",
+      "planner"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "storage-shelf-v1",
+    "name": "shelf",
+    "category": "Storage",
+    "tags": [
+      "storage",
+      "shelf"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "storage-locker-v1",
+    "name": "locker",
+    "category": "Storage",
+    "tags": [
+      "storage",
+      "locker"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "storage-bookcase-v1",
+    "name": "bookcase",
+    "category": "Storage",
+    "tags": [
+      "storage",
+      "bookcase"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "storage-filing-v1",
+    "name": "filing",
+    "category": "Storage",
+    "tags": [
+      "storage",
+      "filing"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "storage-crate-v1",
+    "name": "crate",
+    "category": "Storage",
+    "tags": [
+      "storage",
+      "crate"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "storage-drawer-v1",
+    "name": "drawer",
+    "category": "Storage",
+    "tags": [
+      "storage",
+      "drawer"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "storage-archive-v1",
+    "name": "archive",
+    "category": "Storage",
+    "tags": [
+      "storage",
+      "archive"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "storage-display-v1",
+    "name": "display",
+    "category": "Storage",
+    "tags": [
+      "storage",
+      "display"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tech-server-rack-v1",
+    "name": "server rack",
+    "category": "Tech",
+    "tags": [
+      "tech",
+      "server-rack"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tech-hardware-bench-v1",
+    "name": "hardware bench",
+    "category": "Tech",
+    "tags": [
+      "tech",
+      "hardware-bench"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tech-phone-booth-v1",
+    "name": "phone booth",
+    "category": "Tech",
+    "tags": [
+      "tech",
+      "phone-booth"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tech-router-v1",
+    "name": "router",
+    "category": "Tech",
+    "tags": [
+      "tech",
+      "router"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tech-printer-v1",
+    "name": "printer",
+    "category": "Tech",
+    "tags": [
+      "tech",
+      "printer"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tech-scanner-v1",
+    "name": "scanner",
+    "category": "Tech",
+    "tags": [
+      "tech",
+      "scanner"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tech-charging-station-v1",
+    "name": "charging station",
+    "category": "Tech",
+    "tags": [
+      "tech",
+      "charging-station"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "tech-camera-v1",
+    "name": "camera",
+    "category": "Tech",
+    "tags": [
+      "tech",
+      "camera"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "lounge-sofa-v1",
+    "name": "sofa",
+    "category": "Lounge",
+    "tags": [
+      "lounge",
+      "sofa"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "lounge-rug-v1",
+    "name": "rug",
+    "category": "Lounge",
+    "tags": [
+      "lounge",
+      "rug"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": false,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "lounge-plant-v1",
+    "name": "plant",
+    "category": "Lounge",
+    "tags": [
+      "lounge",
+      "plant"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": false,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "lounge-lamp-v1",
+    "name": "lamp",
+    "category": "Lounge",
+    "tags": [
+      "lounge",
+      "lamp"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": false,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "lounge-cushion-v1",
+    "name": "cushion",
+    "category": "Lounge",
+    "tags": [
+      "lounge",
+      "cushion"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "lounge-bar-cart-v1",
+    "name": "bar cart",
+    "category": "Lounge",
+    "tags": [
+      "lounge",
+      "bar-cart"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "lounge-reading-chair-v1",
+    "name": "reading chair",
+    "category": "Lounge",
+    "tags": [
+      "lounge",
+      "reading-chair"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [
+      {
+        "pos": [
+          0,
+          0
+        ],
+        "facing": "up"
+      }
+    ],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "lounge-media-console-v1",
+    "name": "media console",
+    "category": "Lounge",
+    "tags": [
+      "lounge",
+      "media-console"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "appliances-coffee-machine-v1",
+    "name": "coffee machine",
+    "category": "Appliances",
+    "tags": [
+      "appliances",
+      "coffee-machine"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "appliances-vending-machine-v1",
+    "name": "vending machine",
+    "category": "Appliances",
+    "tags": [
+      "appliances",
+      "vending-machine"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "appliances-water-cooler-v1",
+    "name": "water cooler",
+    "category": "Appliances",
+    "tags": [
+      "appliances",
+      "water-cooler"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "appliances-fridge-v1",
+    "name": "fridge",
+    "category": "Appliances",
+    "tags": [
+      "appliances",
+      "fridge"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "appliances-microwave-v1",
+    "name": "microwave",
+    "category": "Appliances",
+    "tags": [
+      "appliances",
+      "microwave"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      2
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "appliances-sink-v1",
+    "name": "sink",
+    "category": "Appliances",
+    "tags": [
+      "appliances",
+      "sink"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "appliances-kettle-v1",
+    "name": "kettle",
+    "category": "Appliances",
+    "tags": [
+      "appliances",
+      "kettle"
+    ],
+    "file": null,
+    "footprint": [
+      2,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  },
+  {
+    "id": "appliances-reception-v1",
+    "name": "reception",
+    "category": "Appliances",
+    "tags": [
+      "appliances",
+      "reception"
+    ],
+    "file": null,
+    "footprint": [
+      1,
+      1
+    ],
+    "height": 1,
+    "anchor": [
+      0,
+      0,
+      0
+    ],
+    "rotSteps": 4,
+    "snap": "grid",
+    "blocks": true,
+    "seats": [],
+    "interact": [],
+    "placeholder": true
+  }
+]

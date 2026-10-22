@@ -366,21 +366,27 @@ app.include_router(llm_route.router, prefix="/api/llm", tags=["llm"])
 from api.routes import rpc as rpc_route
 app.include_router(rpc_route.router, prefix="/ws", tags=["websocket"])
 from api.routes import bots as bots_route
+from api.routes import office as office_route
+from api.routes import people as people_route
+from api.routes import office_ws as office_ws_route
 app.include_router(bots_route.router, prefix="/api/bots", tags=["bots"])
+app.include_router(office_route.router, prefix="/api/v1/office", tags=["office"])
+app.include_router(people_route.router, prefix="/api/v1/people", tags=["people"])
+app.include_router(office_ws_route.router, prefix="/ws/office", tags=["office-websocket"])
 from api.routes import directive as directive_route
 app.include_router(directive_route.router, prefix="/api/directive", tags=["directive"])
 from api.routes import hitl as hitl_route
 app.include_router(hitl_route.router, prefix="/api/hitl", tags=["hitl"])
 from api.routes import chat2 as chat2_route
 app.include_router(chat2_route.router, prefix="/api/chat2", tags=["chat2"])
+from api.routes import drive as drive_route
+app.include_router(drive_route.router, prefix="/api/v1/drive", tags=["drive"])
 from api.routes import edit as edit_route
 app.include_router(edit_route.router, prefix="/api/edit", tags=["edit"])
 from api.routes import company as company_route
 app.include_router(company_route.router, prefix="/api/company", tags=["company"])
 from api.routes import finops as finops_route
 app.include_router(finops_route.router, prefix="/api/finops", tags=["finops"])
-from api.routes import drive as drive_route
-app.include_router(drive_route.router, prefix="/api/v1/drive", tags=["drive"])
 from api.routes import mcp_hub as mcp_hub_route
 app.include_router(mcp_hub_route.router, prefix="/api/mcp-hub", tags=["mcp-hub"])
 from api.routes import system as system_route

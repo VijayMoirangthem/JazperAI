@@ -1,0 +1,1 @@
+import test from "node:test";import assert from "node:assert/strict";import {findShortcutConflicts}from "../src/office3/core/shortcuts.ts";test("shortcut conflicts are detected",()=>assert.deepEqual(findShortcutConflicts([{id:"a",keys:"Ctrl+K",label:"A"},{id:"b",keys:" ctrl + k ",label:"B"}]),["b"]));

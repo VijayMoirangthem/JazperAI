@@ -1,0 +1,14 @@
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { defaultAppearance, type Appearance } from "../core/appearance";
+
+type Look = { id: string; file: string; bodyType: Appearance["bodyType"]; gender?: string; thumbnail?: string | null };
+const recentKey = "office3.looks.recent";
+
+export function LookGallery({ onSelect }: { onSelect: (appearance: Appearance) => void }) {
+  const [looks, setLooks] = useState<Look[]>([]), [query, setQuery] = useState(""), [body, setBody] = useState("all"), [recentOnly, setRecentOnly] = useState(false), [recent, setRecent] = useState<string[]>([]);
+  useEffect(() => { fetch("/office3/looks/index.json").then(response => response.ok ? response.json() : []).then(setLooks).catch(() => setLooks([])); try { setRecent(JSON.parse(localStorage.getItem(recentKey) ?? "[]")); } catch { setRecent([]); } }, []);
+  const visible = useMemo(() => looks.filter(look => (body === "all" || look.bodyType === body) && (!recentOnly || recent.includes(look.id)) && look.id.toLowerCase().includes(query.toLowerCase())).sort((left, right) => (recent.indexOf(left.id) + 1 || 999) - (recent.indexOf(right.id) + 1 || 999)), [looks, query, body, recentOnly, recent]);
+  const choose = (look: Look) => { const next = [look.id, ...recent.filter(item => item !== look.id)].slice(0, 8); setRecent(next); localStorage.setItem(recentKey, JSON.stringify(next)); onSelect({ ...defaultAppearance(look.id), bodyType: look.bodyType }); };
+  return <details className="absolute bottom-3 left-3 max-h-80 w-80 overflow-auto rounded-lg bg-black/75 p-2 text-white"><summary className="cursor-pointer text-xs">Appearance gallery · {visible.length}/50</summary><input className="my-2 w-full rounded bg-slate-800 p-1 text-xs" placeholder="Search looks" value={query} onChange={event => setQuery(event.target.value)} /><div className="mb-2 flex gap-1"><select className="rounded bg-slate-800 p-1 text-xs" value={body} onChange={event => setBody(event.target.value)}><option value="all">All bodies</option><option value="a">Body A</option><option value="b">Body B</option><option value="c">Body C</option></select><button className={`rounded px-2 text-xs ${recentOnly ? "bg-blue-700" : "bg-slate-800"}`} onClick={() => setRecentOnly(value => !value)}>Recent</button></div><div className="grid grid-cols-5 gap-1">{visible.map(look => <button key={look.id} title={`${look.id} · body ${look.bodyType}`} onClick={() => choose(look)} className="group h-12 rounded bg-gradient-to-b from-slate-600 to-slate-800 text-[8px] hover:from-blue-500 hover:to-blue-800"><span className="block text-base opacity-60">◉</span><span className="block truncate px-1">{look.id.replace("office-", "")}</span></button>)}</div>{visible.length === 0 && <p className="p-3 text-center text-xs text-slate-400">No matching looks.</p>}</details>;
+}

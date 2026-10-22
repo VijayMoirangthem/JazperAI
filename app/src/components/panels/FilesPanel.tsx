@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ExternalLink, File as FileIcon, FileAudio, FileImage, FileSpreadsheet, FileText, FileVideo, Folder, Search, X } from "lucide-react";
 import { useFileViewer, type ViewerFile } from "@/stores/fileViewerStore";
+import { resolveViewer } from "@/viewers/registry";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const G = "application/vnd.google-apps.";
-interface DriveFile { id: string; name: string; mimeType: string; modifiedTime?: string; webViewLink?: string }
+interface DriveFile { id: string; name: string; mimeType?: string; mime?: string; modifiedTime?: string; webViewLink?: string }
 
 const kindOf = (mime: string): "doc" | "sheet" | "slides" | "pdf" | "image" | "audio" | "video" | "text" | "folder" | "other" =>
   mime === G + "document" ? "doc" : mime === G + "spreadsheet" ? "sheet" : mime === G + "presentation" ? "slides" : mime === G + "folder" ? "folder" : mime === "application/pdf" ? "pdf"
@@ -44,67 +45,51 @@ function Csv({ url }: { url: string }) {
 }
 
 function Viewer({ file }: { file: ViewerFile }) {
-  const src = `${API}/api/v1/drive/${file.id}/view`;
-  const k = kindOf(file.mime);
-  const doc = useText(k === "doc" ? src : k === "text" ? src : null);
-  if (k === "doc") {
-    if (doc.loading) return <div className="p-4 text-sm opacity-60">Loading document…</div>;
-    if (doc.error) return <div className="p-4 text-sm text-red-300">{doc.error}</div>;
-    // Google's HTML export, shown in a sandbox with no scripts and no network access
-    return <iframe title={file.name} sandbox="" srcDoc={`<base target="_blank"><style>body{font-family:system-ui,sans-serif;max-width:820px;margin:24px auto;padding:0 16px;line-height:1.55}</style>${doc.text}`} className="h-full w-full border-0 bg-white" />;
-  }
-  if (k === "text") return doc.loading ? <div className="p-4 text-sm opacity-60">Loading…</div> : <pre className="h-full overflow-auto whitespace-pre-wrap p-4 font-mono text-xs">{doc.error ?? doc.text}</pre>;
-  if (k === "sheet") return <Csv url={src} />;
-  if (k === "pdf" || k === "slides") return <iframe title={file.name} src={k === "slides" ? `${src}?mode=pdf` : src} className="h-full w-full border-0 bg-neutral-800" />;
-  if (k === "image") return <div className="flex h-full items-center justify-center overflow-auto p-4"><img src={src} alt={file.name} className="max-h-full max-w-full object-contain" /></div>;
-  if (k === "audio") return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 p-8">
-      <div className="flex h-40 w-40 items-center justify-center rounded-3xl bg-white/5 ring-1 ring-white/10"><FileAudio size={64} className="opacity-60" /></div>
-      <div className="max-w-md text-center text-lg font-semibold">{file.name}</div>
-      <audio controls autoPlay src={src} className="w-full max-w-xl" />
-    </div>
-  );
-  if (k === "video") return <div className="flex h-full items-center justify-center bg-black"><video controls autoPlay src={src} className="max-h-full max-w-full" /></div>;
-  return <div className="p-6 text-sm opacity-70">No built-in viewer for this file type ({file.mime}). Use “Open in browser”.</div>;
+  const plugin = useMemo(() => resolveViewer(file), [file]);
+  const Component = useMemo(() => plugin ? lazy(plugin.load) : null, [plugin]);
+  const src = `${API}/api/v1/files/content?src=${encodeURIComponent(file.src)}&id=${encodeURIComponent(file.id)}${file.mime === "application/vnd.google-apps.presentation" ? "&mode=pdf" : ""}`;
+  if (!Component) return <div className="p-6 text-sm opacity-70">No viewer is installed for {file.mime || file.name}. Ask Jazper to add support, or download it.</div>;
+  return <Suspense fallback={<div className="p-4 text-sm opacity-60">Loading {plugin?.label} viewer…</div>}><Component file={file} contentUrl={src} /></Suspense>;
 }
 
 export function FilesPanel() {
   const { tabs, active, open, close, activate } = useFileViewer();
   const [q, setQ] = useState("");
-  const [files, setFiles] = useState<DriveFile[]>([]);
+  const [files, setFiles] = useState<(DriveFile & { src?: string; size?: number; modified?: string })[]>([]);
+  const [source, setSource] = useState("drive");
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
     const t = setTimeout(() => {
-      fetch(`${API}/api/v1/drive/files?limit=40&q=${encodeURIComponent(q)}`).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(() => ({ detail: r.statusText }))).detail ?? r.statusText); return r.json(); })
+      fetch(`${API}/api/v1/files?src=${source}&limit=40&q=${encodeURIComponent(q)}`).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(() => ({ detail: r.statusText }))).detail ?? r.statusText); return r.json(); })
         .then((d) => { setFiles(d.files ?? []); setErr(null); }).catch((e) => setErr(String(e.message ?? e)));
     }, q ? 300 : 0);
     return () => clearTimeout(t);
-  }, [q]);
-  const cur = tabs.find((t) => t.id === active);
+  }, [q, source]);
+  const cur = tabs.find((t) => `${t.src}:${t.id}` === active);
 
   return (
     <div className="flex h-full min-h-[560px]" data-testid="files-panel">
       <aside className="flex w-72 shrink-0 flex-col border-r border-white/10">
-        <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2"><Search size={14} className="opacity-50" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Drive" className="w-full bg-transparent text-sm outline-none" /></div>
+        <div className="flex border-b border-white/10 p-1 text-xs">{["drive", "local", "attachment", "storage"].map((s) => <button key={s} onClick={() => setSource(s)} className={`rounded px-2 py-1 capitalize ${source === s ? "bg-white/10" : "opacity-60"}`}>{s === "local" ? "This PC" : s}</button>)}</div><div className="flex items-center gap-2 border-b border-white/10 px-3 py-2"><Search size={14} className="opacity-50" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${source}`} className="w-full bg-transparent text-sm outline-none" /></div>
         <div className="min-h-0 flex-1 overflow-auto">
           {err && <div className="p-3 text-xs text-red-300">{err}</div>}
-          {files.map((f) => (
-            <button key={f.id} onClick={() => f.mimeType !== G + "folder" && open({ id: f.id, name: f.name, mime: f.mimeType })} className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-white/5 ${active === f.id ? "bg-white/10" : ""}`}>
-              <Icon mime={f.mimeType} /><span className="truncate">{f.name}</span>
+          {files.map((f) => { const mime = f.mime ?? f.mimeType ?? "application/octet-stream"; const id = f.id; const key = `${f.src ?? source}:${id}`; return (
+            <button key={key} onClick={() => mime !== G + "folder" && open({ src: f.src ?? source, id, name: f.name, mime, size: f.size, modified: f.modified })} className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-white/5 ${active === key ? "bg-white/10" : ""}`}>
+              <Icon mime={mime} /><span className="truncate">{f.name}</span>
             </button>
-          ))}
+          ); })}
         </div>
       </aside>
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-1 overflow-x-auto border-b border-white/10 px-2 pt-2">
           {tabs.map((t) => (
-            <div key={t.id} className={`flex max-w-[220px] items-center gap-2 rounded-t-lg px-3 py-1.5 text-sm ${t.id === active ? "bg-white/10" : "opacity-60 hover:opacity-100"}`}>
-              <button onClick={() => activate(t.id)} className="flex min-w-0 items-center gap-2"><Icon mime={t.mime} /><span className="truncate">{t.name}</span></button>
-              <button aria-label={`Close ${t.name}`} onClick={() => close(t.id)}><X size={12} /></button>
+            <div key={`${t.src}:${t.id}`} className={`flex max-w-[220px] items-center gap-2 rounded-t-lg px-3 py-1.5 text-sm ${`${t.src}:${t.id}` === active ? "bg-white/10" : "opacity-60 hover:opacity-100"}`}>
+              <button onClick={() => activate(`${t.src}:${t.id}`)} className="flex min-w-0 items-center gap-2"><Icon mime={t.mime} /><span className="truncate">{t.name}</span></button>
+              <button aria-label={`Close ${t.name}`} onClick={() => close(`${t.src}:${t.id}`)}><X size={12} /></button>
             </div>
           ))}
-          {cur && <button className="ml-auto flex items-center gap-1 px-3 text-xs opacity-70 hover:opacity-100" onClick={() => window.open(`https://drive.google.com/open?id=${cur.id}`, "_blank")}><ExternalLink size={12} />Open in browser</button>}
+          {cur?.webUrl && <button className="ml-auto flex items-center gap-1 px-3 text-xs opacity-70 hover:opacity-100" onClick={() => window.open(cur.webUrl, "_blank")}><ExternalLink size={12} />Open in browser</button>}
         </div>
         <div className="min-h-0 flex-1" data-testid="files-viewer">
           {cur ? <Viewer key={cur.id} file={cur} /> : <div className="flex h-full items-center justify-center text-sm opacity-50">Pick a file, or ask Jazper to open one.</div>}

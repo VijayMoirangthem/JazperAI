@@ -10,6 +10,7 @@ import { useBots } from '@/store/bots';
 import { useAuth } from '@/auth/useAuth';
 import { Message } from '@/db/chat';
 import { Spinner, SheetModal, Button, EmptyState } from '@/components/ui';
+import { Mascot } from '@/components/Mascot';
 import { Composer } from '@/components/chat/Composer';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { copyToClipboard } from '@/utils/clipboard';
@@ -248,18 +249,13 @@ export default function ChatScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {(bot?.display_name ?? botSlug).charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        <Mascot slug={botSlug} size={36} state={streaming ? 'thinking' : 'idle'} animated />
         <View style={styles.headerText}>
           <Text style={styles.name}>{bot?.display_name ?? botSlug}</Text>
           {bot?.position ? <Text style={styles.position}>{bot.position}</Text> : null}
         </View>
-        {thinking ? (
+        {streaming ? (
           <View style={styles.thinking}>
-            <Spinner size="small" />
             <Text style={styles.thinkingText}>Thinking</Text>
           </View>
         ) : null}
@@ -377,19 +373,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: theme.fontSizes.base,
   },
   headerText: {
     flex: 1,

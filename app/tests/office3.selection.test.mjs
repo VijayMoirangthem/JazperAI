@@ -1,0 +1,2 @@
+import test from "node:test";import assert from "node:assert/strict";import {clearSelection,selectionFromBox,toggleSelection}from "../src/office3/core/selection.ts";
+test("selection toggle and box operations",()=>{let selected=toggleSelection(clearSelection(),"a");selected=toggleSelection(selected,"b");assert.deepEqual([...selected],["a","b"]);assert.deepEqual([...selectionFromBox([{id:"a",x:2,y:2},{id:"b",x:7,y:2}],{left:1,top:1,right:4,bottom:4})],["a"])});

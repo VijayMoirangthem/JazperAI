@@ -1,0 +1,1 @@
+export type Seat={id:string;room:string;owner:string|null;pos:[number,number];facing:"up"|"down"|"left"|"right"};export const assignSeat=(seats:Seat[],room:string,slug:string)=>seats.find(s=>s.room===room&&s.owner===slug)??seats.find(s=>s.room===room&&!s.owner)??null;export const facingYaw=(f:Seat["facing"])=>({up:Math.PI,down:0,left:-Math.PI/2,right:Math.PI/2}[f]);

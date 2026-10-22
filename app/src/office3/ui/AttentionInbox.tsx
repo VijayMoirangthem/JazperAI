@@ -1,0 +1,10 @@
+"use client";
+import { useEffect, useState } from "react";
+type Approval = { id: string; agent?: string; action?: string; description?: string; tier?: number };
+export function AttentionInbox({ onClose }: { onClose(): void }) {
+  const [items, setItems] = useState<Approval[]>([]);
+  const refresh = () => fetch("/api/approvals/pending").then(response => response.json()).then(value => setItems(value.approvals ?? [])).catch(() => setItems([]));
+  useEffect(() => { refresh(); }, []);
+  const resolve = async (item: Approval, decision: "approve" | "deny") => { const response = await fetch(`/api/approvals/${item.id}/${decision}`, { method: "POST" }); if (!response.ok) { window.dispatchEvent(new CustomEvent("office3:toast", { detail: { text: "Approval could not be resolved.", priority: "error" } })); return; } window.dispatchEvent(new CustomEvent("office3:approval-resolved", { detail: { agent: item.agent, approved: decision === "approve" } })); window.dispatchEvent(new CustomEvent("office3:toast", { detail: { text: decision === "approve" ? "Approval granted." : "Approval denied.", priority: decision === "approve" ? "success" : "info" } })); refresh(); };
+  return <aside className="absolute right-3 top-14 z-40 w-96 rounded-xl bg-slate-950/95 p-4 text-white shadow-2xl ring-1 ring-white/15"><button className="float-right text-xs opacity-70" onClick={onClose}>Close</button><h2 className="mb-3 text-sm font-semibold">Attention inbox</h2>{items.length === 0 ? <p className="text-xs opacity-60">No pending approvals.</p> : items.map(item => <article key={item.id} className="mb-2 rounded-lg bg-slate-900 p-3 text-xs"><div className="font-semibold">{item.agent || "Agent"} · {item.action || "Approval"}</div><p className="my-2 text-amber-200">Untrusted request: {item.description || "Review before continuing."}</p><button className="mr-2 rounded bg-emerald-700 px-2 py-1" onClick={() => resolve(item, "approve")}>Approve</button><button className="rounded bg-rose-800 px-2 py-1" onClick={() => resolve(item, "deny")}>Deny</button></article>)}</aside>;
+}

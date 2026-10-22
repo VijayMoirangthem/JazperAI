@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export interface ViewerFile { id: string; name: string; mime: string }
+export interface ViewerFile { src: string; id: string; name: string; mime: string; size?: number; modified?: string; webUrl?: string }
 
 interface ViewerState {
   tabs: ViewerFile[];
@@ -20,7 +20,7 @@ const save = (s: Pick<ViewerState, "tabs" | "active">) => { try { localStorage.s
 /** Open files of the in-app viewer ("Files" panel): tabs survive switching panels and restarts. */
 export const useFileViewer = create<ViewerState>((set) => ({
   ...load(),
-  open: (f) => set((s) => { const next = { tabs: s.tabs.some((t) => t.id === f.id) ? s.tabs : [...s.tabs, f], active: f.id }; save(next); return next; }),
-  close: (id) => set((s) => { const tabs = s.tabs.filter((t) => t.id !== id); const next = { tabs, active: s.active === id ? (tabs.at(-1)?.id ?? null) : s.active }; save(next); return next; }),
+  open: (f) => set((s) => { const key = `${f.src}:${f.id}`; const next = { tabs: s.tabs.some((t) => `${t.src}:${t.id}` === key) ? s.tabs : [...s.tabs, f], active: key }; save(next); return next; }),
+  close: (id) => set((s) => { const tabs = s.tabs.filter((t) => `${t.src}:${t.id}` !== id); const next = { tabs, active: s.active === id ? (tabs.length ? `${tabs.at(-1)!.src}:${tabs.at(-1)!.id}` : null) : s.active }; save(next); return next; }),
   activate: (id) => set((s) => { const next = { tabs: s.tabs, active: id }; save(next); return next; }),
 }));

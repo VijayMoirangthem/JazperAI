@@ -1,4 +1,4 @@
-import { View, StyleSheet, TextInput, Platform, TouchableOpacity, Text as RNText } from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import React, { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
@@ -15,6 +15,7 @@ import {
   EmptyState,
   Spinner,
 } from '@/components/ui';
+import { Mascot } from '@/components/Mascot';
 
 interface BotsSection {
   id: string;
@@ -177,11 +178,6 @@ export default function ChatsScreen() {
 }
 
 function BotRow({ bot, router, onPress, onLongPress }: { bot: import('@/api/types').Bot; router: ReturnType<typeof useRouter>; onPress: () => void; onLongPress: () => void }) {
-  const colors = [
-    '#009957', '#377FE6', '#D94B52', '#E78531', '#8057C8',
-    '#0EA5C6', '#D84F8B', '#D8A729', '#01A492', '#E5634E',
-  ];
-
   return (
     <TouchableOpacity
       style={styles.row}
@@ -189,11 +185,7 @@ function BotRow({ bot, router, onPress, onLongPress }: { bot: import('@/api/type
       onLongPress={() => router.push(`/bot/${bot.slug}` as any)}
       activeOpacity={0.8}
     >
-      <View style={[styles.avatar, { backgroundColor: colors[bot.slug.split('').reduce((acc: number, c: string) => acc + c.charCodeAt(0), 0) % 10] }]}>
-        <RNText style={styles.avatarText}>
-          {bot.display_name.charAt(0).toUpperCase()}
-        </RNText>
-      </View>
+      <Mascot slug={bot.slug} size={36} animated={false} />
       <TouchableOpacity style={styles.content} activeOpacity={1}>
         <Text variant="body" style={styles.name} numberOfLines={1}>
           {bot.display_name}
@@ -250,18 +242,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#161616',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    color: '#ffffff',
-    fontWeight: '600',
   },
   content: {
     flex: 1,

@@ -1,8 +1,13 @@
-import { View, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Platform, TouchableOpacity } from 'react-native';
 import React from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BotCardResponse } from '@/api/types';
 import { useBots } from '@/store/bots';
+import { Mascot } from '@/components/Mascot';
+import { MASCOT_BODY_IDS, MascotBodyId } from '@/mascot/bodies';
+import { theme } from '@/theme/tokens';
+import { useMascotLooks } from '@/store/mascot';
+import { defaultMascotColor, defaultMascotBody } from '@/utils/mascot';
 import {
   Screen,
   Text,
@@ -24,6 +29,14 @@ export default function BotCardSheet() {
     }
     return null;
   }, [groups, slug]);
+
+  const setLook = useMascotLooks((state) => state.setLook);
+  const resetLook = useMascotLooks((state) => state.resetLook);
+  const look = useMascotLooks(
+    React.useCallback((state) => state.looks[slug], [slug])
+  );
+  const currentColor = look?.color ?? defaultMascotColor(slug);
+  const currentBody = (look?.body ?? defaultMascotBody(slug)) as MascotBodyId;
 
   if (!bot) {
     return (
@@ -249,6 +262,77 @@ export default function BotCardSheet() {
             </Text>
           </View>
         </Card>
+
+        <Card style={styles.card}>
+          <Text variant="caption" style={styles.sectionLabel}>
+            Appearance
+          </Text>
+          <Divider />
+          <View style={styles.infoRow}>
+            <Text variant="caption" style={styles.label}>
+              Mascot
+            </Text>
+            <Mascot slug={slug} size={36} animated={false} />
+          </View>
+          <View style={styles.infoRow}>
+            <Text variant="caption" style={styles.label}>
+              Colour
+            </Text>
+            <View style={styles.colorGrid}>
+              {Object.entries(theme.mascotColors).map(([key, color]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[
+                    styles.colorSwatch,
+                    color === currentColor && styles.colorSwatchSelected,
+                  ]}
+                  onPress={() => setLook(slug, { color })}
+                  accessibilityLabel={key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: color === currentColor }}
+                >
+                  <View style={[styles.colorSwatchInner, { backgroundColor: color }]} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <View style={styles.infoRow}>
+            <Text variant="caption" style={styles.label}>
+              Shape
+            </Text>
+            <View style={styles.bodyGrid}>
+              {MASCOT_BODY_IDS.map((bodyId) => (
+                <TouchableOpacity
+                  key={bodyId}
+                  style={[
+                    styles.bodySwatch,
+                    bodyId === currentBody && styles.bodySwatchSelected,
+                  ]}
+                  onPress={() => setLook(slug, { body: bodyId })}
+                  accessibilityLabel={bodyId}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: bodyId === currentBody }}
+                >
+                  <Mascot slug={slug} size={28} body={bodyId} animated={false} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <View style={styles.infoRow}>
+            <Text variant="caption" style={styles.label}>
+              Defaults
+            </Text>
+            {look ? (
+              <Chip onPress={() => resetLook(slug)} style={styles.resetChip}>
+                Reset to defaults
+              </Chip>
+            ) : (
+              <Text variant="caption" style={styles.resetChip}>
+                No custom look to reset
+              </Text>
+            )}
+          </View>
+        </Card>
       </ScrollView>
     </Screen>
   );
@@ -340,5 +424,50 @@ const styles = StyleSheet.create({
   emptyTools: {
     textAlign: 'center',
     paddingVertical: 16,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginLeft: 8,
+  },
+  colorSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorSwatchSelected: {
+    borderColor: '#ffffff',
+  },
+  colorSwatchInner: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+  bodyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginLeft: 8,
+  },
+  bodySwatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  bodySwatchSelected: {
+    borderColor: theme.colors.accent,
+  },
+  resetChip: {
+    marginLeft: 8,
   },
 });

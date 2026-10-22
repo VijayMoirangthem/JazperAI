@@ -1,0 +1,2 @@
+import test from "node:test";import assert from "node:assert/strict";import {defaultAppearance,parseAppearance,serialiseAppearance}from "../src/office3/core/appearance.ts";
+test("appearance defaults serialise and reject unsafe values",()=>{const value=defaultAppearance();assert.equal(parseAppearance(value).look,"office-ara");assert.throws(()=>parseAppearance({...value,scale:2}));assert.throws(()=>parseAppearance({...value,tints:{...value.tints,top:"red"}}));assert.ok(serialiseAppearance(value).length<4096)});

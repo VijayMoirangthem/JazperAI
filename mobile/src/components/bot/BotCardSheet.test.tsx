@@ -25,7 +25,7 @@ jest.mock('@/store/bots', () => ({
             tier: 1,
             group: 'group1',
             group_label: 'Jasper Team',
-            reports_to: '—',
+            reports_to: '�?"',
             created_at: '2024-01-01T00:00:00Z',
             started_at: '2024-01-02T00:00:00Z',
             lifecycle: 'active',
@@ -46,6 +46,22 @@ jest.mock('@/store/bots', () => ({
     ],
   }),
 }));
+
+jest.mock('@/store/mascot', () => ({
+  useMascotLooks: () => ({
+    looks: {},
+    setLook: jest.fn(),
+    resetLook: jest.fn(),
+  }),
+}));
+
+jest.mock('@/components/Mascot', () => ({
+  Mascot: ({ slug, size }: { slug: string; size?: number }) => (
+    <View testID={`mascot-${slug}`} style={{ width: size ?? 36, height: size ?? 36 }} />
+  ),
+}));
+
+import { View } from 'react-native';
 
 describe('BotCardSheet', () => {
   it('renders bot info', async () => {

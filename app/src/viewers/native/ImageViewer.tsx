@@ -1,0 +1,3 @@
+import { useState } from "react";
+import type { ViewerProps } from "../registry";
+export default function ImageViewer({ file, contentUrl }: ViewerProps) { const [scale, setScale] = useState(1); return <div className="flex h-full flex-col"><div className="flex gap-2 border-b border-white/10 p-2 text-xs"><button onClick={() => setScale((x) => Math.max(.25, x - .25))}>−</button><span>{Math.round(scale * 100)}%</span><button onClick={() => setScale((x) => Math.min(4, x + .25))}>+</button><button onClick={() => setScale(1)}>Fit</button></div><div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4"><img src={contentUrl} alt={file.name} style={{ transform: `scale(${scale})` }} className="max-h-full max-w-full object-contain" /></div></div>; }

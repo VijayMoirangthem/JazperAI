@@ -1,0 +1,5 @@
+export interface FollowState { leader: string; follower: string; startedAt: number; status: "following" | "blocked" | "stopped" }
+export const canFollow = (chain: readonly FollowState[], leader: string, follower: string): boolean => leader !== follower && chain.filter(item => item.status === "following").length < 5 && !chain.some(item => item.follower === leader && item.status === "following");
+export const beginFollow = (chain: readonly FollowState[], leader: string, follower: string, now: number): FollowState | null => canFollow(chain, leader, follower) ? { leader, follower, startedAt: now, status: "following" } : null;
+export interface CallOver { slug: string; origin: readonly [number, number]; requestedAt: number; status: "walking" | "arrived" | "dismissed" | "timed-out" }
+export const resolveCallOver = (call: CallOver, now: number, distance: number): CallOver => now - call.requestedAt > 60000 ? { ...call, status: "timed-out" } : distance <= 1.5 ? { ...call, status: "arrived" } : call;

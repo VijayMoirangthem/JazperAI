@@ -1,0 +1,1 @@
+export const EMOTES={wave:"👋",thumbsup:"👍",clap:"👏",laugh:"😄",question:"❓",heart:"❤️",coffee:"☕",thinking:"💭",sleep:"💤"} as const;export type Emote=keyof typeof EMOTES;export const canEmote=(last:number,now:number,cooldown=1200)=>now-last>=cooldown;

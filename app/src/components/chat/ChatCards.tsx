@@ -10,7 +10,7 @@ import { useFileViewer } from "@/stores/fileViewerStore";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface Suggestion { id: string; name: string; why: string; status: string; connectable: boolean; untested?: boolean }
-export interface UiRequest { kind: "credentials" | "oauth" | "suggestions" | "confirm" | "file"; file_id?: string; name?: string; mime?: string; open?: boolean; action?: string; scope?: string; label?: string; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean; capability?: string; reason?: string }
+export interface UiRequest { kind: "credentials" | "oauth" | "suggestions" | "confirm" | "file"; file_id?: string; src?: string; id?: string; name?: string; mime?: string; size?: number; modified?: string; webUrl?: string; preview?: string; open?: boolean; action?: string; scope?: string; label?: string; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean; capability?: string; reason?: string }
 
 export function CredentialCard({ req, onDone }: { req: UiRequest; onDone: (summary: string) => void }) {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -169,14 +169,13 @@ export function ConfirmActionCard({ req, messageId }: { req: UiRequest; messageI
   );
 }
 
-/** A Drive file Jazper opened: shows a button and (for a fresh message) opens the in-app viewer tab by itself. */
+/** A source-agnostic file card. It deliberately accepts old Drive events too. */
 export function FileCard({ req, fresh }: { req: UiRequest; fresh: boolean }) {
   const opened = useRef(false);
-  const open = () => { useFileViewer.getState().open({ id: req.file_id ?? "", name: req.name ?? "file", mime: req.mime ?? "" }); window.location.hash = "files"; };
+  const ref = { src: req.src ?? "drive", id: req.id ?? req.file_id ?? "", name: req.name ?? "file", mime: req.mime ?? "application/octet-stream", size: req.size, modified: req.modified, webUrl: req.webUrl };
+  const open = (side = false) => { useFileViewer.getState().open(ref); window.location.hash = side ? `files?src=${encodeURIComponent(ref.src)}&id=${encodeURIComponent(ref.id)}` : "files"; };
   useEffect(() => { if (req.open && fresh && !opened.current) { opened.current = true; open(); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <button onClick={open} data-testid="file-card" className="flex max-w-[520px] items-center gap-3 rounded-3xl bg-white/5 px-4 py-3 text-left ring-1 ring-white/15 hover:bg-white/10">
-      <FileText size={18} className="shrink-0 opacity-70" /><span className="min-w-0 flex-1 truncate text-sm">{req.name}</span><span className="rounded-full bg-blue-600 px-3 py-1 text-xs">Open</span>
-    </button>
+    <div data-testid="file-card" className="flex max-w-[520px] items-center gap-3 rounded-3xl bg-white/5 px-4 py-3 text-left ring-1 ring-white/15"><FileText size={18} className="shrink-0 opacity-70" /><span className="min-w-0 flex-1 truncate text-sm">{req.name}</span><button onClick={() => open(true)} className="rounded-full bg-blue-600 px-3 py-1 text-xs">Open</button><button onClick={() => open()} className="rounded-full border border-white/20 px-3 py-1 text-xs">Tab</button></div>
   );
 }

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
-import * as SecureStore from 'expo-secure-store';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { NotificationToggles } from '@/notifications/routing';
+import { secureStateStorage } from './storage';
 
 interface SettingsState {
   appLock: boolean;
@@ -9,12 +9,6 @@ interface SettingsState {
   setAppLock: (enabled: boolean) => void;
   setNotificationToggle: (type: keyof NotificationToggles, enabled: boolean) => void;
 }
-
-const storage: StateStorage = {
-  getItem: (name: string) => SecureStore.getItemAsync(name),
-  setItem: (name: string, value: string) => SecureStore.setItemAsync(name, value),
-  removeItem: (name: string) => SecureStore.deleteItemAsync(name),
-};
 
 const createSettingsState = (
   set: (
@@ -38,6 +32,6 @@ const createSettingsState = (
 export const useSettings = create<SettingsState>()(
   persist(createSettingsState, {
     name: 'jasper-settings',
-    storage: createJSONStorage(() => storage),
+    storage: createJSONStorage(() => secureStateStorage),
   })
 );

@@ -71,3 +71,23 @@ test("[O3] 60 wandering people: fps", async () => {
   await shot("o3-crowd");
   fs.writeFileSync(path.join(SHOTS, "o3-crowd.json"), JSON.stringify({ medianFps: f[6], min: f[0], stats: await page.evaluate(() => window.__office3Stats) }));
 });
+
+async function measure(seconds: number) {
+  const samples: NonNullable<Window["__office3Stats"]>[] = [];
+  for (let second = 0; second < seconds; second++) {
+    await page.waitForTimeout(1000);
+    const sample = await page.evaluate(() => window.__office3Stats);
+    if (sample) samples.push(sample);
+  }
+  return samples;
+}
+
+test("[V3] perf gate", async () => {
+  await openPanel("office3", "?bots=60&wander=1&quality=high");
+  await expect(page.locator('[data-testid="office3-host"] canvas').first()).toBeAttached({ timeout: 60_000 });
+  const samples = await measure(5);
+  expect(samples.length).toBeGreaterThan(0);
+  const fps = samples.map((sample) => sample.fps).sort((a, b) => a - b);
+  expect(fps[Math.floor(fps.length / 2)]).toBeGreaterThanOrEqual(55);
+  await shot("v3-perf-gate");
+});

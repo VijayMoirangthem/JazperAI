@@ -1,0 +1,2 @@
+import type { ViewerProps } from "../registry";
+export default function MediaViewer({ file, contentUrl }: ViewerProps) { const video = file.mime.startsWith("video/") || /\.(mp4|webm|mov|mkv)$/i.test(file.name); return <div className="flex h-full items-center justify-center bg-black p-4">{video ? <video controls autoPlay src={contentUrl} className="max-h-full max-w-full" /> : <div className="w-full max-w-xl"><p className="mb-5 text-center text-lg">{file.name}</p><audio controls autoPlay src={contentUrl} className="w-full" /></div>}</div>; }

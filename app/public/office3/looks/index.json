@@ -1,0 +1,702 @@
+[
+  {
+    "id": "office-ara",
+    "file": "/office3/characters/office-ara.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-bomi",
+    "file": "/office3/characters/office-bomi.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-chan",
+    "file": "/office3/characters/office-chan.glb",
+    "gender": "a",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-daeun",
+    "file": "/office3/characters/office-daeun.glb",
+    "gender": "b",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-dami",
+    "file": "/office3/characters/office-dami.glb",
+    "gender": "a",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-do",
+    "file": "/office3/characters/office-do.glb",
+    "gender": "b",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-dohun",
+    "file": "/office3/characters/office-dohun.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-eun",
+    "file": "/office3/characters/office-eun.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-eunsol",
+    "file": "/office3/characters/office-eunsol.glb",
+    "gender": "a",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-garam",
+    "file": "/office3/characters/office-garam.glb",
+    "gender": "b",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-gonu",
+    "file": "/office3/characters/office-gonu.glb",
+    "gender": "a",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-ha",
+    "file": "/office3/characters/office-ha.glb",
+    "gender": "b",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-haena",
+    "file": "/office3/characters/office-haena.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-haram",
+    "file": "/office3/characters/office-haram.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-hosu",
+    "file": "/office3/characters/office-hosu.glb",
+    "gender": "a",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-hyejin",
+    "file": "/office3/characters/office-hyejin.glb",
+    "gender": "b",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-hyeon",
+    "file": "/office3/characters/office-hyeon.glb",
+    "gender": "a",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-hyo",
+    "file": "/office3/characters/office-hyo.glb",
+    "gender": "b",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-ian",
+    "file": "/office3/characters/office-ian.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-jaewon",
+    "file": "/office3/characters/office-jaewon.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-jiho",
+    "file": "/office3/characters/office-jiho.glb",
+    "gender": "a",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-jin",
+    "file": "/office3/characters/office-jin.glb",
+    "gender": "b",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-jiseok",
+    "file": "/office3/characters/office-jiseok.glb",
+    "gender": "a",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-jua",
+    "file": "/office3/characters/office-jua.glb",
+    "gender": "b",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-jun",
+    "file": "/office3/characters/office-jun.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-jungwon",
+    "file": "/office3/characters/office-jungwon.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-kyu",
+    "file": "/office3/characters/office-kyu.glb",
+    "gender": "a",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-kyung",
+    "file": "/office3/characters/office-kyung.glb",
+    "gender": "b",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-min",
+    "file": "/office3/characters/office-min.glb",
+    "gender": "a",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-mira",
+    "file": "/office3/characters/office-mira.glb",
+    "gender": "b",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-nari",
+    "file": "/office3/characters/office-nari.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-roan",
+    "file": "/office3/characters/office-roan.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-rumi",
+    "file": "/office3/characters/office-rumi.glb",
+    "gender": "a",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-sejin",
+    "file": "/office3/characters/office-sejin.glb",
+    "gender": "b",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-seo",
+    "file": "/office3/characters/office-seo.glb",
+    "gender": "a",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-seok",
+    "file": "/office3/characters/office-seok.glb",
+    "gender": "b",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-seona",
+    "file": "/office3/characters/office-seona.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-sera",
+    "file": "/office3/characters/office-sera.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-seul",
+    "file": "/office3/characters/office-seul.glb",
+    "gender": "a",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-soi",
+    "file": "/office3/characters/office-soi.glb",
+    "gender": "b",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-suhye",
+    "file": "/office3/characters/office-suhye.glb",
+    "gender": "a",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-sungho",
+    "file": "/office3/characters/office-sungho.glb",
+    "gender": "b",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-tae",
+    "file": "/office3/characters/office-tae.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-taemin",
+    "file": "/office3/characters/office-taemin.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-woojin",
+    "file": "/office3/characters/office-woojin.glb",
+    "gender": "a",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-yena",
+    "file": "/office3/characters/office-yena.glb",
+    "gender": "b",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-yeon",
+    "file": "/office3/characters/office-yeon.glb",
+    "gender": "a",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-yul",
+    "file": "/office3/characters/office-yul.glb",
+    "gender": "b",
+    "bodyType": "c",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-yumin",
+    "file": "/office3/characters/office-yumin.glb",
+    "gender": "a",
+    "bodyType": "a",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  },
+  {
+    "id": "office-yun",
+    "file": "/office3/characters/office-yun.glb",
+    "gender": "b",
+    "bodyType": "b",
+    "paletteRegions": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes"
+    ],
+    "thumbnail": null
+  }
+]
