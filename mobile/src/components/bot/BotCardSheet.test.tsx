@@ -55,13 +55,15 @@ jest.mock('@/store/mascot', () => ({
   }),
 }));
 
-jest.mock('@/components/Mascot', () => ({
-  Mascot: ({ slug, size }: { slug: string; size?: number }) => (
-    <View testID={`mascot-${slug}`} style={{ width: size ?? 36, height: size ?? 36 }} />
-  ),
-}));
-
-import { View } from 'react-native';
+jest.mock('@/components/Mascot', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    Mascot: jest.fn(({ slug, size }: { slug: string; size?: number }) =>
+      React.createElement(View, { testID: `mascot-${slug}`, style: { width: size ?? 36, height: size ?? 36 } })
+    ),
+  };
+});
 
 describe('BotCardSheet', () => {
   it('renders bot info', async () => {

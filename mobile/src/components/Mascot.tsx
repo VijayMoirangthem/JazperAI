@@ -10,7 +10,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Defs, G, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Defs, G, LinearGradient, Path } from 'react-native-svg';
 import { MASCOT_BODIES, MascotBodyId } from '@/mascot/bodies';
 import { mascotGradient } from '@/utils/mascot';
 import { lookFor, useMascotLooks } from '@/store/mascot';

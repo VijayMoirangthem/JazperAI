@@ -9,8 +9,6 @@ describe('mascot looks store', () => {
     act(() => {
       useMascotLooks.setState({
         looks: {},
-        setLook: () => {},
-        resetLook: () => {},
       });
     });
   });

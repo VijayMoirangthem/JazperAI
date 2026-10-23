@@ -1,6 +1,6 @@
-import { View, StyleSheet, ScrollView, Platform, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import React from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { BotCardResponse } from '@/api/types';
 import { useBots } from '@/store/bots';
 import { Mascot } from '@/components/Mascot';
@@ -18,7 +18,6 @@ import {
 } from '@/components/ui';
 
 export default function BotCardSheet() {
-  const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { groups } = useBots();
 
