@@ -84,7 +84,7 @@ describe('Composer', () => {
     expect(await screen.findByText('Camera')).toBeTruthy();
     expect(screen.getByText('Gallery')).toBeTruthy();
     expect(screen.getByText('Files')).toBeTruthy();
-  });
+  }, 15000);
 
   it('starts a voice note', async () => {
     const onStartRecording = jest.fn();

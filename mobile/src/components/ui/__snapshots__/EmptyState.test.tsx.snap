@@ -13,6 +13,7 @@ exports[`EmptyState applies custom styles 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "red",
@@ -41,6 +42,7 @@ exports[`EmptyState renders action button 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#f2f2f2",
@@ -100,6 +102,7 @@ exports[`EmptyState renders action button 1`] = `
     }
   >
     <Text
+      maxFontSizeMultiplier={1.5}
       style={
         {
           "color": "#ffffff",
@@ -127,6 +130,7 @@ exports[`EmptyState renders subtitle 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#f2f2f2",
@@ -140,6 +144,7 @@ exports[`EmptyState renders subtitle 1`] = `
     No items
   </Text>
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "rgba(255,255,255,0.55)",
@@ -168,6 +173,7 @@ exports[`EmptyState renders title 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#f2f2f2",

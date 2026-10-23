@@ -40,7 +40,7 @@ describe('MessageBubble', () => {
   it('calls onLongPress when the bubble is held', async () => {
     const onLongPress = jest.fn();
     const { getByLabelText } = await render(<MessageBubble message={makeMessage()} onLongPress={onLongPress} />);
-    fireEvent(getByLabelText('Bot message'), 'longPress');
+    fireEvent(getByLabelText(/^Bot message/), 'longPress');
     expect(onLongPress).toHaveBeenCalledTimes(1);
   });
 
@@ -78,6 +78,15 @@ describe('MessageBubble', () => {
       <MessageBubble message={makeMessage({ status: 'streaming' })} isLastBotMessage onThumbsUp={jest.fn()} />
     );
     expect(queryByLabelText('Thumbs up')).toBeNull();
+  });
+
+  it('shows a queued user message waiting for a connection', async () => {
+    const { getByText } = await render(
+      <MessageBubble message={makeMessage({ role: 'user', text: 'Queued hello', status: 'queued' })} />
+    );
+
+    expect(getByText('Queued hello')).toBeTruthy();
+    expect(getByText('Waiting for connection')).toBeTruthy();
   });
 
   it('renders a tool chip with its label', async () => {

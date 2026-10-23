@@ -9,7 +9,6 @@ import { Bot, BotGroup } from '@/api/types';
 import {
   Screen,
   Text,
-  Card,
   Divider,
   Badge,
   EmptyState,
@@ -136,6 +135,10 @@ export default function ChatsScreen() {
           placeholder="Search bots..."
           style={styles.searchInput}
           placeholderTextColor="rgba(255,255,255,0.3)"
+          accessibilityLabel="Search bots"
+          returnKeyType="search"
+          autoCapitalize="none"
+          autoCorrect={false}
         />
       </View>
 
@@ -154,7 +157,6 @@ export default function ChatsScreen() {
           return (
             <BotRow
               bot={item.bot}
-              router={router}
               onPress={() => router.push(`/chat/${item.bot.slug}` as any)}
               onLongPress={() => router.push(`/bot/${item.bot.slug}` as any)}
             />
@@ -177,23 +179,26 @@ export default function ChatsScreen() {
   );
 }
 
-function BotRow({ bot, router, onPress, onLongPress }: { bot: import('@/api/types').Bot; router: ReturnType<typeof useRouter>; onPress: () => void; onLongPress: () => void }) {
+function BotRow({ bot, onPress, onLongPress }: { bot: import('@/api/types').Bot; onPress: () => void; onLongPress: () => void }) {
   return (
     <TouchableOpacity
       style={styles.row}
-      onPress={() => router.push(`/chat/${bot.slug}` as any)}
-      onLongPress={() => router.push(`/bot/${bot.slug}` as any)}
+      onPress={onPress}
+      onLongPress={onLongPress}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`Chat with ${bot.display_name}, ${bot.position}`}
+      accessibilityHint="Double tap to open the chat. Long press for the bot card."
     >
       <Mascot slug={bot.slug} size={36} animated={false} />
-      <TouchableOpacity style={styles.content} activeOpacity={1}>
+      <View style={styles.content}>
         <Text variant="body" style={styles.name} numberOfLines={1}>
           {bot.display_name}
         </Text>
         <Text variant="caption" style={styles.position} numberOfLines={1}>
           {bot.position}
         </Text>
-      </TouchableOpacity>
+      </View>
       <Badge score={bot.score} />
     </TouchableOpacity>
   );

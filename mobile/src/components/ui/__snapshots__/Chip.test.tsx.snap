@@ -20,6 +20,7 @@ exports[`Chip applies selected styles 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#ffffff",
@@ -54,6 +55,7 @@ exports[`Chip renders children 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#f2f2f2",

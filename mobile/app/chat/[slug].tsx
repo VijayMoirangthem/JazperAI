@@ -9,7 +9,7 @@ import { useChat } from '@/store/chat';
 import { useBots } from '@/store/bots';
 import { useAuth } from '@/auth/useAuth';
 import { Message } from '@/db/chat';
-import { Spinner, SheetModal, Button, EmptyState } from '@/components/ui';
+import { SheetModal, Button, EmptyState } from '@/components/ui';
 import { Mascot } from '@/components/Mascot';
 import { Composer } from '@/components/chat/Composer';
 import { MessageBubble } from '@/components/chat/MessageBubble';
@@ -61,6 +61,11 @@ export default function ChatScreen() {
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const atBottom = useRef(true);
   const listRef = useRef<FlashListRef<Message> | null>(null);
+  const messagesRef = useRef(messages);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const speakingMessageId = useSpeech((state) => state.messageId);
   const speak = useSpeech((state) => state.speak);
@@ -186,7 +191,7 @@ export default function ChatScreen() {
   const handleLongPress = useCallback(
     (message: Message) => {
       const isUser = message.role === 'user';
-      const isLastBot = isLastBotMessageId(messages, message.id);
+      const isLastBot = isLastBotMessageId(messagesRef.current, message.id);
       const buttons: { text: string; onPress: () => void; style?: 'destructive' | 'cancel' }[] = [
         { text: 'Copy', onPress: () => void handleCopy(message) },
         { text: 'Delete', onPress: () => deleteMessage(botSlug, message.id), style: 'destructive' },
@@ -212,7 +217,7 @@ export default function ChatScreen() {
 
       Alert.alert('Message actions', '', buttons);
     },
-    [botSlug, deleteMessage, editMessage, handleCopy, messages, regenerate]
+    [botSlug, deleteMessage, editMessage, handleCopy, regenerate]
   );
 
   const handleOpenLink = useCallback((url: string) => {
@@ -230,13 +235,62 @@ export default function ChatScreen() {
     }
   }, [pendingLink]);
 
-  const lastAssistant = useMemo(() => {
+  const lastBotId = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
-      if (messages[index].role === 'assistant') return messages[index];
+      if (messages[index].role === 'assistant') return messages[index].id;
     }
     return null;
   }, [messages]);
-  const thinking = streaming && (!lastAssistant || lastAssistant.text.length === 0);
+
+  const handleThumb = useCallback(
+    (messageId: number, up: boolean) => {
+      setThumbs(botSlug, messageId, up);
+    },
+    [botSlug, setThumbs]
+  );
+
+  const handleSpeak = useCallback(
+    (message: Message) => {
+      void speak(message);
+    },
+    [speak]
+  );
+
+  const handleStopSpeak = useCallback(() => {
+    void stopSpeaking();
+  }, [stopSpeaking]);
+
+  const handleCopyCode = useCallback((code: string) => {
+    void copyToClipboard(code);
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: Message }) => (
+      <ChatMessageRow
+        message={item}
+        isLastBotMessage={item.id === lastBotId}
+        thumb={thumbs[item.id] ?? null}
+        speaking={speakingMessageId === item.id}
+        onLongPress={handleLongPress}
+        onPressLink={handleOpenLink}
+        onCopyCode={handleCopyCode}
+        onThumb={handleThumb}
+        onSpeak={handleSpeak}
+        onStopSpeak={handleStopSpeak}
+      />
+    ),
+    [
+      handleCopyCode,
+      handleLongPress,
+      handleOpenLink,
+      handleSpeak,
+      handleStopSpeak,
+      handleThumb,
+      lastBotId,
+      speakingMessageId,
+      thumbs,
+    ]
+  );
 
   if (!botSlug) {
     return (
@@ -248,7 +302,11 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View
+        style={styles.header}
+        accessibilityRole="header"
+        accessibilityLabel={`Chat with ${bot?.display_name ?? botSlug}`}
+      >
         <Mascot slug={botSlug} size={36} state={streaming ? 'thinking' : 'idle'} animated />
         <View style={styles.headerText}>
           <Text style={styles.name}>{bot?.display_name ?? botSlug}</Text>
@@ -266,25 +324,7 @@ export default function ChatScreen() {
         data={listData}
         inverted
         keyExtractor={(item: Message) => String(item.id)}
-        renderItem={({ item }: { item: Message }) => (
-          <MessageBubble
-            message={item}
-            isLastBotMessage={isLastBotMessageId(messages, item.id)}
-            thumb={thumbs[item.id] ?? null}
-            onLongPress={() => handleLongPress(item)}
-            onPressLink={handleOpenLink}
-            onCopyCode={(code: string) => void copyToClipboard(code)}
-            onThumbsUp={() => setThumbs(botSlug, item.id, true)}
-            onThumbsDown={() => setThumbs(botSlug, item.id, false)}
-            speaking={speakingMessageId === item.id}
-            onSpeak={
-              item.role === 'assistant' && item.text.trim().length > 0
-                ? () => void speak(item)
-                : undefined
-            }
-            onStopSpeak={() => void stopSpeaking()}
-          />
-        )}
+        renderItem={renderItem}
         onScroll={handleScroll}
         scrollEventThrottle={50}
         contentContainerStyle={styles.listContent}
@@ -349,6 +389,50 @@ export default function ChatScreen() {
     </View>
   );
 }
+
+interface ChatMessageRowProps {
+  message: Message;
+  isLastBotMessage: boolean;
+  thumb: boolean | null;
+  speaking: boolean;
+  onLongPress: (message: Message) => void;
+  onPressLink: (url: string) => void;
+  onCopyCode: (code: string) => void;
+  onThumb: (messageId: number, up: boolean) => void;
+  onSpeak: (message: Message) => void;
+  onStopSpeak: () => void;
+}
+
+const ChatMessageRow = React.memo(function ChatMessageRow({
+  message,
+  isLastBotMessage,
+  thumb,
+  speaking,
+  onLongPress,
+  onPressLink,
+  onCopyCode,
+  onThumb,
+  onSpeak,
+  onStopSpeak,
+}: ChatMessageRowProps) {
+  const canSpeak = message.role === 'assistant' && message.text.trim().length > 0;
+
+  return (
+    <MessageBubble
+      message={message}
+      isLastBotMessage={isLastBotMessage}
+      thumb={thumb}
+      onLongPress={() => onLongPress(message)}
+      onPressLink={onPressLink}
+      onCopyCode={onCopyCode}
+      onThumbsUp={() => onThumb(message.id, true)}
+      onThumbsDown={() => onThumb(message.id, false)}
+      speaking={speaking}
+      onSpeak={canSpeak ? () => onSpeak(message) : undefined}
+      onStopSpeak={speaking ? onStopSpeak : undefined}
+    />
+  );
+});
 
 function isLastBotMessageId(messages: Message[], id: number): boolean {
   for (let index = messages.length - 1; index >= 0; index -= 1) {

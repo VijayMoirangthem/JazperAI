@@ -2,6 +2,7 @@
 
 exports[`Text applies caption variant styles 1`] = `
 <Text
+  maxFontSizeMultiplier={1.5}
   style={
     {
       "color": "rgba(255,255,255,0.55)",
@@ -17,6 +18,7 @@ exports[`Text applies caption variant styles 1`] = `
 
 exports[`Text applies muted variant styles 1`] = `
 <Text
+  maxFontSizeMultiplier={1.5}
   style={
     {
       "color": "rgba(255,255,255,0.55)",
@@ -30,6 +32,7 @@ exports[`Text applies muted variant styles 1`] = `
 
 exports[`Text applies title variant styles 1`] = `
 <Text
+  maxFontSizeMultiplier={1.5}
   style={
     {
       "color": "#f2f2f2",
@@ -44,6 +47,7 @@ exports[`Text applies title variant styles 1`] = `
 
 exports[`Text passes numberOfLines prop 1`] = `
 <Text
+  maxFontSizeMultiplier={1.5}
   numberOfLines={2}
   style={
     {
@@ -58,6 +62,7 @@ exports[`Text passes numberOfLines prop 1`] = `
 
 exports[`Text renders children 1`] = `
 <Text
+  maxFontSizeMultiplier={1.5}
   style={
     {
       "color": "#f2f2f2",

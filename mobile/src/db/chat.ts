@@ -3,7 +3,7 @@ import { openDatabaseSync } from 'expo-sqlite';
 const db = openDatabaseSync('jasper.db');
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool' | 'ui';
-export type MessageStatus = 'sending' | 'sent' | 'streaming' | 'done' | 'error';
+export type MessageStatus = 'queued' | 'sending' | 'sent' | 'streaming' | 'done' | 'error';
 
 export interface Message {
   id: number;
@@ -127,16 +127,21 @@ export function getLastUserMessage(botSlug: string): Message | null {
   return rows[0] ?? null;
 }
 
-export function addToOutbox(botSlug: string, payload: unknown): void {
-  db.runSync('INSERT INTO outbox (bot_slug, payload_json, created_at) VALUES (?, ?, ?)', [
+export function addToOutbox(botSlug: string, payload: unknown): number {
+  const result = db.runSync('INSERT INTO outbox (bot_slug, payload_json, created_at) VALUES (?, ?, ?)', [
     botSlug,
     JSON.stringify(payload),
     Date.now(),
   ]);
+  return result.lastInsertRowId;
 }
 
 export function getOutboxItems(): OutboxItem[] {
-  return db.getAllSync<OutboxItem>('SELECT * FROM outbox ORDER BY created_at ASC');
+  return db.getAllSync<OutboxItem>('SELECT * FROM outbox ORDER BY created_at ASC, id ASC');
+}
+
+export function clearOutbox(): void {
+  db.runSync('DELETE FROM outbox');
 }
 
 export function removeOutboxItem(id: number): void {

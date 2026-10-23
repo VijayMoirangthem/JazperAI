@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { AppState, Pressable, StyleSheet, View } from 'react-native';
+import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useRouter, Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { CommsThread, SLO } from '@/api/types';
@@ -75,7 +75,17 @@ export default function ActivityScreen() {
           <Spinner />
         </View>
       ) : (
-        <View style={styles.body}>
+        <ScrollView
+          style={styles.body}
+          contentContainerStyle={styles.bodyContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={() => void load()}
+              tintColor={theme.colors.muted}
+            />
+          }
+        >
           <View style={styles.tiles}>
             {status?.slos.map((slo) => (
               <View key={slo.slo} style={styles.tile}>
@@ -134,7 +144,7 @@ export default function ActivityScreen() {
               ))}
             </View>
           )}
-        </View>
+        </ScrollView>
       )}
 
       <StatusBar style="light" />
@@ -163,6 +173,9 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     paddingHorizontal: theme.spacing.md,
+  },
+  bodyContent: {
+    paddingBottom: theme.spacing.xl,
   },
   tiles: {
     flexDirection: 'row',

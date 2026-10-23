@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { AppState, Pressable, StyleSheet, View } from 'react-native';
+import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { CommsMessage } from '@/api/types';
@@ -73,7 +73,17 @@ export default function ThreadScreen() {
           <Spinner />
         </View>
       ) : (
-        <View style={styles.list}>
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={() => void load(threadId)}
+              tintColor={theme.colors.muted}
+            />
+          }
+        >
           {messages.length === 0 ? (
             <EmptyState
               title="No messages yet"
@@ -99,7 +109,7 @@ export default function ThreadScreen() {
               </View>
             ))
           )}
-        </View>
+        </ScrollView>
       )}
 
       <StatusBar style="light" />
@@ -135,6 +145,9 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     paddingHorizontal: theme.spacing.md,
+  },
+  listContent: {
+    paddingBottom: theme.spacing.xl,
   },
   message: {
     paddingVertical: theme.spacing.md,

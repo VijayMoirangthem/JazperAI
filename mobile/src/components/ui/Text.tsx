@@ -46,6 +46,7 @@ export function Text({
       style={StyleSheet.flatten([variantStyles[variant], style])}
       accessibilityLabel={accessibilityLabel}
       numberOfLines={numberOfLines}
+      maxFontSizeMultiplier={1.5}
     >
       {children}
     </RNText>

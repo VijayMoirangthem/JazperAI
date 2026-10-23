@@ -26,7 +26,7 @@ function formatTime(ts: number): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export function MessageBubble({
+export const MessageBubble = React.memo(function MessageBubble({
   message,
   isLastBotMessage = false,
   thumb = null,
@@ -67,6 +67,8 @@ export function MessageBubble({
   const isUser = message.role === 'user';
   const showThumbs = isLastBotMessage && message.status === 'done' && (onThumbsUp !== undefined || onThumbsDown !== undefined);
   const attachments = parseAttachments(message);
+  const sender = isUser ? 'Your message' : 'Bot message';
+  const bubbleLabel = message.text.trim() ? `${sender}: ${message.text}` : sender;
 
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowBot]}>
@@ -75,7 +77,9 @@ export function MessageBubble({
         onLongPress={onLongPress}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel={isUser ? 'Your message' : 'Bot message'}
+        accessibilityLabel={bubbleLabel}
+        accessibilityHint={onLongPress ? 'Long press for message actions' : undefined}
+        accessibilityState={{ busy: message.status === 'streaming' }}
       >
         {attachments.length > 0 ? (
           <View style={styles.attachments}>
@@ -104,6 +108,12 @@ export function MessageBubble({
         ) : null}
         <MarkdownLite text={message.text} onPressLink={onPressLink} onCopyCode={onCopyCode} />
         <View style={styles.meta}>
+          {message.status === 'queued' ? (
+            <View style={styles.queued}>
+              <Text style={styles.queuedIcon}>{'\u23F1'}</Text>
+              <Text style={styles.queuedText}>Waiting for connection</Text>
+            </View>
+          ) : null}
           {!isUser && onSpeak ? (
             <TouchableOpacity
               onPress={speaking ? onStopSpeak : onSpeak}
@@ -139,7 +149,7 @@ export function MessageBubble({
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 function ToolChip({ message }: { message: Message }) {
   const payload = getToolPayload(message);
@@ -238,6 +248,19 @@ const styles = StyleSheet.create({
   time: {
     fontSize: theme.fontSizes.xs,
     color: theme.colors.muted,
+  },
+  queued: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  queuedIcon: {
+    fontSize: theme.fontSizes.xs,
+    color: theme.colors.warning,
+  },
+  queuedText: {
+    fontSize: theme.fontSizes.xs,
+    color: theme.colors.warning,
   },
   speakButton: {
     paddingHorizontal: 2,

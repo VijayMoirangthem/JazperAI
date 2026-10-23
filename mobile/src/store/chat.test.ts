@@ -1,7 +1,18 @@
-import { Message, deleteMessage as deleteMessageRow, deleteMessagesFromId, insertMessage } from '@/db/chat';
+import {
+  Message,
+  OutboxItem,
+  addToOutbox,
+  deleteMessage as deleteMessageRow,
+  deleteMessagesFromId,
+  getOutboxItems,
+  insertMessage,
+  removeOutboxItem,
+} from '@/db/chat';
 import { streamChat } from '@/api/ndjson';
-import { ChatEvent } from '@/api/types';
+import { ChatEvent, ChatHistoryItem, Attachment } from '@/api/types';
 import { applyChatEvent, buildHistory, getToolPayload, useChat } from './chat';
+import { useSystem } from './system';
+import { resetOutboxGuard } from '@/utils/outbox';
 
 jest.mock('@/db/chat', () => {
   let nextId = 0;
@@ -15,6 +26,10 @@ jest.mock('@/db/chat', () => {
     updateMessage: jest.fn(),
     deleteMessage: jest.fn(),
     deleteMessagesFromId: jest.fn(),
+    addToOutbox: jest.fn(() => 1),
+    getOutboxItems: jest.fn(() => []),
+    removeOutboxItem: jest.fn(),
+    clearOutbox: jest.fn(),
   };
 });
 
@@ -84,6 +99,24 @@ function userMessage(overrides: Partial<Message> = {}): Message {
     ts: 1,
     status: 'sent',
     ...overrides,
+  };
+}
+
+function outboxItem(
+  id: number,
+  text: string,
+  overrides: { messageId?: number; history?: ChatHistoryItem[]; attachments?: Attachment[] } = {}
+): OutboxItem {
+  return {
+    id,
+    bot_slug: 'jasper',
+    payload_json: JSON.stringify({
+      messageId: overrides.messageId ?? id,
+      text,
+      history: overrides.history ?? [],
+      attachments: overrides.attachments ?? [],
+    }),
+    created_at: id,
   };
 }
 
@@ -312,6 +345,10 @@ describe('chat store', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useChat.setState({ messagesByBot: {}, streamingByBot: {}, errorByBot: {}, thumbsByBot: {} });
+    useSystem.setState({ banner: null });
+    resetOutboxGuard();
+    (getOutboxItems as jest.Mock).mockReturnValue([]);
+    (addToOutbox as jest.Mock).mockReturnValue(1);
     (streamChat as jest.Mock).mockResolvedValue(emptyStream());
   });
 
@@ -375,13 +412,88 @@ describe('chat store', () => {
     expect(useChat.getState().streamingByBot.jasper).toBe(false);
   });
 
-  it('shows the error when the request fails', async () => {
-    (streamChat as jest.Mock).mockRejectedValue(new Error('Network request failed'));
+  it('queues the message when the network is down', async () => {
+    (streamChat as jest.Mock).mockRejectedValue(new TypeError('Network request failed'));
 
     await useChat.getState().send('jasper', 'hello', []);
 
-    expect(useChat.getState().errorByBot.jasper).toBe('Network request failed');
+    expect(useChat.getState().messagesByBot.jasper[0].status).toBe('queued');
+    expect(addToOutbox).toHaveBeenCalledWith(
+      'jasper',
+      expect.objectContaining({ text: 'hello', messageId: expect.any(Number) })
+    );
+    expect(useChat.getState().errorByBot.jasper).toBeNull();
     expect(useChat.getState().streamingByBot.jasper).toBe(false);
+    expect(useSystem.getState().banner?.kind).toBe('offline');
+  });
+
+  it('does not queue a failure after the bot started replying', async () => {
+    (streamChat as jest.Mock).mockResolvedValue(
+      (async function* interrupted(): AsyncGenerator<ChatEvent, void, unknown> {
+        yield { t: 'speaker', slug: 'jasper' };
+        yield { t: 'delta', slug: 'jasper', text: 'Half an ans' };
+        throw new TypeError('Network request failed');
+      })()
+    );
+
+    await useChat.getState().send('jasper', 'hello', []);
+
+    expect(addToOutbox).not.toHaveBeenCalled();
+    expect(useChat.getState().messagesByBot.jasper[0].status).toBe('sent');
+    expect(useChat.getState().errorByBot.jasper).toContain('Connection lost');
+    expect(useSystem.getState().banner?.kind).toBe('offline');
+  });
+
+  it('shows the slow down banner when the desktop rate limits', async () => {
+    const error = new Error('Rate limit exceeded');
+    error.name = 'RateLimitError';
+    (streamChat as jest.Mock).mockRejectedValue(error);
+
+    await useChat.getState().send('jasper', 'hello', []);
+
+    expect(useSystem.getState().banner?.kind).toBe('rate-limited');
+    expect(addToOutbox).not.toHaveBeenCalled();
+  });
+
+  it('sends queued messages in order and removes them', async () => {
+    (getOutboxItems as jest.Mock).mockReturnValue([outboxItem(1, 'first'), outboxItem(2, 'second')]);
+
+    await useChat.getState().flushOutbox();
+
+    expect((streamChat as jest.Mock).mock.calls.map((call) => call[1].text)).toEqual([
+      'first',
+      'second',
+    ]);
+    expect((removeOutboxItem as jest.Mock).mock.calls.map((call) => call[0])).toEqual([1, 2]);
+  });
+
+  it('never sends the same outbox item twice', async () => {
+    (getOutboxItems as jest.Mock).mockReturnValue([outboxItem(1, 'once'), outboxItem(1, 'once')]);
+
+    await useChat.getState().flushOutbox();
+
+    expect(streamChat).toHaveBeenCalledTimes(1);
+    expect(removeOutboxItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the queued message alone when it is still offline', async () => {
+    (getOutboxItems as jest.Mock).mockReturnValue([outboxItem(1, 'later')]);
+    (streamChat as jest.Mock).mockRejectedValue(new TypeError('Network request failed'));
+    useChat.setState({ messagesByBot: { jasper: [userMessage({ id: 1, text: 'later', status: 'queued' })] } });
+
+    await useChat.getState().flushOutbox();
+
+    expect(removeOutboxItem).not.toHaveBeenCalled();
+    expect(useChat.getState().messagesByBot.jasper[0].status).toBe('queued');
+    expect(useSystem.getState().banner?.kind).toBe('offline');
+  });
+
+  it('drops the queued item when the message is deleted', () => {
+    (getOutboxItems as jest.Mock).mockReturnValue([outboxItem(7, 'delete me', { messageId: 3 })]);
+
+    useChat.getState().deleteMessage('jasper', 3);
+
+    expect(removeOutboxItem).toHaveBeenCalledWith(7);
   });
 
   it('editing a message removes it and everything after it', () => {

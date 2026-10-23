@@ -16,6 +16,7 @@ exports[`Badge applies amber for score >= 60 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#000000",
@@ -47,6 +48,7 @@ exports[`Badge applies green for score >= 80 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#ffffff",
@@ -78,6 +80,7 @@ exports[`Badge applies grey for null score 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "rgba(255,255,255,0.55)",
@@ -109,6 +112,7 @@ exports[`Badge applies red for score < 60 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#ffffff",
@@ -140,6 +144,7 @@ exports[`Badge renders "new" for null score 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "rgba(255,255,255,0.55)",
@@ -171,6 +176,7 @@ exports[`Badge renders score number 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#ffffff",

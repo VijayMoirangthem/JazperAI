@@ -5,11 +5,16 @@ import { streamChat } from '@/api/ndjson';
 import { useAuth } from '@/auth/useAuth';
 import {
   Message,
+  MessageStatus,
+  OutboxItem,
+  addToOutbox,
   deleteMessage as deleteMessageRow,
   deleteMessagesFromId,
+  getOutboxItems,
   initChatDb,
   insertMessage,
   listMessages,
+  removeOutboxItem,
   updateMessage,
 } from '@/db/chat';
 
@@ -22,6 +27,9 @@ import {
   toolStatusToMessageStatus,
 } from '@/utils/chatPayload';
 import { toApiAttachment } from '@/utils/attachments';
+import { OutboxPayload, drainOutbox } from '@/utils/outbox';
+import { classifyError } from '@/utils/errors';
+import { useSystem } from './system';
 
 export { getToolPayload, getUiPayload, parseAttachments };
 export type { ToolPayload, UiPayload };
@@ -227,6 +235,7 @@ export interface ChatState {
   thumbsByBot: Record<string, Record<number, boolean>>;
   loadMessages: (slug: string, limit?: number) => void;
   send: (slug: string, text: string, attachments: Attachment[]) => Promise<void>;
+  flushOutbox: () => Promise<void>;
   stop: (slug: string) => void;
   retry: (slug: string) => Promise<void>;
   regenerate: (slug: string) => Promise<void>;
@@ -323,22 +332,37 @@ function closeStreamingMessages(slug: string, set: SetState, get: GetState): voi
   set((state) => ({ messagesByBot: { ...state.messagesByBot, [slug]: persisted } }));
 }
 
+type StreamStatus = 'ok' | 'aborted' | 'offline' | 'unpaired' | 'rate-limited' | 'error';
+
+interface StreamOutcome {
+  status: StreamStatus;
+  received: number;
+}
+
+interface RunStreamOptions {
+  silent?: boolean;
+}
+
 async function runStream(
   slug: string,
   text: string,
   history: ChatHistoryItem[],
   attachments: Attachment[],
   set: SetState,
-  get: GetState
-): Promise<void> {
+  get: GetState,
+  options: RunStreamOptions = {}
+): Promise<StreamOutcome> {
   const auth = useAuth.getState();
   const credentials = auth.credentials;
 
   if (!credentials) {
-    set((state) => ({
-      errorByBot: { ...state.errorByBot, [slug]: 'This phone is not paired with a desktop.' },
-    }));
-    return;
+    useSystem.getState().showBanner('unpaired');
+    if (!options.silent) {
+      set((state) => ({
+        errorByBot: { ...state.errorByBot, [slug]: 'This phone is not paired with a desktop.' },
+      }));
+    }
+    return { status: 'unpaired', received: 0 };
   }
 
   const controller = new AbortController();
@@ -347,6 +371,8 @@ async function runStream(
     streamingByBot: { ...state.streamingByBot, [slug]: true },
     errorByBot: { ...state.errorByBot, [slug]: null },
   }));
+
+  let received = 0;
 
   try {
     const client = createClient(credentials, auth.accessToken);
@@ -358,12 +384,31 @@ async function runStream(
     );
 
     for await (const event of events) {
+      received += 1;
       applyEventToStore(slug, event, set, get);
     }
+    return { status: 'ok', received };
   } catch (error) {
     if (controller.signal.aborted || isAbortError(error)) {
       closeStreamingMessages(slug, set, get);
-    } else {
+      return { status: 'aborted', received };
+    }
+
+    const kind = classifyError(error);
+    if (kind !== 'unknown') {
+      useSystem.getState().showBanner(kind);
+      if (!options.silent && kind === 'offline' && received > 0) {
+        set((state) => ({
+          errorByBot: {
+            ...state.errorByBot,
+            [slug]: 'Connection lost while replying. Tap retry.',
+          },
+        }));
+      }
+      return { status: kind, received };
+    }
+
+    if (!options.silent) {
       set((state) => ({
         errorByBot: {
           ...state.errorByBot,
@@ -371,11 +416,80 @@ async function runStream(
         },
       }));
     }
+    return { status: 'error', received };
   } finally {
     controllers.delete(slug);
     set((state) => ({ streamingByBot: { ...state.streamingByBot, [slug]: false } }));
   }
 }
+
+function setStoredStatus(
+  slug: string,
+  messageId: number,
+  status: MessageStatus,
+  set: SetState,
+  get: GetState
+): void {
+  updateMessage(messageId, { status });
+
+  const messages = get().messagesByBot[slug];
+  if (!messages) return;
+
+  const index = messages.findIndex((message) => message.id === messageId);
+  if (index < 0) return;
+
+  const next = [...messages];
+  next[index] = { ...next[index], status };
+  set((state) => ({ messagesByBot: { ...state.messagesByBot, [slug]: next } }));
+}
+
+function removeQueuedItems(messageIds: number[]): void {
+  if (messageIds.length === 0) return;
+  const ids = new Set(messageIds);
+
+  for (const item of getOutboxItems()) {
+    try {
+      const payload = JSON.parse(item.payload_json) as OutboxPayload;
+      if (ids.has(payload.messageId)) {
+        removeOutboxItem(item.id);
+      }
+    } catch {
+      // A corrupt queue row should not block deleting a message.
+    }
+  }
+}
+
+function queueMessage(
+  slug: string,
+  text: string,
+  attachments: Attachment[],
+  history: ChatHistoryItem[],
+  existing: Message[],
+  set: SetState
+): void {
+  const userMessage: Message = {
+    id: 0,
+    bot_slug: slug,
+    role: 'user',
+    from_slug: 'you',
+    text,
+    ts: Date.now(),
+    status: 'queued',
+    attachments_json: attachments.length > 0 ? JSON.stringify(attachments) : undefined,
+  };
+
+  const stored: Message = { ...userMessage, id: insertMessage(toInsertable(userMessage)) };
+  addToOutbox(slug, {
+    messageId: stored.id,
+    text,
+    history,
+    attachments,
+  } satisfies OutboxPayload);
+
+  set((state) => ({ messagesByBot: { ...state.messagesByBot, [slug]: [...existing, stored] } }));
+}
+
+let drainingOutbox = false;
 
 export const useChat = create<ChatState>((set: SetState, get: GetState) => ({
   messagesByBot: {},
@@ -393,8 +507,16 @@ export const useChat = create<ChatState>((set: SetState, get: GetState) => ({
     const trimmed = text.trim();
     if (!trimmed && attachments.length === 0) return;
 
+    initChatDb();
     const existing = get().messagesByBot[slug] ?? [];
     const history = buildHistory(existing);
+
+    // Keep ordering: anything queued has to go out before a new message.
+    if (getOutboxItems().length > 0) {
+      queueMessage(slug, trimmed, attachments, history, existing, set);
+      void get().flushOutbox();
+      return;
+    }
 
     const userMessage: Message = {
       id: 0,
@@ -410,7 +532,62 @@ export const useChat = create<ChatState>((set: SetState, get: GetState) => ({
     const stored: Message = { ...userMessage, id: insertMessage(toInsertable(userMessage)) };
     set((state) => ({ messagesByBot: { ...state.messagesByBot, [slug]: [...existing, stored] } }));
 
-    await runStream(slug, trimmed, history, attachments, set, get);
+    const outcome = await runStream(slug, trimmed, history, attachments, set, get);
+
+    if (outcome.status === 'offline' && outcome.received === 0) {
+      updateMessage(stored.id, { status: 'queued' });
+      addToOutbox(slug, {
+        messageId: stored.id,
+        text: trimmed,
+        history,
+        attachments,
+      } satisfies OutboxPayload);
+      setStoredStatus(slug, stored.id, 'queued', set, get);
+    }
+  },
+
+  flushOutbox: async (): Promise<void> => {
+    if (drainingOutbox) return;
+    if (!useAuth.getState().credentials) return;
+
+    initChatDb();
+    const items = getOutboxItems();
+    if (items.length === 0) return;
+
+    drainingOutbox = true;
+    try {
+      const result = await drainOutbox<OutboxItem>(
+        items,
+        async (item) => {
+          const payload = JSON.parse(item.payload_json) as OutboxPayload;
+          setStoredStatus(item.bot_slug, payload.messageId, 'sending', set, get);
+
+          const outcome = await runStream(
+            item.bot_slug,
+            payload.text,
+            payload.history,
+            payload.attachments,
+            set,
+            get,
+            { silent: true }
+          );
+
+          if (outcome.status !== 'ok') {
+            setStoredStatus(item.bot_slug, payload.messageId, 'queued', set, get);
+            throw new Error(`Outbox send failed: ${outcome.status}`);
+          }
+
+          setStoredStatus(item.bot_slug, payload.messageId, 'sent', set, get);
+        },
+        removeOutboxItem
+      );
+
+      if (!result.failed && useSystem.getState().banner?.kind === 'offline') {
+        useSystem.getState().dismissBanner();
+      }
+    } finally {
+      drainingOutbox = false;
+    }
   },
 
   stop: (slug: string): void => {
@@ -429,6 +606,7 @@ export const useChat = create<ChatState>((set: SetState, get: GetState) => ({
     if (userIndex < 0) return;
 
     const userMessage = messages[userIndex];
+    removeQueuedItems([userMessage.id]);
     for (const message of messages.slice(userIndex + 1)) {
       deleteMessageRow(message.id);
     }
@@ -436,7 +614,19 @@ export const useChat = create<ChatState>((set: SetState, get: GetState) => ({
     set((state) => ({ messagesByBot: { ...state.messagesByBot, [slug]: remaining } }));
 
     const history = buildHistory(remaining.slice(0, userIndex));
-    await runStream(slug, userMessage.text, history, parseAttachments(userMessage), set, get);
+    const attachments = parseAttachments(userMessage);
+    setStoredStatus(slug, userMessage.id, 'sent', set, get);
+    const outcome = await runStream(slug, userMessage.text, history, attachments, set, get);
+
+    if (outcome.status === 'offline' && outcome.received === 0) {
+      addToOutbox(slug, {
+        messageId: userMessage.id,
+        text: userMessage.text,
+        history,
+        attachments,
+      } satisfies OutboxPayload);
+      setStoredStatus(slug, userMessage.id, 'queued', set, get);
+    }
   },
 
   regenerate: async (slug: string): Promise<void> => {
@@ -476,6 +666,7 @@ export const useChat = create<ChatState>((set: SetState, get: GetState) => ({
     if (index < 0) return null;
 
     const text = messages[index].text;
+    removeQueuedItems(messages.slice(index).map((message) => message.id));
     deleteMessagesFromId(slug, messageId);
     const remaining = messages.slice(0, index);
     set((state) => ({ messagesByBot: { ...state.messagesByBot, [slug]: remaining } }));
@@ -484,6 +675,7 @@ export const useChat = create<ChatState>((set: SetState, get: GetState) => ({
 
   deleteMessage: (slug: string, messageId: number): void => {
     const messages = get().messagesByBot[slug] ?? [];
+    removeQueuedItems([messageId]);
     deleteMessageRow(messageId);
     set((state) => ({
       messagesByBot: {

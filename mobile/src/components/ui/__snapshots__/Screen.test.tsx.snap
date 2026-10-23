@@ -12,6 +12,7 @@ exports[`Screen applies custom style 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#f2f2f2",
@@ -35,6 +36,7 @@ exports[`Screen renders children 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#f2f2f2",

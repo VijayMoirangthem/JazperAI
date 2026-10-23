@@ -47,6 +47,7 @@ exports[`Button applies danger variant styles 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#ffffff",
@@ -107,6 +108,7 @@ exports[`Button applies primary variant styles 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#ffffff",
@@ -167,6 +169,7 @@ exports[`Button applies secondary variant styles 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#f2f2f2",
@@ -227,6 +230,7 @@ exports[`Button renders title 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#ffffff",
@@ -287,6 +291,7 @@ exports[`Button shows loading text when loading 1`] = `
   }
 >
   <Text
+    maxFontSizeMultiplier={1.5}
     style={
       {
         "color": "#ffffff",

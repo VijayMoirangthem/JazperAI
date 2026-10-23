@@ -60,6 +60,7 @@ exports[`SheetModal renders children when visible 1`] = `
           }
         >
           <Text
+            maxFontSizeMultiplier={1.5}
             style={
               {
                 "color": "#f2f2f2",
@@ -138,6 +139,7 @@ exports[`SheetModal renders title 1`] = `
           }
         >
           <Text
+            maxFontSizeMultiplier={1.5}
             style={
               {
                 "color": "#f2f2f2",
@@ -158,6 +160,7 @@ exports[`SheetModal renders title 1`] = `
           }
         >
           <Text
+            maxFontSizeMultiplier={1.5}
             style={
               {
                 "color": "#f2f2f2",

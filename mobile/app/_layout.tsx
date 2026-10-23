@@ -1,4 +1,4 @@
-import { Stack, useRouter, Href } from 'expo-router';
+import { Stack, useRouter, Href, ErrorBoundaryProps } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '@/auth/useAuth';
@@ -6,6 +6,8 @@ import { loadCredentials, clearCredentials } from '@/auth/secureStore';
 import { JasperClient, AuthRevokedError } from '@/api/client';
 import { useApprovals } from '@/store/approvals';
 import { useSettings } from '@/store/settings';
+import { useChat } from '@/store/chat';
+import { useSystem } from '@/store/system';
 import { configureNotifications, registerForPushNotifications } from '@/notifications/setup';
 import {
   isNotificationEnabled,
@@ -13,19 +15,49 @@ import {
   routeForNotification,
 } from '@/notifications/routing';
 import { NotificationBanner } from '@/notifications/NotificationBanner';
+import { SystemBanner } from '@/components/SystemBanner';
+import { RootError } from '@/components/RootError';
+import { startOutboxRetries } from '@/outbox/retry';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <RootError error={error} retry={retry} />;
+}
+
 export default function RootLayout() {
-  const { hydrated, credentials, setTokens, setCredentials, clear, setHydrated } = useAuth();
+  const { hydrated, credentials, setTokens, setCredentials, clear } = useAuth();
   const [initializing, setInitializing] = useState(true);
   const router = useRouter();
   const toggles = useSettings((state) => state.notificationToggles);
+  const bannerKind = useSystem((state) => state.banner?.kind ?? null);
   const lastResponse = Notifications.useLastNotificationResponse();
   const handledResponse = useRef<string | null>(null);
 
   useEffect(() => {
     configureNotifications();
   }, []);
+
+  useEffect(() => {
+    return startOutboxRetries(() => {
+      void useChat.getState().flushOutbox();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (bannerKind !== 'unpaired') return;
+
+    let cancelled = false;
+    void (async () => {
+      await clearCredentials();
+      if (cancelled) return;
+      clear();
+      router.replace('/(auth)/pair' as Href);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bannerKind, clear, router]);
 
   useEffect(() => {
     if (!credentials) return;
@@ -113,6 +145,7 @@ export default function RootLayout() {
         <Stack.Screen name="thread/[id]" />
       </Stack>
       <NotificationBanner />
+      <SystemBanner />
     </View>
   );
 }
