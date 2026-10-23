@@ -1,0 +1,26 @@
+appId: com.jasper.mobile
+---
+- launchApp
+- assertVisible:
+    text: "Chats"
+- tapOn:
+    text: "Jasper"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "chat-header"
+- tapOn:
+    id: "composer-input"
+- inputText: "Hello from Maestro test"
+- tapOn:
+    id: "send-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Hello from Maestro test"
+- assertVisible:
+    id: "streaming-indicator"
+- waitForAnimationToEnd
+    timeout: 30000
+- assertNotVisible:
+    id: "streaming-indicator"
+- assertVisible:
+    text: "Jasper"

@@ -1,0 +1,19 @@
+appId: com.jasper.mobile
+---
+- launchApp
+- assertVisible:
+    text: "Chats"
+- runScript:
+    path: ./scripts/revoke_desktop_pairing.js
+- tapOn:
+    text: "Approvals"
+- waitForAnimationToEnd
+    timeout: 5000
+- assertVisible:
+    text: "Phone unpaired"
+- assertVisible:
+    text: "This phone is no longer paired with the desktop. Pair it again to continue."
+- tapOn:
+    text: "Dismiss"
+- assertVisible:
+    text: "Pair with Jasper"

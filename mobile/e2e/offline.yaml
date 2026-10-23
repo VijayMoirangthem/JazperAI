@@ -1,0 +1,32 @@
+appId: com.jasper.mobile
+---
+- launchApp
+- assertVisible:
+    text: "Chats"
+- tapOn:
+    text: "Jasper"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "chat-header"
+- runScript:
+    path: ./scripts/enable_airplane_mode.js
+- tapOn:
+    id: "composer-input"
+- inputText: "Offline message"
+- tapOn:
+    id: "send-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Offline message"
+- assertVisible:
+    text: "Waiting for connection"
+- runScript:
+    path: ./scripts/disable_airplane_mode.js
+- waitForAnimationToEnd
+    timeout: 15000
+- assertNotVisible:
+    text: "Waiting for connection"
+- assertVisible:
+    text: "Offline message"
+- tapOn:
+    text: "Chats"

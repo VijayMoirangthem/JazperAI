@@ -41,13 +41,37 @@ Opens the app on the emulator (requires an AVD named `Pixel_4` or `Pixel_Tablet`
 
 ## Build installable APK
 
+### Local build (requires working prebuild environment)
+
 ```bash
-npx expo prebuild --platform android
+npx expo prebuild --platform android --clean
 cd android
 .\gradlew assembleRelease
 ```
 
 The APK will be at `android/app/build/outputs/apk/release/app-release-unsigned.apk`.
+
+**Note**: On Node 24+, `expo prebuild` may fail with `Cannot find module './XMLText'` (xmlbuilder/xml2js incompatibility). Workarounds:
+
+1. Use Node 20 (`nvm use 20` or install Node 20) before running prebuild
+2. Or use EAS build locally (see below)
+3. Or patch `node_modules/xml2js/node_modules/xmlbuilder` (not recommended)
+
+### EAS build (recommended)
+
+```bash
+npx eas build --local --platform android
+```
+
+Requires `eas login` and a configured `app.json` with `extra.eas.projectId`. The APK will be at the path EAS reports (typically `./build/outputs/...`).
+
+### Install on emulator
+
+```bash
+adb install -r android/app/build/outputs/apk/release/app-release-unsigned.apk
+# or for EAS build:
+adb install -r path/to/your.apk
+```
 
 ## Troubleshooting
 

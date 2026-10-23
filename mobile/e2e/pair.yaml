@@ -1,0 +1,25 @@
+appId: com.jasper.mobile
+---
+- launchApp
+- assertVisible:
+    text: "Pair with Jasper"
+- tapOn:
+    id: "server-url"
+- inputText: ${MAESTRO_URL}
+- tapOn:
+    id: "pairing-code"
+- inputText: ${MAESTRO_PAIR_CODE}
+- tapOn:
+    id: "device-name"
+- inputText: "Maestro Test Device"
+- tapOn:
+    text: "Pair"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Chats"
+- assertVisible:
+    text: "Approvals"
+- assertVisible:
+    text: "Activity"
+- assertVisible:
+    text: "Settings"

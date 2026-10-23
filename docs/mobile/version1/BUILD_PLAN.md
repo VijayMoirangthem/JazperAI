@@ -135,3 +135,41 @@ type ChatEvent =
   | { t: 'error'; slug?: string; message: string }
   | { t: string; [k: string]: unknown }; // fallback: ignore unknown types
 ```
+
+---
+
+## Actual vs Planned (after M13)
+
+| Milestone | Planned | Built | Notes |
+|-----------|---------|-------|-------|
+| M0 | Plan | ✅ | `BUILD_PLAN.md`, `QUESTIONS.md` created |
+| M1 | Scaffold Expo | ✅ | `create-expo-app`, all deps installed, expo-router, jest, eslint, prettier |
+| M2 | Theme & UI kit | ✅ | `tokens.ts`, 10 UI components, demo screen, a11y labels |
+| M3 | API client & streaming | ✅ | `JasperClient`, NDJSON reader, XHR fallback, 15+ tests |
+| M4 | Pairing & session | ✅ | Pair screen, QR scan, secure store, app lock, startup revoke flow |
+| M5 | Bot list & ID card | ✅ | FlashList with search, sqlite cache, ID card sheet with all fields |
+| M6 | Chat screen core | ✅ | SQLite messages/outbox, streaming reducer, bubbles, markdown, actions |
+| M7 | Cards & approvals | ✅ | UI cards (suggestions/oauth/credentials), Approvals tab, tier-3 biometric |
+| M8 | Attachments & voice | ✅ | Camera/Gallery/Files, voice record/transcribe, TTS playback per-bot |
+| M9 | Push notifications | ✅ | Expo push, deep links, toggles, foreground banner, token registration |
+| M10 | Activity tab | ✅ | SLO tiles, comms threads, thread viewer with polling |
+| M11 | Mascot avatars | ✅ | 10 SVG bodies, gradient, 6 states, hash-based defaults, chat header |
+| M12 | Offline, errors, a11y, perf | ✅ | Outbox queue, global banners, font-scale 150% test, memoised bubbles, error boundary |
+| M13 | E2E, release, docs | ✅ | Maestro flows, APK build steps, security checklist, README updated |
+
+### Deviations from Plan
+
+| Item | Planned | Actual | Reason |
+|------|---------|--------|--------|
+| `src/db/migrations.ts` | Schema versioning | Not created | SQLite schema is simple; no migrations needed yet |
+| `src/utils/network.ts` | Network helpers | `src/utils/errors.ts` + `src/outbox/retry.ts` | AppState + fetch failure classification covers it |
+| `src/utils/markdown.ts` | Markdown renderer | Inline in `MessageBubble` | Simple enough; no separate utility needed |
+| `src/utils/date.ts` | Date formatting | Inline in components | `toLocaleString` sufficient |
+| `src/utils/hash.ts` | Mascot hash | `src/utils/mascot.ts` | Combined with colour/body helpers |
+| `src/components/common/` | Shared components | Not created | No cross-screen components yet |
+| `src/screens/` folder | Screen components | Screens live in `app/` per expo-router | Expo Router uses file-based routing |
+| XHR fallback for streaming | `ndjsonXhr.ts` | Created but unused | `fetch` ReadableStream works on all targets |
+| Maestro E2E runs | Install Maestro | Flows written only | Maestro not confirmed; flows in `mobile/e2e/*.yaml` |
+| Android APK build | `gradlew assembleRelease` | Documented steps | Prebuild fails on Node 24/xmlbuilder; use EAS or fix env |
+| `appLock` biometric on cold start | Implemented | Working but untested on device | Requires device with biometrics |
+| Push `projectId` | Required | Missing in `app.json` | See QUESTIONS.md; push tokens no-op without it |

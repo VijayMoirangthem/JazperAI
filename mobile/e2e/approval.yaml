@@ -1,0 +1,22 @@
+appId: com.jasper.mobile
+---
+- launchApp
+- assertVisible:
+    text: "Chats"
+- tapOn:
+    text: "Approvals"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Approvals"
+- assertVisible:
+    text: "Tier 2"
+- assertVisible:
+    text: "Send email"
+- tapOn:
+    text: "Approve"
+- waitForAnimationToEnd
+    timeout: 10000
+- assertVisible:
+    text: "Approved"
+- tapOn:
+    text: "Chats"
