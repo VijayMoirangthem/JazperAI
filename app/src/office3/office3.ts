@@ -518,6 +518,7 @@ export async function startOffice3(host: HTMLElement): Promise<Office3Handle> {
   const stats: Office3Stats = { fps: 0, calls: 0, triangles: 0, people: 0, loadedMs: 0, p95Ms: 0, heapMb: null };
   let quality: QualityTier = "high";
   let automaticQuality = true;
+  { const forced = hashParams().get("quality"); if (forced === "low" || forced === "medium" || forced === "high") { quality = forced; automaticQuality = false; view.setQuality(quality); } } // benchmark/profiling override
   const clock = new THREE.Clock();
   let active = true, frame = 0, sampleElapsed = 0, sampleFrames = 0, labelElapsed = 0, wanderElapsed = 0, conversationElapsed = 0, agentLifeElapsed = 0, scheduleElapsed = 0, speakerElapsed = 0, incidentElapsed = 0, networkElapsed = 0, speakerIndex = 0, qualityChangedAt = performance.now(), activeSchedule: ScheduleAction = null, incidentOpen = false;
   const conversationGreetings = new Map<string, number>();
