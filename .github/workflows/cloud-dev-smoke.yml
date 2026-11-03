@@ -1,0 +1,22 @@
+name: Cloud development smoke checks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  environment-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify Python source parses
+        run: python -m compileall -q backend/python
+      - name: Verify Node and npm available
+        run: node --version && npm --version
