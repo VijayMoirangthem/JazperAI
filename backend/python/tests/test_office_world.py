@@ -33,3 +33,10 @@ def test_bad_waypoints_rejected(points):
     with pytest.raises(HTTPException) as err:
         _world(with_wp(points))
     assert err.value.status_code == 422
+
+
+def test_doc_decodes_jsonb_text():
+    from api.routes.office import _doc
+    assert _doc('{"a": 1}') == {"a": 1}
+    assert _doc(b'{"a": 1}') == {"a": 1}
+    assert _doc({"a": 1}) == {"a": 1}

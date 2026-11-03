@@ -54,6 +54,7 @@ async def _navigation() -> tuple[int, int, set[tuple[int, int]]] | None:
     rows = await aio.fetch("SELECT world FROM shared.office_worlds WHERE active=true LIMIT 1")
     if not rows: return None
     world = rows[0]["world"]
+    if isinstance(world, (str, bytes)): world = __import__("json").loads(world)
     size = world.get("size", {}) if isinstance(world, dict) else {}
     width, height = size.get("w"), size.get("h")
     if not isinstance(width, int) or not isinstance(height, int) or width < 1 or height < 1: return None

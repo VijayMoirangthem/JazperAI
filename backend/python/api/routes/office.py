@@ -66,6 +66,10 @@ async def _ensure() -> None:
   await aio.execute("INSERT INTO shared.office_schema_migrations(version) VALUES($1) ON CONFLICT(version) DO NOTHING", version)
  _ready = True
 
+def _doc(value):
+ """asyncpg returns jsonb as text (the pool has no codec); decode it once here."""
+ return json.loads(value) if isinstance(value, (str, bytes)) else value
+
 async def _seed() -> None:
  await _ensure()
  row = await aio.fetch("SELECT id FROM shared.office_worlds WHERE active=true LIMIT 1")
@@ -325,12 +329,12 @@ async def get_world():
  await _seed()
  row = (await aio.fetch("SELECT world,rev FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]
  try:
-  _world(row["world"])
-  return {"world": row["world"], "rev": row["rev"]}
+  _world(_doc(row["world"]))
+  return {"world": _doc(row["world"]), "rev": row["rev"]}
  except HTTPException:
   snapshot = await aio.fetch("SELECT world FROM shared.office_world_snapshots WHERE world_id=(SELECT id FROM shared.office_worlds WHERE active=true LIMIT 1) ORDER BY created_at DESC LIMIT 1")
   if not snapshot: raise HTTPException(500, "active Office world is corrupted and has no recovery snapshot")
-  recovered = _world(snapshot[0]["world"])
+  recovered = _world(_doc(snapshot[0]["world"]))
   active = (await aio.fetch("SELECT id,rev FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]
   next_rev = active["rev"] + 1
   await aio.execute("UPDATE shared.office_worlds SET world=$1::jsonb,rev=$2,updated_at=now() WHERE id=$3", json.dumps(recovered), next_rev, active["id"])
@@ -344,8 +348,8 @@ async def put_world(body: WorldPut, response: Response, actor: dict = Depends(_o
  row = (await aio.fetch("SELECT id,rev,world FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]
  if row["rev"] != body.rev:
   response.status_code = 409
-  return {"world": row["world"], "rev": row["rev"]}
- await _snapshot_before_daily_mutation(row["id"], row["rev"], row["world"])
+  return {"world": _doc(row["world"]), "rev": row["rev"]}
+ await _snapshot_before_daily_mutation(row["id"], row["rev"], _doc(row["world"]))
  next_rev = row["rev"] + 1
  await aio.execute("UPDATE shared.office_worlds SET world=$1::jsonb,rev=$2,updated_at=now() WHERE id=$3", json.dumps(body.world), next_rev, row["id"])
  await audit.write("default", "office-world-saved", {"world_id": row["id"], "rev": next_rev})
@@ -358,14 +362,14 @@ async def patch_world_object(object_id: str, body: WorldObjectPatch, actor: dict
  patch = body.model_dump(exclude_none=True)
  if not patch: raise HTTPException(422, "object patch is empty")
  row = (await aio.fetch("SELECT id,rev,world FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]
- world = dict(row["world"])
+ world = dict(_doc(row["world"]))
  objects = list(world.get("objects", []))
  found = next((index for index, item in enumerate(objects) if isinstance(item, dict) and item.get("id") == object_id), None)
  if found is None: raise HTTPException(404, "Office object not found")
  objects[found] = {**objects[found], **patch}
  world["objects"] = objects
  world = _world(world)
- await _snapshot_before_daily_mutation(row["id"], row["rev"], row["world"])
+ await _snapshot_before_daily_mutation(row["id"], row["rev"], _doc(row["world"]))
  next_rev = row["rev"] + 1
  await aio.execute("UPDATE shared.office_worlds SET world=$1::jsonb,rev=$2,updated_at=now() WHERE id=$3", json.dumps(world), next_rev, row["id"])
  await audit.write("default", "office-world-object-patched", {"world_id": row["id"], "rev": next_rev, "object_id": object_id, "fields": sorted(patch)})
@@ -393,7 +397,7 @@ async def clone_world(body: WorldClone, actor: dict = Depends(_office_admin)):
  exists = await aio.fetch("SELECT id FROM shared.office_worlds WHERE id=$1", body.id)
  if exists: raise HTTPException(409, "world already exists")
  row = (await aio.fetch("SELECT world FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]
- world = dict(row["world"])
+ world = dict(_doc(row["world"]))
  world["id"], world["name"] = body.id, body.name
  await aio.execute("INSERT INTO shared.office_worlds(id,world,active) VALUES($1,$2::jsonb,false)", body.id, json.dumps(world))
  await audit.write("default", "office-world-cloned", {"world_id": body.id})
@@ -403,7 +407,7 @@ async def clone_world(body: WorldClone, actor: dict = Depends(_office_admin)):
 async def snapshot(actor: dict = Depends(_office_admin)):
  await _seed()
  row = (await aio.fetch("SELECT id,rev,world FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]
- await aio.execute("INSERT INTO shared.office_world_snapshots(world_id,rev,world) VALUES($1,$2,$3::jsonb)", row["id"], row["rev"], json.dumps(row["world"]))
+ await aio.execute("INSERT INTO shared.office_world_snapshots(world_id,rev,world) VALUES($1,$2,$3::jsonb)", row["id"], row["rev"], json.dumps(_doc(row["world"])))
  await aio.execute("DELETE FROM shared.office_world_snapshots WHERE id IN (SELECT id FROM shared.office_world_snapshots ORDER BY created_at DESC OFFSET 20)")
  return {"world_id": row["id"], "rev": row["rev"]}
 
@@ -423,7 +427,7 @@ async def room_locks():
 async def lock_room(room_id: str, body: RoomLockPut, actor: dict = Depends(_office_admin)):
  await _seed()
  editor = actor["id"] if settings.OFFICE_AUTH_REQUIRED else body.editor
- world = (await aio.fetch("SELECT world FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]["world"]
+ world = _doc((await aio.fetch("SELECT world FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]["world"])
  if room_id not in {room.get("id") for room in world.get("rooms", []) if isinstance(room, dict)}: raise HTTPException(404, "unknown room")
  rows = await aio.fetch("SELECT editor FROM shared.office_room_locks WHERE room_id=$1", room_id)
  if rows and rows[0]["editor"] != editor: raise HTTPException(409, "room is being edited")
@@ -607,25 +611,25 @@ async def restore_snapshot(snapshot_id: int, actor: dict = Depends(_office_admin
  rows = await aio.fetch("SELECT world FROM shared.office_world_snapshots WHERE id=$1", snapshot_id)
  if not rows: raise HTTPException(404, "snapshot not found")
  active = (await aio.fetch("SELECT id,rev FROM shared.office_worlds WHERE active=true LIMIT 1"))[0]
- current = (await aio.fetch("SELECT world FROM shared.office_worlds WHERE id=$1", active["id"]))[0]["world"]
+ current = _doc((await aio.fetch("SELECT world FROM shared.office_worlds WHERE id=$1", active["id"]))[0]["world"])
  await _snapshot_before_daily_mutation(active["id"], active["rev"], current)
  next_rev = active["rev"] + 1
- await aio.execute("UPDATE shared.office_worlds SET world=$1::jsonb,rev=$2,updated_at=now() WHERE id=$3", json.dumps(rows[0]["world"]), next_rev, active["id"])
+ await aio.execute("UPDATE shared.office_worlds SET world=$1::jsonb,rev=$2,updated_at=now() WHERE id=$3", json.dumps(_doc(rows[0]["world"])), next_rev, active["id"])
  await audit.write("default", "office-world-restored", {"snapshot_id": snapshot_id, "rev": next_rev})
- return {"world": rows[0]["world"], "rev": next_rev}
+ return {"world": _doc(rows[0]["world"]), "rev": next_rev}
 
 @router.get("/appearance")
 async def appearances():
  await _ensure()
  rows = await aio.fetch("SELECT slug,appearance FROM shared.office_appearance ORDER BY slug")
- return {"appearances": {row["slug"]: row["appearance"] for row in rows}}
+ return {"appearances": {row["slug"]: _doc(row["appearance"]) for row in rows}}
 
 @router.get("/appearance/{slug}")
 async def appearance(slug: str):
  await _ensure()
  rows = await aio.fetch("SELECT appearance FROM shared.office_appearance WHERE slug=$1", slug)
  if not rows: return Response(status_code=204)  # no saved appearance is a normal state, not an error
- return rows[0]["appearance"]
+ return _doc(rows[0]["appearance"])
 
 @router.put("/appearance/{slug}")
 async def save_appearance(slug: str, body: AppearancePut, actor: dict = Depends(_office_member)):
