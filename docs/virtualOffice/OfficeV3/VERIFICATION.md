@@ -162,3 +162,5 @@ The founder requested implementation-first work; the checks below remain intenti
 | Persistent history (G2) | Same test file: journal round-trip, other-world rejection, corrupt JSON ignored, oversize history trimmed to 256 KB. After wiring: edit, reload, confirm undo still works. |
 | Asset normalisation (G1) | Same test file: footprint, ground offset, seat/anchor extraction, bad bounds rejected. After wiring: load a real GLB prefab and check it sits on the floor inside its footprint. |
 | Executed 2026-11-03 | tsc clean; 25/25 office3 node tests; 15 backend office/people/files tests; e2e office3 roster + 60-person fps pass; perf gate FAILED (38-42 fps median, need 55). Not run: two-client, multi-role, audio, mobile gestures, GLB prefab describe(), Builder import diff toast, journal wiring (not connected). |
+| Persistent undo (G2) | Edit mode: place two objects, delete one, reload the page, re-enter Edit mode, press Ctrl+Z: the deleted object returns. |
+| Waypoints (G3/G5) | Export the world JSON, add a `waypoints` entry in a room, import it; confirm it is accepted. Add one outside bounds or in an unknown room; confirm import and server publish are refused. |

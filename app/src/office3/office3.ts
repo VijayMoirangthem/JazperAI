@@ -5,6 +5,7 @@ import { navigationModel, parseWorld } from "./core/world";
 import { planSeats } from "../office2/people";
 import type { Person } from "../office2/types";
 import { Office3Bus } from "./core/bus";
+import { loadJournal, saveJournal } from "./core/historyStore";
 import { addActor, removeActor, applyAppearance, applyCustomModel, placeActor, play, settle, setActorLod, setActorMood, setActorTask, type ActorAnimation, type OfficeActor } from "./engine/actors";
 import { layoutActorLabels } from "./engine/labels";
 import { PrefabLoader } from "./engine/prefabs";
@@ -199,7 +200,8 @@ export async function startOffice3(host: HTMLElement): Promise<Office3Handle> {
     if (legacyDraft && !safeStorage.get(builderDraftStorageKey)) safeStorage.set(builderDraftStorageKey, legacyDraft);
     if (legacyDraft) safeStorage.remove("office3.builder.draft");
   } catch { /* local storage is optional */ }
-  const persistBuilderDraft = () => safeStorage.set(builderDraftStorageKey, JSON.stringify({ v: 1, savedAt: Date.now(), objects: [...builderObjects].map(([key, mesh]) => ({ key, prefab: String(mesh.userData.office3Prefab ?? "unknown"), rot: mesh.rotation.y })), seats: templateSeats }));
+  const persistJournal = () => { try { const snap = (mesh: THREE.Mesh) => ({ prefab: String(mesh.userData.office3Prefab ?? "unknown"), rot: mesh.rotation.y }); saveJournal({ version: 1, world: world.id, done: [...builderHistory.map(([id, mesh]) => ({ id, op: "add" as const, before: null, after: snap(mesh) })), ...deletedBuilderHistory.map(([id, mesh]) => ({ id, op: "remove" as const, before: snap(mesh), after: null }))], undone: [] }, { setItem: (k, v) => { safeStorage.set(k, v); }, removeItem: k => { safeStorage.remove(k); } }); } catch { /* history persistence is optional */ } };
+  const persistBuilderDraft = () => { persistJournal(); return safeStorage.set(builderDraftStorageKey, JSON.stringify({ v: 1, savedAt: Date.now(), objects: [...builderObjects].map(([key, mesh]) => ({ key, prefab: String(mesh.userData.office3Prefab ?? "unknown"), rot: mesh.rotation.y })), seats: templateSeats })); };
   let selectedBuilder: [string, THREE.Mesh] | null = null;
   const selectBuilderObject = (item: [string, THREE.Mesh] | null) => { if (selectedBuilder) ((selectedBuilder[1].material as THREE.MeshStandardMaterial).emissive.setHex(0)); selectedBuilder = item; if (selectedBuilder) (selectedBuilder[1].material as THREE.MeshStandardMaterial).emissive.setHex(0x1d4ed8); };
   const builderObject = (key: string, mesh: THREE.Mesh): BuilderObject => { const [x, z] = key.split(",").map(Number), footprint = mesh.userData.office3Footprint as [number, number] | undefined; return { id: String(mesh.uuid), pos: [x, z], footprint: rotatedFootprint(footprint ?? [1, 1], Math.round(mesh.rotation.y / (Math.PI / 2))), blocks: mesh.userData.office3Blocks !== false }; };
@@ -210,6 +212,14 @@ export async function startOffice3(host: HTMLElement): Promise<Office3Handle> {
   const addBuilderObject = (key: string, prefab: string): THREE.Mesh | null => { if (!canPlaceBuilderObject(key, prefab)) return null; const [x, z] = key.split(",").map(Number), metadata = builderPrefabMetadata.get(prefab) ?? { footprint: [1, 1] as [number, number], blocks: true }; const mesh = new THREE.Mesh(new THREE.BoxGeometry(metadata.footprint[0] * .8, .8, metadata.footprint[1] * .8), new THREE.MeshStandardMaterial({ color: prefab.includes("plant") ? 0x22c55e : 0x60a5fa })); mesh.position.set(x + metadata.footprint[0] / 2, .4, z + metadata.footprint[1] / 2); mesh.userData.office3Prefab = prefab; mesh.userData.office3Footprint = metadata.footprint; mesh.userData.office3Blocks = metadata.blocks; view.scene.add(mesh); builderObjects.set(key, mesh); return mesh; };
   const insertTemplate = (roomId: string, template: RoomTemplateId) => { const room = world.rooms.find(item => item.id === roomId); if (!room) return; const plan = instantiateRoomTemplate(template, room); for (const object of plan.objects) addBuilderObject(object.pos.join(","), object.prefab); for (const seat of plan.seats) if (!world.seats.some(item => item.room === roomId && item.pos[0] === seat.pos[0] && item.pos[1] === seat.pos[1]) && !templateSeats.some(item => item.room === roomId && item.pos[0] === seat.pos[0] && item.pos[1] === seat.pos[1])) templateSeats.push({ id: `draft-seat-${roomId}-${seat.pos.join("-")}`, room: roomId, pos: seat.pos, facing: seat.facing, owner: null }); persistBuilderDraft(); bus.emit("edit.command", { id: `template:${template}` }); };
   try { const draft = JSON.parse(safeStorage.get(builderDraftStorageKey) ?? "null") as { objects?: { key: string; prefab: string; rot?: number }[]; seats?: typeof templateSeats } | null; for (const object of draft?.objects ?? []) { const mesh = addBuilderObject(object.key, object.prefab); if (mesh && Number.isFinite(object.rot) && canPlaceBuilderObject(object.key, object.prefab, object.rot, mesh)) { mesh.rotation.y = object.rot ?? 0; positionBuilderMesh(mesh, object.key.split(",").map(Number) as [number, number]); } } if (Array.isArray(draft?.seats)) templateSeats.push(...draft.seats.filter(seat => typeof seat?.id === "string" && typeof seat.room === "string" && Array.isArray(seat.pos) && seat.pos.length === 2)); } catch { /* discard malformed local draft */ }
+  try { // restore the undo journal that belongs to this draft
+    const journal = loadJournal(world.id, { getItem: k => safeStorage.get(k) });
+    for (const entry of journal.done) {
+      const shape = (entry.op === "add" ? entry.after : entry.before) as { prefab?: unknown; rot?: unknown } | null;
+      if (entry.op === "add") { const mesh = builderObjects.get(entry.id); if (mesh) builderHistory.push([entry.id, mesh]); }
+      else if (typeof shape?.prefab === "string" && !builderObjects.has(entry.id)) { const mesh = addBuilderObject(entry.id, shape.prefab); if (mesh) { if (typeof shape.rot === "number" && Number.isFinite(shape.rot)) mesh.rotation.y = shape.rot; mesh.removeFromParent(); builderObjects.delete(entry.id); deletedBuilderHistory.push([entry.id, mesh]); } }
+    }
+  } catch { /* undo history is optional */ }
   const lighting = new LightingRig(view.scene, world.size.w, world.size.h), audio = new OfficeAudio();
   const onToastAudio = (event: Event) => { const priority = (event as CustomEvent<{ priority?: unknown }>).detail?.priority; audio.notice(priority === "success" || priority === "warning" || priority === "error" ? priority : "info"); };
   window.addEventListener("office3:toast", onToastAudio);

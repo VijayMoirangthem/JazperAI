@@ -267,6 +267,12 @@ def _world(value: dict) -> dict:
   if not isinstance(place, dict) or not isinstance(place.get("id"), str) or not place["id"] or place["id"] in place_ids or place.get("room") not in room_ids: raise HTTPException(422, "place is invalid")
   place_ids.add(place["id"])
   inside(place, "place")
+ waypoints = value.get("waypoints", [])
+ if not isinstance(waypoints, list) or len(waypoints) > 64: raise HTTPException(422, "waypoints must be a list of at most 64")
+ for point in waypoints:
+  if not isinstance(point, dict) or not isinstance(point.get("id"), str) or not point["id"] or point["id"] in place_ids or point["id"] in object_ids or point.get("room") not in room_ids: raise HTTPException(422, "waypoint is invalid")
+  place_ids.add(point["id"])
+  inside(point, "waypoint")
  spawn_points = value.get("spawn")
  if not isinstance(spawn_points, dict) or not spawn_points: raise HTTPException(422, "world needs spawn points")
  for spawn in spawn_points.values():
