@@ -61,3 +61,6 @@ data/
 **/.cxx/
 mobile/android/build/
 mobile/android/.gradle/
+
+# Downloaded binaries
+tools/cloudflared/*.exe
