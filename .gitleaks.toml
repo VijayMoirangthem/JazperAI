@@ -1,0 +1,11 @@
+title = "JazperAI gitleaks config"
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Non-sensitive fixtures and docs placeholders"
+paths = [
+  '''backend/python/tests/fixtures/mock_secrets\.env''',
+  '''backend/python/tests/test_secrets_guard\.py''',
+  '''Project_References/''',
+]
