@@ -73,8 +73,16 @@ class ExecutionLog(Strict):
     line: str
 
 
-Event = Annotated[Union[AgentStateChange, DiffStream, HumanInterventionRequest, ExecutionLog], Field(discriminator="topic")]
-TOPICS = ("agent-state-change", "diff-stream", "human-intervention-request", "execution-log")
+class FileChanged(Strict):
+    topic: Literal["file-changed"] = "file-changed"
+    src: str
+    id: str
+    name: str
+    by: str = "jasper"
+
+
+Event = Annotated[Union[AgentStateChange, DiffStream, HumanInterventionRequest, ExecutionLog, FileChanged], Field(discriminator="topic")]
+TOPICS = ("agent-state-change", "diff-stream", "human-intervention-request", "execution-log", "file-changed")
 
 
 class TraceContext(Strict):
@@ -86,7 +94,7 @@ class TraceContext(Strict):
 
 class EventEnvelope(Strict):
     jsonrpc: Literal["2.0"] = "2.0"
-    method: Literal["agent-state-change", "diff-stream", "human-intervention-request", "execution-log"]
+    method: Literal["agent-state-change", "diff-stream", "human-intervention-request", "execution-log", "file-changed"]
     params: dict[str, Any]
     seq: int = Field(ge=0)
     ts: datetime

@@ -21,6 +21,9 @@ import { BotSettings } from "@/components/chat/BotSettings";
 import { ModelPicker } from "@/components/chat/ModelPicker";
 import { ConfirmActionCard, FileCard, CredentialCard, OAuthCard, SuggestionCard } from "@/components/chat/ChatCards";
 import { CommsView, useCommsThreads } from "@/components/chat/CommsView";
+import { FilesPanel } from "@/components/panels/FilesPanel";
+import { useFileViewer } from "@/stores/fileViewerStore";
+import { parseJazperFileLink } from "@/lib/fileLinks";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const WS_URL = API.replace(/^http/, "ws") + "/ws/rpc";
@@ -53,11 +56,27 @@ function AskCard({ ask, onAnswer }: { ask: AskSpec; onAnswer?: (t: string) => vo
     </div>
   );
 }
+function FileLink({ token }: { token: string }) {
+  let ref = { src: "drive", id: "", name: "file", mime: "application/octet-stream" };
+  const [matches, setMatches] = useState<Array<{ src?: string; id?: string; name?: string; mime?: string; size?: number; modified?: string; webUrl?: string }> | null>(null);
+  const shortName = token.startsWith("[[file:") ? token.slice(7, -2) : "";
+  useEffect(() => { if (!shortName) return; let live = true; fetch(`${API}/api/v1/files?src=all&q=${encodeURIComponent(shortName)}&limit=3`).then(r => r.ok ? r.json() : { files: [] }).then(data => live && setMatches(data.files ?? [])).catch(() => live && setMatches([])); return () => { live = false; }; }, [shortName]);
+  if (token.startsWith("jazper://open?")) {
+    const parsed = parseJazperFileLink(token);
+    return parsed ? <FileCard fresh={false} req={{ kind: "file", connector: "files", ...parsed }} /> : <span className="text-xs text-amber-300">Invalid Jazper file link</span>;
+  }
+  else ref = { ...ref, name: token.slice(7, -2) };
+  if (matches === null) return <span className="mx-1 inline-flex rounded-full bg-white/10 px-2 py-0.5 text-xs">Finding {shortName}…</span>;
+  if (matches.length === 1) return <FileCard fresh={false} req={{ ...matches[0], kind: "file", connector: "files" }} />;
+  if (matches.length > 1) return <div className="my-2 flex flex-wrap gap-2 rounded-xl bg-white/5 p-2 text-xs">{matches.map(match => <button key={`${match.src}:${match.id}`} onClick={() => { const chosen = { src: match.src ?? "drive", id: match.id ?? "", name: match.name ?? "file", mime: match.mime ?? "application/octet-stream" }; useFileViewer.getState().open(chosen); window.dispatchEvent(new CustomEvent("jasper:open-file-side", { detail: chosen })); }} className="rounded-full bg-indigo-500/20 px-3 py-1">{match.name} · {match.src}</button>)}</div>;
+  if (shortName) return <span className="mx-1 inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-xs">No file named {shortName} found</span>;
+  return <button onClick={() => { useFileViewer.getState().open(ref); window.dispatchEvent(new CustomEvent("jasper:open-file-side", { detail: ref })); }} className="mx-1 inline-flex items-center gap-1 rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-100"><Paperclip size={11} />{ref.name} · Open</button>;
+}
 function Rich({ text, onAnswer }: { text: string; onAnswer?: (t: string) => void }) {
-  const parts = text.split(/(```[\s\S]*?```)/g);
+  const parts = text.split(/(```[\s\S]*?```|jazper:\/\/open\?[^\s)]+|\[\[file:[^\]]+\]\])/g);
   return (
     <>
-      {parts.map((p, i) => p.startsWith("```ask") && parseAsk(p) ? <AskCard key={i} ask={parseAsk(p)!} onAnswer={onAnswer} /> : p.startsWith("```")
+      {parts.map((p, i) => p.startsWith("jazper://open?") || p.startsWith("[[file:") ? <FileLink key={i} token={p} /> : p.startsWith("```ask") && parseAsk(p) ? <AskCard key={i} ask={parseAsk(p)!} onAnswer={onAnswer} /> : p.startsWith("```")
         ? <pre key={i} className="my-2 overflow-x-auto rounded-lg bg-black/40 p-2 text-xs font-mono">{p.replace(/^```\w*\n?/, "").replace(/```$/, "")}</pre>
         : <span key={i} className="whitespace-pre-wrap">{p.split("**").map((t, j) => (j % 2 === 1 ? <strong key={j}>{t}</strong> : t))}</span>)}
     </>
@@ -96,7 +115,7 @@ function Bubble({ m, onAnswer, onRate, onCard, onDelete, onEdit, onSpeak, onRege
           ? <img key={a.name} src={a.dataUrl ?? a.url} alt={a.name} className="mb-1 max-h-48 rounded-lg" />
           : a.dataUrl && a.mime.startsWith("audio/")
             ? <audio key={a.name} controls src={a.dataUrl} className="mb-1 h-8" />
-            : <div key={a.name} className="mb-1 inline-flex items-center gap-1 rounded-full bg-black/30 px-2 py-0.5 text-xs"><Paperclip size={11} />{a.name}</div>)}
+            : <button key={a.name} onClick={() => { if (!a.key) return; const file = { src: "attachment", id: a.key, name: a.name, mime: a.mime || "application/octet-stream", size: a.size }; useFileViewer.getState().open(file); window.dispatchEvent(new CustomEvent("jasper:open-file-side", { detail: file })); }} className="mb-1 inline-flex items-center gap-1 rounded-full bg-black/30 px-2 py-0.5 text-xs hover:bg-black/45"><Paperclip size={11} />{a.name}{a.key && <span className="opacity-60">· Open</span>}</button>)}
         {editing ? (
           <div className="space-y-1.5">
             <textarea autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} rows={Math.min(8, draft.split("\n").length + 1)} aria-label="Edit message" className="w-full min-w-[280px] resize-none rounded-lg bg-black/30 p-2 text-sm outline-none" />
@@ -239,7 +258,11 @@ export function ChatPanel2() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [query, setQuery] = useState("");
   const [customize, setCustomize] = useState(false);
+  const [fileSide, setFileSide] = useState(false);
+  const [fileSideWidth, setFileSideWidth] = useState(() => Number(localStorage.getItem("jasper.file-side-width")) || 520);
   const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { const open = () => setFileSide(true); window.addEventListener("jasper:open-file-side", open); return () => window.removeEventListener("jasper:open-file-side", open); }, []);
+  useEffect(() => { localStorage.setItem("jasper.file-side-width", String(fileSideWidth)); }, [fileSideWidth]);
   const tts = useTts();
   const commsThreads = useCommsThreads();
   const loadTree = () => fetch(`${API}/api/v1/bots/tree`).then((r) => r.json()).then((d) => setGroups(d.groups ?? [])).catch(() => undefined);
@@ -315,7 +338,12 @@ export function ChatPanel2() {
     push(ch, mine);
     setBusy(true);
     abort.current = new AbortController();
-    const payload = { text, history, attachments: atts.map(({ name, mime, text: t }) => ({ name, mime, text: t })) };
+    // A follow-up such as "open it" must retain the last attached FileRef:
+    // it is deterministic and avoids asking a weak model to resolve pronouns.
+    const pronounOpen = /\b(open|show|play|view|display)\b[\s\S]*\b(it|this|that)\b/i.test(text);
+    const carried = !atts.length && pronounOpen ? [...(threads[ch] ?? [])].reverse().flatMap((message) => message.attachments ?? []).find((attachment) => !!attachment.key) : undefined;
+    const fileAtts = (atts.length ? atts : carried ? [carried] : atts);
+    const payload = { text, history, attachments: fileAtts.map(({ name, mime, text: t, key }) => ({ name, mime, text: t, src: "attachment", id: key })) };
     let failed = false;
     try {
       const res = mode === "meeting"
@@ -470,6 +498,7 @@ export function ChatPanel2() {
           level={level} onLevel={setLevel} rec={!!recorder} onRec={toggleRec} />
       </section>
       )}
+      {fileSide && <aside className="relative shrink-0 border-l border-white/10 bg-[#111827]" style={{ width: fileSideWidth, minWidth: 340 }}><div className="absolute inset-y-0 left-0 w-1 cursor-col-resize hover:bg-indigo-400" onPointerDown={(e) => { const start = e.clientX, width = fileSideWidth; const move = (m: PointerEvent) => setFileSideWidth(Math.max(340, Math.min(900, width - (m.clientX - start)))); const up = () => window.removeEventListener("pointermove", move); window.addEventListener("pointermove", move); window.addEventListener("pointerup", up, { once: true }); }} /><button onClick={() => setFileSide(false)} className="absolute right-2 top-2 z-10 rounded bg-black/40 p-1" aria-label="Close file side panel"><X size={15} /></button><FilesPanel /></aside>}
       {customize && active.kind === "dm" && <BotSettings slug={slugOf(active)} groups={groups} onClose={() => setCustomize(false)} onChanged={loadTree} />}
     </div>
   );

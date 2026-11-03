@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { ChatPanel2 } from "@/components/panels/ChatPanel2";
-const OfficePanel = lazy(() => import("@/components/panels/OfficePanel").then((m) => ({ default: m.OfficePanel })));
+import { MiniPlayer } from "@/components/media/MiniPlayer";
+import { useFileViewer } from "@/stores/fileViewerStore";
+import { parseJazperFileLink } from "@/lib/fileLinks";
 const Office2Panel = lazy(() => import("@/components/panels/Office2Panel").then((m) => ({ default: m.Office2Panel })));
 const FilesPanel = lazy(() => import("@/components/panels/FilesPanel").then((m) => ({ default: m.FilesPanel })));
 const Office3Panel = lazy(() => import("@/components/panels/Office3Panel").then((m) => ({ default: m.Office3Panel })));
@@ -122,6 +124,12 @@ function getClientView(): View {
   return "team_chat";
 }
 
+function openHashFile() {
+  const q = new URLSearchParams(window.location.hash.split("?", 2)[1] ?? "");
+  const id = q.get("id");
+  if (window.location.hash.startsWith("#files?") && id) useFileViewer.getState().open({ src: q.get("src") ?? "drive", id, name: q.get("name") ?? "file", mime: q.get("mime") ?? "application/octet-stream" });
+}
+
 const TITLES = VIEW_TITLES;
 
 function PlaceholderPanel({ label }: { label: string }) {
@@ -174,6 +182,7 @@ export default function Home() {
     if (!didInit.current) {
       didInit.current = true;
       const v = getClientView();
+      openHashFile();
       if (v !== "team_chat") {
         setView(v);
         return; // will re-run this effect with the correct view, then fall through to sync
@@ -189,10 +198,21 @@ export default function Home() {
     function onHashChange() {
       const raw = window.location.hash.slice(1).split("?")[0];
       const hash = raw === "munderdifflin" ? "cooshq" : raw;
-      if (VALID_VIEWS.has(hash)) setView(hash as View);
+      if (VALID_VIEWS.has(hash)) { openHashFile(); setView(hash as View); }
     }
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    const bridge = (window as any).jasper;
+    if (!bridge?.onDeepLink) return;
+    bridge.onDeepLink((link: string) => {
+      const file = parseJazperFileLink(link);
+      if (!file) return;
+      useFileViewer.getState().open(file);
+      setView("files");
+    });
   }, []);
 
   function navigate(v: View) {
@@ -256,7 +276,6 @@ export default function Home() {
     diff_editor:    <DiffEditorPanel />,
     business:       <BusinessPanel />,
     ai_providers:   <AiProvidersPanel />,
-    office:         <OfficePanel />,
     office2:        <Office2Panel />,
     office3:        <Office3Panel />,
     files:          <FilesPanel />,
@@ -397,6 +416,7 @@ export default function Home() {
         )}
         </Suspense>
       </div>
+      <MiniPlayer />
     </div>
   );
 }

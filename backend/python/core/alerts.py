@@ -170,7 +170,7 @@ async def incident(source: str, message: str, context: dict | None = None) -> No
 
 
 async def list_alerts(limit: int = 30) -> dict:
-    open_ = [dict(r) for r in await aio.fetch("SELECT * FROM shared.alerts WHERE resolved_at IS NULL ORDER BY id DESC LIMIT $1", limit)]
+    open_ = [dict(r) for r in await aio.fetch("SELECT * FROM shared.alerts WHERE resolved_at IS NULL AND acked_at IS NULL ORDER BY id DESC LIMIT $1", limit)]
     recent = [dict(r) for r in await aio.fetch("SELECT * FROM shared.alerts WHERE resolved_at IS NOT NULL ORDER BY id DESC LIMIT 10")]
     return {"open": open_, "resolved": recent}
 

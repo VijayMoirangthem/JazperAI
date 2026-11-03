@@ -4,13 +4,42 @@
 // and Google sign-in (opens in the system browser; Electron's window-open handler does the hand-off, the backend receives the loopback callback).
 // Pattern: Project_References/OpenMausBot connected-apps cards.
 import { useEffect, useRef, useState } from "react";
-import { Check, ExternalLink, FileText, KeyRound, Loader2, Trash2, Undo2 } from "lucide-react";
+import { Check, ExternalLink, FileAudio, FileImage, FileSpreadsheet, FileText, FileVideo, KeyRound, Loader2, Trash2, Undo2 } from "lucide-react";
 import { useChat, type ChatMessage } from "@/chat/chatStore";
 import { useFileViewer } from "@/stores/fileViewerStore";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Keep cards on the IPv4 loopback address used by the local FastAPI launcher.
+const API = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 export interface Suggestion { id: string; name: string; why: string; status: string; connectable: boolean; untested?: boolean }
-export interface UiRequest { kind: "credentials" | "oauth" | "suggestions" | "confirm" | "file"; file_id?: string; src?: string; id?: string; name?: string; mime?: string; size?: number; modified?: string; webUrl?: string; preview?: string; open?: boolean; action?: string; scope?: string; label?: string; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean; capability?: string; reason?: string }
+export interface UiRequest { kind: "credentials" | "oauth" | "suggestions" | "confirm" | "file"; file_id?: string; src?: string; id?: string; name?: string; mime?: string; size?: number; modified?: string; webUrl?: string; preview?: string; open?: boolean; alternatives?: Array<{ src?: string; id?: string; name?: string; mime?: string; size?: number; modified?: string; webUrl?: string }>; action?: string; scope?: string; label?: string; items?: Suggestion[]; connector: string; secrets?: { name: string; label: string }[]; url?: string; provider?: string; done?: boolean; capability?: string; reason?: string }
+
+/** Lazy first-page preview for PDF file cards; the generic icon remains on failure. */
+function PdfCardPreview({ url, name }: { url: string; name: string }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false; let task: { destroy?: () => void } | undefined;
+    void import("pdfjs-dist").then(async (pdfjs) => {
+      (pdfjs as any).GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+      task = (pdfjs as any).getDocument(url);
+      const doc = await (task as any).promise, page = await doc.getPage(1);
+      const viewport = page.getViewport({ scale: 0.15 }), node = canvas.current, ctx = node?.getContext("2d");
+      if (!node || !ctx || cancelled) return;
+      node.width = viewport.width; node.height = viewport.height;
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      if (!cancelled) setReady(true);
+    }).catch(() => undefined);
+    return () => { cancelled = true; task?.destroy?.(); };
+  }, [url]);
+  return <span className="relative inline-flex h-12 w-10 shrink-0 items-center justify-center"><FileText size={18} className={ready ? "hidden" : "opacity-70"} /><canvas ref={canvas} aria-label={`${name} first page preview`} className={ready ? "absolute inset-0 h-12 w-10 rounded bg-white object-contain" : "hidden"} /></span>;
+}
+
+function MediaCardPreview({ url, mime, name }: { url: string; mime: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const Fallback = mime.startsWith("audio/") ? FileAudio : FileVideo;
+  return failed ? <Fallback size={18} className="shrink-0 opacity-70" /> : <img src={`${url}&mode=thumb`} alt="" title={`${name} preview`} className="h-10 w-10 rounded-lg object-cover" onError={() => setFailed(true)} />;
+}
 
 export function CredentialCard({ req, onDone }: { req: UiRequest; onDone: (summary: string) => void }) {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -173,9 +202,16 @@ export function ConfirmActionCard({ req, messageId }: { req: UiRequest; messageI
 export function FileCard({ req, fresh }: { req: UiRequest; fresh: boolean }) {
   const opened = useRef(false);
   const ref = { src: req.src ?? "drive", id: req.id ?? req.file_id ?? "", name: req.name ?? "file", mime: req.mime ?? "application/octet-stream", size: req.size, modified: req.modified, webUrl: req.webUrl };
-  const open = (side = false) => { useFileViewer.getState().open(ref); window.location.hash = side ? `files?src=${encodeURIComponent(ref.src)}&id=${encodeURIComponent(ref.id)}` : "files"; };
-  useEffect(() => { if (req.open && fresh && !opened.current) { opened.current = true; open(); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const open = (side = false) => { useFileViewer.getState().open(ref); if (side) window.dispatchEvent(new CustomEvent("jasper:open-file-side", { detail: ref })); else window.location.hash = "files"; };
+  const openAlternative = (choice: NonNullable<UiRequest["alternatives"]>[number]) => {
+    const chosen = { src: choice.src ?? "drive", id: choice.id ?? "", name: choice.name ?? "file", mime: choice.mime ?? "application/octet-stream", size: choice.size, modified: choice.modified, webUrl: choice.webUrl };
+    useFileViewer.getState().open(chosen); window.dispatchEvent(new CustomEvent("jasper:open-file-side", { detail: chosen }));
+  };
+  // A freshly returned file is useful immediately, but stays beside the chat so
+  // the founder does not lose the conversation that asked for it.
+  useEffect(() => { if (req.open && fresh && !opened.current) { opened.current = true; open(true); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const Icon = ref.mime.startsWith("image/") ? FileImage : ref.mime.startsWith("audio/") ? FileAudio : ref.mime.startsWith("video/") ? FileVideo : /sheet|csv|excel/.test(ref.mime) ? FileSpreadsheet : FileText;
   return (
-    <div data-testid="file-card" className="flex max-w-[520px] items-center gap-3 rounded-3xl bg-white/5 px-4 py-3 text-left ring-1 ring-white/15"><FileText size={18} className="shrink-0 opacity-70" /><span className="min-w-0 flex-1 truncate text-sm">{req.name}</span><button onClick={() => open(true)} className="rounded-full bg-blue-600 px-3 py-1 text-xs">Open</button><button onClick={() => open()} className="rounded-full border border-white/20 px-3 py-1 text-xs">Tab</button></div>
+    <div data-testid="file-card" className="max-w-[580px] rounded-3xl bg-white/5 px-4 py-3 text-left ring-1 ring-white/15"><div className="flex items-center gap-3">{ref.mime.startsWith("image/") ? <img src={req.preview ?? `${API}/api/v1/files/content?src=${encodeURIComponent(ref.src)}&id=${encodeURIComponent(ref.id)}&mode=thumb`} alt="" className="h-10 w-10 rounded-lg object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : ref.mime === "application/pdf" ? <PdfCardPreview name={ref.name} url={`${API}/api/v1/files/content?src=${encodeURIComponent(ref.src)}&id=${encodeURIComponent(ref.id)}`} /> : /^(audio|video)\//.test(ref.mime) ? <MediaCardPreview mime={ref.mime} name={ref.name} url={`${API}/api/v1/files/content?src=${encodeURIComponent(ref.src)}&id=${encodeURIComponent(ref.id)}`} /> : <Icon size={18} className="shrink-0 opacity-70" />}<span className="min-w-0 flex-1 truncate text-sm">{req.name}</span>{req.size != null && <span className="text-[11px] opacity-50">{Math.ceil(req.size / 1024)} KB</span>}</div><div className="mt-1 text-[11px] capitalize opacity-50">{ref.src}{req.modified ? ` · ${new Date(req.modified).toLocaleDateString()}` : ""}</div>{(req.alternatives?.length ?? 0) > 1 ? <div className="mt-3"><div className="mb-1 text-xs opacity-60">Choose a file</div><div className="flex flex-wrap gap-2">{req.alternatives!.map((choice) => <button key={`${choice.src}:${choice.id}`} onClick={() => openAlternative(choice)} className="rounded-full bg-indigo-500/20 px-3 py-1 text-xs hover:bg-indigo-500/35">{choice.name} · {choice.src}</button>)}</div></div> : <div className="mt-3 flex flex-wrap gap-2"><button onClick={(event) => open(!(event.ctrlKey || event.metaKey))} onAuxClick={(event) => { if (event.button === 1) { event.preventDefault(); open(false); } }} className="rounded-full bg-blue-600 px-3 py-1 text-xs">Open</button><button onClick={() => open(true)} className="rounded-full border border-white/20 px-3 py-1 text-xs">Open in side panel</button><button onClick={() => open()} className="rounded-full border border-white/20 px-3 py-1 text-xs">Files tab</button><a href={`${API}/api/v1/files/content?src=${encodeURIComponent(ref.src)}&id=${encodeURIComponent(ref.id)}`} download={ref.name} className="rounded-full border border-white/20 px-3 py-1 text-xs">Download</a>{(window as any).jasper?.openFileWindow && <button onClick={() => (window as any).jasper.openFileWindow(ref)} className="rounded-full border border-white/20 px-3 py-1 text-xs">Open in new window</button>}{ref.src === "local" && (window as any).jasper?.revealPath && <button onClick={() => void (window as any).jasper.revealPath(ref.id)} className="rounded-full border border-white/20 px-3 py-1 text-xs">Show in folder</button>}{ref.webUrl && <button onClick={() => window.open(ref.webUrl, "_blank")} className="rounded-full border border-white/20 px-3 py-1 text-xs">{ref.src === "drive" ? "Show in Drive" : "Show source"}</button>}</div>}</div>
   );
 }

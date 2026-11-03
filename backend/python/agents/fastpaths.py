@@ -22,9 +22,9 @@ HEALTH = re.compile(r"\b(system|backend|everything)\b.*\b(health|status|ok|worki
 SMARTER = re.compile(r"\b(smarter|more powerful|more capable|upgrade you|improve you|what should i connect)\b", re.I)
 
 
-OPEN = re.compile(r"\b(open(?:ing)?|show(?:ing)?|view(?:ing)?|play(?:ing)?|let me see|display(?:ing)?|pull(?:ing)? up)\b", re.I)
+OPEN = re.compile(r"\b(open(?:ing)?|show(?:ing)?|view(?:ing)?|play(?:ing)?|let me see|display(?:ing)?|pull(?:ing)? up|bring(?:ing)? up|look at|want to see|see)\b", re.I)
 READ = re.compile(r"\b(overview|summar(y|ise|ize)|what'?s (in|inside)|contents?|read|tell me what)\b", re.I)
-_NAME_BEFORE_KIND = re.compile(r"\b(?:open(?:ing)?|show(?:ing)?|view(?:ing)?|play(?:ing)?|read(?:ing)?|see|pull(?:ing)? up|summari[sz]e)\s+(?:me\s+)?(?:the\s+|my\s+|that\s+)?[\"'“]?([A-Za-z0-9][^\"'”.?!]{2,70}?)[\"'”]?\s+(?:doc|document|file|sheet|spreadsheet|pdf|song|video|audio|presentation|slides)\b", re.I)
+_NAME_BEFORE_KIND = re.compile(r"\b(?:open(?:ing)?|show(?:ing)?|view(?:ing)?|play(?:ing)?|read(?:ing)?|see|display(?:ing)?|bring(?:ing)? up|look at|want to see|pull(?:ing)? up|summari[sz]e)\s+(?:me\s+)?(?:the\s+|my\s+|that\s+)?[\"'“]?([A-Za-z0-9][^\"'”.?!]{2,70}?)[\"'”]?\s+(?:doc|document|file|sheet|spreadsheet|pdf|song|video|audio|presentation|slides)\b", re.I)
 _NAME_AFTER_KIND = re.compile(r"(?:(?:with\s+)?the\s+name|called|named|name|file|doc(?:ument)?|sheet|song|audio|pdf|video)\s+(?:(?:called|named|of)\s+)?[\"'“]?(?!(?:with|the|called|named|of|again|please|something)\b)([A-Za-z0-9][^\"'”.?!]{2,70})", re.I)
 
 
@@ -80,10 +80,66 @@ async def _drive_list(text: str) -> AsyncIterator[Event]:
     yield {"delta": f"Your {len(files)} latest Drive files:\n" + "\n".join(lines)}
 
 
-async def _open(text: str, history=None) -> AsyncIterator[Event]:
+LATEST = re.compile(r"\b(latest|newest|most recent(?:ly)?|last (?:updated|modified|edited|changed)|recently (?:updated|modified|edited|changed)|(?:updated|modified|edited) (?:last|most recently)|by date modified)\b", re.I)
+G_ = "application/vnd.google-apps."
+KINDS: list[tuple[re.Pattern, str, list[str]]] = [
+    (re.compile(r"\b(word|docx?|google doc|document)\b", re.I), "document", [G_ + "document", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"]),
+    (re.compile(r"\b(sheet|spreadsheet|excel|xlsx?|csv)\b", re.I), "spreadsheet", [G_ + "spreadsheet", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "text/csv"]),
+    (re.compile(r"\b(slides?|presentation|powerpoint|pptx?|deck)\b", re.I), "presentation", [G_ + "presentation", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]),
+    (re.compile(r"\bpdfs?\b", re.I), "PDF", ["application/pdf"]),
+    (re.compile(r"\b(images?|photos?|pictures?|png|jpe?g)\b", re.I), "image", ["image/png", "image/jpeg", "image/gif", "image/webp"]),
+    (re.compile(r"\b(songs?|music|audio|mp3)\b", re.I), "audio file", ["audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav", "audio/flac", "audio/ogg"]),
+    (re.compile(r"\b(videos?|movies?|mp4)\b", re.I), "video", ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"]),
+]
+
+
+def latest_request(text: str, history=None):
+    """('document', [mimes]) when the founder wants the newest file of some type, from this message or (for 'just open it') the last user message that asked."""
+    for cand in [text] + [str(getattr(h, "content", "")) for h in reversed((history or [])[-6:]) if getattr(h, "role", "") == "user"]:
+        if LATEST.search(cand):
+            pool = [cand] + [str(getattr(h, "content", "")) for h in reversed((history or [])[-6:]) if getattr(h, "role", "") == "user"]  # no type named here: reuse the one from the earlier request
+            kind = next(((label, mimes) for c in pool for rx, label, mimes in KINDS if rx.search(c)), None)
+            return kind or ("file", [])
+        if cand is text and re.search(r"[A-Za-z0-9]{3,}\s+\w+", text) and not re.fullmatch(r"(?i).{0,60}\b(it|that|this|them|again|here|window|tab)\b.{0,40}", text):
+            break  # a new, specific request: do not reuse older history
+    return None
+
+
+async def _open_latest(text: str, history=None, open_it: bool = True) -> AsyncIterator[Event]:
     from core.services import drive_service
+    label, mimes = latest_request(text, history) or ("file", [])
+    yield _tool("open_file", f"Finding your latest {label}", "running")
+    q = ("(" + " or ".join(f"mimeType='{m}'" for m in mimes) + ") and " if mimes else "") + "trashed = false and mimeType != 'application/vnd.google-apps.folder'"
+    try:
+        files = await asyncio.to_thread(drive_service.raw_query, q, 5)
+    except Exception as e:
+        yield _tool("open_file", f"Finding your latest {label}", "error", str(e))
+        yield {"delta": f"Couldn't reach Drive: {str(e)[:160]}"}
+        return
+    if not files:
+        yield _tool("open_file", f"Finding your latest {label}", "ok", "none")
+        yield {"delta": f"No {label} found in your Drive."}
+        return
+    f = files[0]
+    yield _tool("open_file", f"Finding your latest {label}", "ok", f"{f['name']} ({str(f.get('modifiedTime', ''))[:10]})")
+    card = {"src": "drive", "id": f["id"], "name": f["name"], "mime": f.get("mimeType", ""), "modified": f.get("modifiedTime"), "webUrl": f.get("webViewLink")}
+    if f.get("size"):
+        card["size"] = int(f["size"])
+    yield {"ui": {"kind": "file", "connector": "drive", **card, "file_id": f["id"], "open": open_it}}
+    yield {"delta": f"Opened {f['name']} (modified {str(f.get('modifiedTime', ''))[:10]})."}
+
+
+async def _open(text: str, history=None, attachments=None) -> AsyncIterator[Event]:
     m = FILE_NAME.search(text)
     q = (m.group(1).strip() if m else "").strip(" '\"")
+    attached = next((a for a in reversed(attachments or []) if getattr(a, "src", "attachment") == "attachment" and getattr(a, "id", None)), None)
+    if not q and attached:
+        card = {"src": "attachment", "id": attached.id, "name": attached.name, "mime": attached.mime or "application/octet-stream"}
+        yield _tool("open_file", f"Opening {attached.name}", "ok", "chat attachment")
+        yield {"ui": {"kind": "file", "connector": "attachment", **card, "file_id": attached.id, "open": True}}
+        yield {"delta": f"Opened {attached.name}."}
+        return
+    from core.files import file_service
     if not q and history:  # "just open it": the file named earlier in this conversation
         for h in reversed(history[-8:]):
             mm = FILE_NAME.search(str(getattr(h, "content", "")))
@@ -95,19 +151,24 @@ async def _open(text: str, history=None) -> AsyncIterator[Event]:
         return
     yield _tool("open_file", f"Finding {q}", "running")
     try:
-        hits = await asyncio.to_thread(drive_service.search, q, 5)
+        batches = await asyncio.gather(*[asyncio.to_thread(file_service.list, src, q, "", 5) for src in ("drive", "attachment", "local", "storage")], return_exceptions=True)
+        hits = [f for batch in batches if not isinstance(batch, Exception) for f in batch if f.mime != "inode/directory"]
+        hits.sort(key=lambda f: (not f.name.casefold().startswith(q.casefold()), f.name.casefold()))
     except Exception as e:
         yield _tool("open_file", f"Finding {q}", "error", str(e))
         yield {"delta": f"Couldn't reach Drive: {str(e)[:160]}"}
         return
     yield _tool("open_file", f"Finding {q}", "ok", f"{len(hits)} match(es)")
     if not hits:
-        yield {"delta": f"No file matching '{q}' in Drive."}
+        yield {"delta": f"No file matching '{q}' in Jazper's available sources."}
         return
     f = hits[0]
-    yield {"ui": {"kind": "file", "connector": "drive", "file_id": f["id"], "name": f["name"], "mime": f.get("mimeType", ""), "open": True}}
-    more = f" ({len(hits) - 1} similar: " + ", ".join(h["name"] for h in hits[1:3]) + ")" if len(hits) > 1 else ""
-    yield {"delta": f"Opened {f['name']}.{more}"}
+    card = f.json()
+    alternatives = [x.json() for x in hits[:4]]
+    # Do not guess when names collide: the UI card gives the founder one-click
+    # choices instead of asking a textual follow-up or opening the wrong file.
+    yield {"ui": {"kind": "file", "connector": f.src, **card, "file_id": f.id, "open": len(hits) == 1, "alternatives": alternatives if len(hits) > 1 else []}}
+    yield {"delta": f"Opened {f.name}." if len(hits) == 1 else f"I found {len(hits)} matches for {q}; choose one from the file card."}
 
 
 async def _summarize(text: str, history=None) -> AsyncIterator[Event]:
@@ -205,7 +266,7 @@ async def _summarize_or_chat(text: str, history=None) -> AsyncIterator[Event]:
         yield {"delta": "Which file should I read? Give me its name."}
 
 
-def match(slug: str, text: str, history=None):
+def match(slug: str, text: str, history=None, attachments=None):
     """Returns an async-generator factory for a known intent, else None. Only Jasper and Connector use fast paths."""
     if slug not in ("jasper", "connector"):
         return None
@@ -213,12 +274,16 @@ def match(slug: str, text: str, history=None):
     if len(t) > 400:
         return None
     recent = " ".join(str(getattr(h, "content", "")) for h in (history or [])[-6:] if getattr(h, "role", "") == "user")
+    prior_latest = any(LATEST.search(str(getattr(h, "content", ""))) for h in (history or [])[-6:] if getattr(h, "role", "") == "user")
+    wants_open = OPEN.search(t) or re.search(r"(get|find|fetch|give)", t, re.I) or (prior_latest and LATEST.search(t))  # a complaint like 'these are not the latest' re-runs the search
+    if wants_open and not READ.search(t) and latest_request(t, history) and not attachments and not re.search(r"(names?|list|files|d+)", t, re.I):
+        return lambda: _open_latest(t, history)
     if APPROVED.search(t) or (re.search(r"i approved google", t, re.I) and DRIVE.search(recent)) or (DRIVE.search(t) and DRIVE_LIST.search(t) and not re.search(r"\b(create|write|upload|share|delete|trash|move|rename|edit)\b", t, re.I)):
         return lambda: _drive_list(t)
     if READ.search(t) and (FILE_NAME.search(t) or re.search(r"\b(it|that|this|the doc|the file)\b", t, re.I)) and not re.search(r"\b(drive files|my files)\b", t, re.I) and (recent_has_file(history) or FILE_NAME.search(t)):
         return lambda: _summarize_or_chat(t, history)
-    if OPEN.search(t) and (FILE_NAME.search(t) or re.search(r"\b(it|that|this)\b", t, re.I)) and not READ.search(t) and re.search(r"\b(file|doc|document|sheet|pdf|song|audio|video|it|that)\b", t, re.I) and (DRIVE.search(t) or FILE_NAME.search(t) or re.search(r"\b(open|show|view|play) (it|that|this)\b", t, re.I)):
-        return lambda: _open(t, history)
+    if OPEN.search(t) and (FILE_NAME.search(t) or re.search(r"\b(it|that|this)\b", t, re.I)) and not READ.search(t) and re.search(r"\b(file|doc|document|sheet|spreadsheet|pdf|song|audio|video|slides|presentation|it|that)\b", t, re.I):
+        return lambda: _open(t, history, attachments)
     if CLEAR.search(t):
         return lambda: _clear(t)
     if USAGE.search(t):

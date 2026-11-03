@@ -13,7 +13,7 @@ export function Screen({ children, style, accessibilityLabel }: ScreenProps) {
     <SafeAreaView
       style={StyleSheet.flatten([{ flex: 1, backgroundColor: theme.colors.background }, style])}
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="region"
+      role="region"
     >
       {children}
     </SafeAreaView>

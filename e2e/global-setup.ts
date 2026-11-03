@@ -4,6 +4,7 @@ import path from "node:path";
 
 const root = path.resolve(__dirname, "..");
 const pidFile = path.join(__dirname, ".started-pids.json");
+const uiUrl = process.env.JASPER_E2E_UI_URL || "http://localhost:5173/";
 
 async function up(url: string): Promise<boolean> {
   try { return (await fetch(url, { signal: AbortSignal.timeout(2000) })).status < 500; } catch { return false; }
@@ -22,8 +23,8 @@ export default async function globalSetup() {
     return p;
   };
   if (!(await up("http://127.0.0.1:8000/health/"))) launch(path.join(root, "backend/.venv/Scripts/python.exe"), ["run_server.py"], path.join(root, "backend/python"));
-  if (!(await up("http://localhost:5173/"))) launch("npm.cmd", ["run", "dev"], path.join(root, "app"));
+  if (!(await up(uiUrl))) launch("npm.cmd", ["run", "dev", "--", "--port", new URL(uiUrl).port || "5173"], path.join(root, "app"));
   await waitFor("http://127.0.0.1:8000/health/", 150);
-  await waitFor("http://localhost:5173/", 90);
+  await waitFor(uiUrl, 90);
   fs.writeFileSync(pidFile, JSON.stringify(started));
 }

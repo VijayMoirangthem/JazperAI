@@ -44,7 +44,11 @@ HELP = {
     "system_status": "system_status {} : health of the whole system (database, redis, backend, connectors) in one call",
     "read_logs": "read_logs {name,lines,contains} : recent backend log lines (secrets are redacted). Use it to diagnose errors yourself",
     "google": "google {action,...} : YOUR OWN direct access to Google Drive/Docs/Sheets, real data, no delegation needed. actions: list {limit}, search {query}, read {name|file_id}, create_doc {title,text}, append {name|file_id,text}, replace {name|file_id,find,replace}, create_sheet {title}, sheet_read {name|file_id,range}, sheet_write/sheet_append {name|file_id,range,values}, create_file {title,text}, rename {name|file_id,new_name}, copy, trash, share {email,role}. Edits ask the founder to approve. NEVER describe Drive contents from memory: only copy what this tool returned",
-    "open_file": "open_file {name|file_id} : OPEN a Drive file for the founder in the in-app viewer (Docs, Sheets, PDFs, images, audio/video player, text/code). Use it whenever they say open/show/play/let me see a file",
+    "open_file": "open_file {name|file_id,src?} : OPEN a file from Drive, allowed PC folders, chat attachments, storage, or a safe HTTPS URL in Jazper's in-app viewer. It emits a source-aware rich file card. Use it whenever they say open/show/play/let me see a file",
+    "find_file": "find_file {query,src?} : search Drive, allowed PC folders, chat attachments and storage; returns FileRefs and rich file cards",
+    "list_viewers": "list_viewers {} : viewer formats and optional conversion capabilities",
+    "viewer_gaps": "viewer_gaps {format?} : report exactly what viewer/converter is missing and its remedy",
+    "add_viewer": "add_viewer {format} : plan a sandboxed viewer implementation; founder approval is required before merge",
     "capability_plan": "capability_plan {need,build} : when you LACK a tool or ability, call this instead of saying you can't. It checks connected tools, connectors and skills; if one exists it says which to connect/use; if none, it files the gap and (build=true) starts a sandboxed build of the missing capability by the team (tests run, the founder approves the merge). Always follow its result",
     "gaps": "gaps {} : recurring tool/connector failures of the last 7 days and how each was resolved (fixed, needed the founder, unfixed). Use it when asked what keeps going wrong",
     "diagnose": "diagnose {text} : classify an error message (google_scope, api_disabled, connector_down, rate_limited...)",
@@ -70,7 +74,7 @@ HELP = {
 FS = ["fs_roots", "fs_list", "fs_read", "fs_search", "fs_write"]
 LEADS = {"ceo-create-origins", "ceo-baeit", "lead-boardmint", "vp-tech-ops"}
 TOOLS_FOR: dict[str, list[str]] = {
-    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "google", "open_file", "capability_plan", "gaps", "diagnose", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
+    "jasper": ["list_org", "find_bot", "remember", "clear_chat", "google", "open_file", "find_file", "list_viewers", "viewer_gaps", "add_viewer", "capability_plan", "gaps", "diagnose", "llm_status", "llm_fix", "system_status", "read_logs", *FS, "ask_bot", "bot_stats", "create_bot", "edit_bot_prompt", "run_chaos", "slo", "list_connections", "suggest_connectors", "alerts", "evaluate_bot", "improve_bot", "hold_meeting", "build_feature", "feature_status", "merge_feature", "list_skills", "view_skill", "save_skill"],  # raw MCP tools are deliberately not Jasper's: it delegates (messenger, connector, leads)
     "connector": ["google", "open_file", "capability_plan", "list_connections", "suggest_connectors", "connect", "test_connection", "find_tool", "use_tool", "list_skills", "view_skill", "save_skill"],
     "messenger": ["find_tool", "use_tool", "list_connections", "ask_bot", "list_skills", "view_skill"],
     "bot-reviewer": ["list_org", "bot_stats", "evaluate_bot", "improve_bot", "alerts", "list_skills", "view_skill"],
@@ -316,18 +320,42 @@ async def run_tool(name: str, args: dict, agent: str) -> str:
                 if out.retry and attempt == 1:
                     continue
                 return f"error ({out.kind}): {out.message}"
-    if name == "open_file":
-        from core.services import drive_service as ds
+    if name in ("find_file", "open_file"):
+        from core.files import file_service
+        query, requested_src = str(args.get("name") or args.get("query") or "").strip(), str(args.get("src") or "").strip()
         try:
-            fid = args.get("file_id") or args.get("id")
-            hits = [await asyncio.to_thread(ds.get_file, str(fid))] if fid else await asyncio.to_thread(ds.search, str(args.get("name") or args.get("query") or ""), 5)
+            if args.get("id") and requested_src:
+                hits = [await asyncio.to_thread(file_service.meta, requested_src, str(args["id"]))]
+            else:
+                sources = [requested_src] if requested_src else ["drive", "attachment", "local", "storage", *( ["url"] if query.startswith("https://") else [] )]
+                groups = await asyncio.gather(*[asyncio.to_thread(file_service.list, src, query, "", 8) for src in sources], return_exceptions=True)
+                hits = [row for group in groups if not isinstance(group, Exception) for row in group if row.mime != "inode/directory"]
+                hits.sort(key=lambda f: (not f.name.casefold().startswith(query.casefold()), f.name.casefold()))
         except Exception as e:
             return f"error: {str(e)[:200]}"
         if not hits:
-            return "error: no file with that name in Drive"
-        f = hits[0]
-        _push_ui({"kind": "file", "connector": "drive", "file_id": f["id"], "name": f["name"], "mime": f.get("mimeType", ""), "open": True})
-        return f"Opened '{f['name']}' in the viewer window (the founder sees it now). One short line to confirm, nothing else."
+            return f"No file matching '{query}' was found in Jazper's available sources."
+        cards = [f.json() for f in hits[:5]]
+        if name == "find_file":
+            for ref in cards: _push_ui({"kind": "file", **ref, "open": False})
+            return _clip({"matches": cards, "hint": "file cards are shown in chat"}, 2500)
+        ref = hits[0].json()
+        # A tool call must follow the deterministic fastpath rule too: don't
+        # pick a same-named file from another source on the founder's behalf.
+        _push_ui({"kind": "file", "connector": ref["src"], **ref, "file_id": ref["id"], "open": len(cards) == 1, "alternatives": cards if len(cards) > 1 else []})
+        return f"Opened '{ref['name']}' in Jazper." if len(cards) == 1 else f"Found {len(cards)} matches for '{query}'. Choose one from the file card."
+    if name in ("list_viewers", "viewer_gaps"):
+        from core.files import file_service
+        caps = file_service.capabilities()
+        if name == "list_viewers":
+            return _clip({"formats": ["PDF", "Office", "spreadsheets", "Markdown", "code", "images", "audio", "video", "archives", "ebooks", "3D"], "capabilities": caps}, 3000)
+        fmt = str(args.get("format") or "unknown file").lower()
+        missing = [f"{k}: {v['install']}" for k, v in caps["tools"].items() if not v["available"]]
+        return f"Viewer gap for {fmt}: " + ("; ".join(missing) if missing else "no optional system converter is missing; ask Jazper to add a dedicated viewer plugin.")
+    if name == "add_viewer":
+        fmt = str(args.get("format", "")).strip()
+        if not fmt: return "error: format is required"
+        return await run_tool("capability_plan", {"need": f"Jazper file viewer plugin for {fmt}", "build": True}, agent)
     if name == "capability_plan":
         from agents import healer
         need = str(args.get("need", "")).strip()[:300]

@@ -47,6 +47,7 @@ export interface Bot {
   enabled: boolean;
   score: number | null;
   grade: string;
+  look?: { body: string; color: string } | null;
 }
 
 export interface BotCardResponse {
@@ -193,4 +194,21 @@ export interface StoredCredentials {
   deviceSecret: string;
   cfAccessClientId?: string;
   cfAccessClientSecret?: string;
+}
+
+export interface ConnectorItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  logo_key: string;
+  connected: boolean;
+  status: 'added' | 'available' | 'needs_attention';
+  tier_summary: 'read' | 'read_write' | 'sensitive';
+}
+
+export interface ConnectorsResponse {
+  featured: ConnectorItem[];
+  team: ConnectorItem[];
+  all: ConnectorItem[];
 }

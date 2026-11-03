@@ -29,7 +29,7 @@ export function EmptyState({
     <View
       style={StyleSheet.flatten([styles.container, style]) ?? undefined}
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="region"
+      role="region"
     >
       <Text variant="title" style={StyleSheet.flatten([styles.title, titleStyle]) ?? undefined}>
         {title}

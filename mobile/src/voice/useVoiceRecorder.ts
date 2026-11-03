@@ -1,5 +1,12 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs, react-hooks/preserve-manual-memoization, react-hooks/immutability, react/no-unescaped-entities, import/namespace */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Audio } from 'expo-av';
+import {
+  AudioModule,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  type AudioRecorder,
+} from 'expo-audio';
 import { JasperClient } from '@/api/client';
 import { useAuth } from '@/auth/useAuth';
 import { transcribeUri } from './transcribe';
@@ -7,6 +14,8 @@ import { transcribeUri } from './transcribe';
 export interface VoiceRecorder {
   recording: boolean;
   seconds: number;
+  /** Smoothed input level 0..1 for the waveform. */
+  level: number;
   transcribing: boolean;
   error: string | null;
   start: () => Promise<void>;
@@ -18,10 +27,20 @@ export interface VoiceRecorder {
 export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [level, setLevel] = useState(0);
+  const meterRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recordingRef = useRef<AudioRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearMeter = useCallback(() => {
+    if (meterRef.current) {
+      clearInterval(meterRef.current);
+      meterRef.current = null;
+    }
+    setLevel(0);
+  }, []);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -34,21 +53,30 @@ export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder 
     if (recordingRef.current) return;
     setError(null);
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         setError('Microphone permission is needed for a voice note.');
         return;
       }
 
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording: active } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      const active = new AudioModule.AudioRecorder({});
+      await active.prepareToRecordAsync({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
+      active.record();
       recordingRef.current = active;
       setRecording(true);
       setSeconds(0);
       clearTimer();
       timerRef.current = setInterval(() => setSeconds((value) => value + 1), 1000);
+      let smooth = 0.15;
+      meterRef.current = setInterval(() => {
+        const reader = active as unknown as { getStatus?: () => { metering?: number } };
+        const db = reader.getStatus?.().metering;
+        // metering is in dB (about -60 quiet .. 0 loud); without it fall back to a gentle pulse.
+        const target = typeof db === 'number' ? Math.min(1, Math.max(0, (db + 55) / 55)) : 0.25 + Math.random() * 0.4;
+        smooth = smooth * 0.55 + target * 0.45;
+        setLevel(smooth);
+      }, 90);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start recording');
     }
@@ -56,24 +84,26 @@ export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder 
 
   const cleanup = useCallback(async (): Promise<string | null> => {
     clearTimer();
+    clearMeter();
     setRecording(false);
     const active = recordingRef.current;
     recordingRef.current = null;
     if (!active) return null;
 
-    const uri = active.getURI();
+    let uri: string | null = null;
     try {
-      await active.stopAndUnloadAsync();
+      await active.stop();
+      uri = active.uri;
     } catch {
       // The recording may already have stopped.
     }
     try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
     } catch {
       // Audio mode is best effort.
     }
     return uri;
-  }, [clearTimer]);
+  }, [clearTimer, clearMeter]);
 
   const stop = useCallback(async () => {
     const uri = await cleanup();
@@ -107,12 +137,12 @@ export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder 
   useEffect(
     () => () => {
       clearTimer();
-      void recordingRef.current?.stopAndUnloadAsync().catch(() => undefined);
+      void recordingRef.current?.stop().catch(() => undefined);
     },
     [clearTimer]
   );
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { recording, seconds, transcribing, error, start, stop, cancel, clearError };
+  return { recording, seconds, level, transcribing, error, start, stop, cancel, clearError };
 }

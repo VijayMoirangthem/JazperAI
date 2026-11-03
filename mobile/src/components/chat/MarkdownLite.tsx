@@ -7,9 +7,11 @@ interface MarkdownLiteProps {
   text: string;
   onPressLink?: (url: string) => void;
   onCopyCode?: (code: string) => void;
+  /** Text colour override (white on the dark user bubble). */
+  color?: string;
 }
 
-function renderInline(parts: InlinePart[], onPressLink?: (url: string) => void): React.ReactNode[] {
+function renderInline(parts: InlinePart[], onPressLink?: (url: string) => void, color?: string): React.ReactNode[] {
   return parts.map((part, index) => {
     const key = `${part.type}-${index}`;
     if (part.type === 'bold') {
@@ -46,7 +48,8 @@ function renderBlock(
   block: MarkdownBlock,
   key: string,
   onPressLink?: (url: string) => void,
-  onCopyCode?: (code: string) => void
+  onCopyCode?: (code: string) => void,
+  color?: string
 ): React.ReactNode {
   if (block.type === 'code') {
     return (
@@ -71,8 +74,8 @@ function renderBlock(
       <View key={key} style={styles.bulletList}>
         {block.items.map((item, index) => (
           <View key={`bullet-${index}`} style={styles.bulletRow}>
-            <Text style={styles.bulletMark}>•</Text>
-            <Text style={styles.bulletText}>{renderInline(item, onPressLink)}</Text>
+            <Text style={[styles.bulletMark, color ? { color } : null]}>•</Text>
+            <Text style={[styles.bulletText, color ? { color } : null]}>{renderInline(item, onPressLink, color)}</Text>
           </View>
         ))}
       </View>
@@ -80,13 +83,13 @@ function renderBlock(
   }
 
   return (
-    <Text key={key} style={styles.paragraph}>
-      {renderInline(block.parts, onPressLink)}
+    <Text key={key} style={[styles.paragraph, color ? { color } : null]}>
+      {renderInline(block.parts, onPressLink, color)}
     </Text>
   );
 }
 
-export function MarkdownLite({ text, onPressLink, onCopyCode }: MarkdownLiteProps) {
+export function MarkdownLite({ text, onPressLink, onCopyCode, color }: MarkdownLiteProps) {
   const blocks = parseMarkdown(text);
 
   if (blocks.length === 0) {
@@ -95,7 +98,7 @@ export function MarkdownLite({ text, onPressLink, onCopyCode }: MarkdownLiteProp
 
   return (
     <View>
-      {blocks.map((block, index) => renderBlock(block, `${block.type}-${index}`, onPressLink, onCopyCode))}
+      {blocks.map((block, index) => renderBlock(block, `${block.type}-${index}`, onPressLink, onCopyCode, color))}
     </View>
   );
 }
@@ -103,8 +106,8 @@ export function MarkdownLite({ text, onPressLink, onCopyCode }: MarkdownLiteProp
 const styles = StyleSheet.create({
   paragraph: {
     color: theme.colors.text,
-    fontSize: theme.fontSizes.base,
-    lineHeight: 21,
+    fontSize: theme.fontSizes.body,
+    lineHeight: 22,
   },
   bold: {
     fontWeight: '700',

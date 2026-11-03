@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, Notification, dialog, session, shell, Tray,
 const { spawn } = require("node:child_process");
 const http = require("node:http");
 const path = require("node:path");
+const fs = require("node:fs/promises");
 
 const API_URL = process.env.JASPER_API_URL || "http://127.0.0.1:8000";
 const PROD = process.env.JASPER_MODE === "prod"; // built UI served by the backend (no dev server)
@@ -17,14 +18,21 @@ const ALLOWED_ORIGINS = new Set([new URL(UI_URL).origin, new URL(API_URL).origin
 let win = null;
 let backend = null;
 
-// ── single instance + deep link (jasper://… for OAuth loopback hand-off) ──────────────────
+// ── single instance + deep link (jazper://… opens a source-agnostic file) ──────────────────
 const E2E = !!process.env.JASPER_E2E; // automated tests run their own instance
 if (!E2E && !app.requestSingleInstanceLock() && !SMOKE) app.quit();
+// `jazper` is the public link scheme emitted into chat/notes. Keep the old
+// spelling registered too so pre-existing OAuth links do not stop working.
+app.setAsDefaultProtocolClient("jazper");
 app.setAsDefaultProtocolClient("jasper");
 app.on("second-instance", (_e, argv) => {
   if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
-  const link = argv.find((a) => a.startsWith("jasper://"));
+  const link = argv.find((a) => a.startsWith("jazper://") || a.startsWith("jasper://"));
   if (link && win) win.webContents.send("deep-link", link);
+});
+app.on("open-url", (event, link) => {
+  event.preventDefault();
+  if (win) { if (win.isMinimized()) win.restore(); win.focus(); win.webContents.send("deep-link", link); }
 });
 
 // ── backend supervision: start uvicorn if the API is not already up, stop it on quit ─────
@@ -98,6 +106,42 @@ ipcMain.handle("pick-file", async () => {
   return r.canceled ? null : r.filePaths[0];
 });
 ipcMain.handle("app-info", () => ({ version: app.getVersion(), api: API_URL, platform: process.platform }));
+async function approvedLocalPath(filePath) {
+  if (typeof filePath !== "string" || !path.isAbsolute(filePath)) return false;
+  return new Promise((resolve) => {
+    const endpoint = `${API_URL}/api/v1/files/meta?src=local&id=${encodeURIComponent(filePath)}`;
+    http.get(endpoint, (response) => { response.resume(); resolve(response.statusCode === 200); }).on("error", () => resolve(false));
+  });
+}
+ipcMain.handle("open-file-window", (_e, file) => {
+  if (!file || typeof file.src !== "string" || typeof file.id !== "string") return false;
+  const child = new BrowserWindow({ width: 1120, height: 780, title: String(file.name || "Jazper file").slice(0, 120), icon: path.join(__dirname, "icon.png"), webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const hash = `#files?src=${encodeURIComponent(file.src)}&id=${encodeURIComponent(file.id)}&name=${encodeURIComponent(String(file.name || "file"))}&mime=${encodeURIComponent(String(file.mime || "application/octet-stream"))}`;
+  child.loadURL(UI_URL + hash);
+  return true;
+});
+ipcMain.handle("open-path", async (_e, filePath) => (await approvedLocalPath(filePath)) ? shell.openPath(filePath) : "path is outside Jazper's allowed folders");
+ipcMain.handle("reveal-path", async (_e, filePath) => { if (!await approvedLocalPath(filePath)) return false; shell.showItemInFolder(filePath); return true; });
+ipcMain.handle("save-png", async (_e, { name, dataUrl }) => {
+  if (typeof name !== "string" || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/png;base64,")) return null;
+  const fileName = name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 120);
+  if (!fileName.endsWith(".png")) return null;
+  const bytes = Buffer.from(dataUrl.slice("data:image/png;base64,".length), "base64");
+  const pngSignature = "89504e470d0a1a0a";
+  if (bytes.length < 8 || bytes.length > 25 * 1024 * 1024 || bytes.subarray(0, 8).toString("hex") !== pngSignature) return null;
+  const pictures = app.getPath("pictures"), stem = fileName.slice(0, -4);
+  for (let duplicate = 0; duplicate < 100; duplicate++) {
+    const destination = path.join(pictures, `${stem}${duplicate ? `-${duplicate}` : ""}.png`);
+    try { await fs.writeFile(destination, bytes, { flag: "wx" }); return destination; } catch (error) { if (error?.code !== "EEXIST") throw error; }
+  }
+  return null;
+});
+ipcMain.handle("reveal-saved-png", async (_e, filePath) => {
+  if (typeof filePath !== "string") return false;
+  const pictures = path.resolve(app.getPath("pictures")), destination = path.resolve(filePath);
+  if (path.extname(destination).toLowerCase() !== ".png" || !destination.startsWith(pictures + path.sep)) return false;
+  try { await fs.access(destination); shell.showItemInFolder(destination); return true; } catch { return false; }
+});
 
 app.whenReady().then(async () => {
   // strict CSP for the UI origin (dev server needs inline/eval for HMR; tightened when the static Vite renderer lands)

@@ -12,7 +12,7 @@ export function Divider({ style, accessibilityLabel }: DividerProps) {
     <View
       style={StyleSheet.flatten([styles.container, style])}
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="separator"
+      importantForAccessibility="no-hide-descendants"
     />
   );
 }

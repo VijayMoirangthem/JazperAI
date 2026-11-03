@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     padding: theme.spacing.md,
     borderRadius: theme.radii.button,
-    backgroundColor: 'rgba(239,68,68,0.15)',
+    backgroundColor: theme.colors.dangerBg,
     borderWidth: 1,
     borderColor: theme.colors.danger,
     gap: theme.spacing.sm,

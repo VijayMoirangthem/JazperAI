@@ -80,6 +80,22 @@ def get_bytes(bucket: str, key: str) -> bytes:
         r.release_conn()
 
 
+def download_file(bucket: str, key: str, destination: str, max_bytes: int | None = None) -> int:
+    """Stream an object to disk; callers retain a strict maximum before caching it."""
+    r, size = client().get_object(bucket, key), 0
+    try:
+        with open(destination, "wb") as out:
+            for chunk in r.stream(1024 * 1024):
+                size += len(chunk)
+                if max_bytes is not None and size > max_bytes:
+                    raise OverflowError("object exceeds viewer size limit")
+                out.write(chunk)
+        return size
+    finally:
+        r.close()
+        r.release_conn()
+
+
 def stat(bucket: str, key: str) -> dict | None:
     try:
         o = client().stat_object(bucket, key)

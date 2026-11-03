@@ -1,4 +1,4 @@
-export const MASCOT_BODY_IDS = ['cursor', 'blob', 'circle', 'squircle', 'capsule', 'drop', 'shield', 'hexagon', 'diamond', 'star'] as const;
+export const MASCOT_BODY_IDS = ['cursor', 'blob', 'circle', 'squircle', 'capsule', 'drop', 'shield', 'hexagon', 'diamond', 'star', 'triangle', 'cloud'] as const;
 
 export type MascotBodyId = (typeof MASCOT_BODY_IDS)[number];
 
@@ -69,6 +69,18 @@ export const MASCOT_BODIES: Record<MascotBodyId, MascotBodyShape> = {
     fit: 'translate(-8.3327 3.1407) scale(1.226032)',
     d: 'M100 2C110.56054 20.13133 121.12108 38.26266 131.68163 56.39398C152.18893 60.83477 172.69623 65.27555 193.20354 69.71633C179.22301 85.3629 165.24248 101.00946 151.26195 116.65602C153.37562 137.5319 155.48929 158.40778 157.60295 179.28367C138.40197 170.82244 119.20098 162.36122 100 153.9C80.79902 162.36122 61.59803 170.82244 42.39705 179.28367C44.51071 158.40778 46.62438 137.5319 48.73805 116.65602C34.75752 101.00946 20.77699 85.3629 6.79646 69.71633C27.30377 65.27555 47.81107 60.83477 68.31837 56.39398C78.87892 38.26266 89.43946 20.13133 100 2Z',
     anchor: { x: 113.82, y: 125.43, scale: 0.791 },
+  },
+  triangle: {
+    name: 'Triangle',
+    fit: 'translate(0 8) scale(1.1427)',
+    d: 'M100 12C108 12 114 16 118 23L190 150C198 165 188 184 170 184L30 184C12 184 2 165 10 150L82 23C86 16 92 12 100 12Z',
+    anchor: { x: 114.3, y: 148, scale: 0.791 },
+  },
+  cloud: {
+    name: 'Cloud',
+    fit: 'translate(0 14) scale(1.1427)',
+    d: 'M52 150C20 150 8 112 36 94C28 62 66 40 92 58C108 28 160 34 166 72C192 74 198 120 174 138C166 156 140 154 130 150Z',
+    anchor: { x: 118, y: 124, scale: 0.791 },
   },
 };
 

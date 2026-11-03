@@ -30,6 +30,10 @@ class Attachment(BaseModel):
     name: str
     mime: str = ""
     text: str | None = None  # inlined for text-like files
+    # Browser uploads are persisted through /files/upload. This is a provider
+    # identifier, never a client path, and lets tools/open fastpaths use it.
+    src: str = "attachment"
+    id: str | None = None
 
 
 class Turn(BaseModel):
@@ -77,7 +81,7 @@ def _wrap_attachment(name: str, text: str) -> str:
 
 
 def _user_content(text: str, atts: list[Attachment]) -> str:
-    extra = "".join(f"\n\n[Attachment: {a.name}]\n" + _wrap_attachment(a.name, a.text[:20000]) if a.text else f"\n\n[Attachment: {a.name} ({a.mime or 'binary'}), not readable as text]"
+    extra = "".join(f"\n\n[Attachment: {a.name}]\n" + _wrap_attachment(a.name, a.text[:20000]) if a.text else f"\n\n[Attachment: {a.name} ({a.mime or 'binary'}), not readable as text]" + (f"\nAvailable as jazper://open?src=attachment&id={a.id}&name={a.name}&mime={a.mime}" if a.src == "attachment" and a.id else "")
                     for a in atts)
     return text + extra
 
@@ -124,7 +128,7 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     try:
         b = registry.routable(slug)
         with finops.attribute(slug, b.crew if b else None):
-            fast = fastpaths.match(slug, text, history)  # known intents (Drive files, clear chat, usage, health) run deterministically: instant and model-independent
+            fast = fastpaths.match(slug, text, history, atts)  # known intents (Drive files, clear chat, usage, health) run deterministically: instant and model-independent
             if jasper_tools.has_tools(slug):  # bots with a tool allowlist (Jasper, Connector, ...) use the tool loop
                 events = fast() if fast else jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier, agent=slug)
                 async for ev in events:

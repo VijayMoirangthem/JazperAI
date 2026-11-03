@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import { JasperClient } from '@/api/client';
 import { useAuth } from '@/auth/useAuth';
@@ -7,7 +7,7 @@ import { Message } from '@/db/chat';
 import { splitForSpeech, voiceForBot } from '@/voice/speech';
 
 let runId = 0;
-let currentSound: Audio.Sound | null = null;
+let currentSound: AudioPlayer | null = null;
 let currentFile: File | null = null;
 
 async function unloadCurrent(): Promise<void> {
@@ -15,14 +15,14 @@ async function unloadCurrent(): Promise<void> {
   currentSound = null;
   if (sound) {
     try {
-      await sound.stopAsync();
+      sound.pause();
     } catch {
       // Not playing.
     }
     try {
-      await sound.unloadAsync();
+      sound.remove();
     } catch {
-      // Already unloaded.
+      // Already released.
     }
   }
 
@@ -51,19 +51,20 @@ async function playChunk(
   await file.write(bytes);
   currentFile = file;
 
-  const { sound } = await Audio.Sound.createAsync({ uri: file.uri });
+  const sound = createAudioPlayer({ uri: file.uri });
   currentSound = sound;
   onPlaying();
 
   await new Promise<void>((resolve, reject) => {
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isLoaded) {
-        if (status.error) reject(new Error(status.error));
-        return;
-      }
-      if (status.didJustFinish) resolve();
+    sound.addListener('playbackStatusUpdate', (status) => {
+      if (status.error) reject(new Error(status.error));
+      else if (status.didJustFinish) resolve();
     });
-    sound.playAsync().catch(reject);
+    try {
+      sound.play();
+    } catch (err) {
+      reject(err);
+    }
   });
 
   await unloadCurrent();
@@ -105,7 +106,7 @@ export const useSpeech = create<SpeechState>()((set, get) => ({
 
     set({ messageId: message.id, loading: true, error: null });
     try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       for (const chunk of chunks) {
         if (token !== runId) return;
         await playChunk(

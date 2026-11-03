@@ -1,408 +1,175 @@
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TextInput } from 'react-native';
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as Constants from 'expo-constants';
-import Camera, { CameraView, BarcodeScanningResult } from 'expo-camera';
-import { useAuth } from '@/auth/useAuth';
-import { saveCredentials } from '@/auth/secureStore';
-import { registerForPushNotifications } from '@/notifications/setup';
-import { JasperClient, AuthRevokedError } from '@/api/client';
-import { StoredCredentials } from '@/api/types';
-import {
-  Screen,
-  Text as UISText,
-  Button,
-  Card,
-  Divider,
-  Spinner,
-} from '@/components/ui';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Href, useLocalSearchParams, useRouter } from 'expo-router';
+import { Camera, CameraView, BarcodeScanningResult } from 'expo-camera';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronDown, ChevronLeft, ScanLine } from 'lucide-react-native';
+import { isValidPairingCode, normalizeServerUrl, pairWithCode, parsePairLink } from '@/auth/AuthProvider';
+import { Button } from '@/components/ui';
+import { CircleButton } from '@/components/ui/kit';
+import { theme } from '@/theme/tokens';
 
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-function isValidPairingCode(code: string): boolean {
-  if (code.length !== 8) return false;
-  return code.toUpperCase().split('').every((c) => ALPHABET.includes(c));
-}
-
-function isValidUrl(url: string): boolean {
+function isAllowedUrl(url: string): boolean {
   return url.startsWith('https://') || url.startsWith('http://10.0.2.2') || url.startsWith('http://localhost');
 }
 
-// Workaround for TypeScript: expo-camera exports these at runtime but types don't match
-// @ts-ignore
-const requestCameraPermissionsAsync = Camera.requestCameraPermissionsAsync;
-
+/** Connect to Jasper through the internet link: scan the QR on the computer, or type the address and code. */
 export default function PairScreen() {
   const router = useRouter();
-  const { setTokens, setCredentials } = useAuth();
-  const { u, c } = useLocalSearchParams();
-
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ u?: string; c?: string }>();
   const [serverUrl, setServerUrl] = useState('');
-  const [pairingCode, setPairingCode] = useState('');
-  const [deviceName, setDeviceName] = useState('');
-  const [cfClientId, setCfClientId] = useState('');
-  const [cfClientSecret, setCfClientSecret] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [code, setCode] = useState('');
+  const [cfId, setCfId] = useState('');
+  const [cfSecret, setCfSecret] = useState('');
+  const [advanced, setAdvanced] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState<null | boolean>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const autoRan = useRef(false);
 
-  const scannedCodeRef = useRef<string | null>(null);
-
-  // Initialize default name and URL from QR params
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const defaultName = (Constants.default as { deviceName?: string })?.deviceName ?? 'Jasper Phone';
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDeviceName(defaultName);
-
-    if (u && c) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setServerUrl(u as string);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPairingCode((c as string).toUpperCase());
-    }
-  }, [u, c]);
-
-  // Request camera permissions
-  useEffect(() => {
-    (async () => {
-      const { status } = await requestCameraPermissionsAsync();
-      setHasCameraPermission(status === 'granted');
-    })();
-  }, []);
-
-  const handlePair = async () => {
-    setError(null);
-
-    if (!serverUrl.trim()) {
-      setError('Server URL is required');
-      return;
-    }
-    if (!isValidUrl(serverUrl)) {
-      setError('Server URL must start with https:// (or http://10.0.2.2 / http://localhost in dev)');
-      return;
-    }
-    if (!pairingCode.trim()) {
-      setError('Pairing code is required');
-      return;
-    }
-    if (!isValidPairingCode(pairingCode)) {
-      setError('Pairing code must be 8 characters (A-Z except I,O and 2-9)');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const client = new JasperClient(serverUrl);
-      const defaultName = (Constants.default as { deviceName?: string })?.deviceName ?? 'Jasper Phone';
-      const response = await client.pair({
-        code: pairingCode.toUpperCase(),
-        name: deviceName.trim() || defaultName,
-        platform: Platform.OS,
-        cf_access_client_id: cfClientId.trim() || undefined,
-        cf_access_client_secret: cfClientSecret.trim() || undefined,
-      });
-
-      const credentials: StoredCredentials = {
-        baseUrl: serverUrl,
-        deviceId: response.device_id,
-        deviceSecret: response.device_secret,
-        cfAccessClientId: cfClientId.trim() || undefined,
-        cfAccessClientSecret: cfClientSecret.trim() || undefined,
-      };
-
-      await saveCredentials(credentials);
-      setCredentials(credentials);
-      setTokens(response.access_token, response.device_id, deviceName.trim() || defaultName);
-      void registerForPushNotifications();
-
-      router.replace('/(tabs)/chats' as any);
-    } catch (err) {
-      if (err instanceof AuthRevokedError || err instanceof Error) {
-        if (err.message.includes('invalid or expired') || err.message.includes('400')) {
-          setError('Invalid or expired pairing code');
-        } else if (err.message.includes('network') || err.message.includes('fetch')) {
-          setError('Cannot reach server. Check the URL and your connection.');
-        } else {
-          setError(err.message);
-        }
-      } else {
-        setError('An unexpected error occurred');
+  const submit = useCallback(
+    async (urlInput: string, codeInput: string) => {
+      const url = normalizeServerUrl(urlInput);
+      if (!url) return setError('Enter the address shown on your computer.');
+      if (!isAllowedUrl(url)) return setError('The address must start with https://');
+      if (!isValidPairingCode(codeInput)) return setError('The code has 8 letters and numbers.');
+      setBusy(true);
+      setError(null);
+      try {
+        await pairWithCode({ baseUrl: url, code: codeInput, cfClientId: cfId.trim(), cfClientSecret: cfSecret.trim() });
+        router.replace('/(tabs)/chats' as Href);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        if (/400|invalid or expired/i.test(message)) setError('That code is invalid or has expired. Make a new one on your computer.');
+        else setError("Can't reach Jasper at that address. Is it running and is the link still open?");
+      } finally {
+        setBusy(false);
       }
-    } finally {
-      setLoading(false);
-    }
+    },
+    [cfId, cfSecret, router]
+  );
+
+  // Opened from a link or QR: fill the fields and connect straight away.
+  useEffect(() => {
+    if (autoRan.current || !params.u || !params.c) return;
+    autoRan.current = true;
+    const url = decodeURIComponent(String(params.u));
+    const pairCode = String(params.c).toUpperCase();
+    setServerUrl(url);
+    setCode(pairCode);
+    void submit(url, pairCode);
+  }, [params.u, params.c, submit]);
+
+  const startScan = async () => {
+    const permission = await Camera.requestCameraPermissionsAsync();
+    if (!permission.granted) return setError('Allow the camera to scan the QR code, or type the details below.');
+    setScanning(true);
   };
 
-  const handleScanQR = () => {
-    if (hasCameraPermission) {
-      setScanning(true);
-    } else {
-      Alert.alert('Camera permission required', 'Please grant camera access to scan QR codes.');
-    }
+  const onScanned = (result: BarcodeScanningResult) => {
+    const parsed = parsePairLink(result.data);
+    if (!parsed) return;
+    setScanning(false);
+    setServerUrl(parsed.url);
+    setCode(parsed.code);
+    void submit(parsed.url, parsed.code);
   };
 
-  const handleBarCodeScanned = (result: BarcodeScanningResult) => {
-    const barcodeData = result.data;
-    if (!barcodeData || scannedCodeRef.current === barcodeData) return;
-    scannedCodeRef.current = barcodeData;
-
-    try {
-      const url = new URL(barcodeData);
-      if (url.protocol === 'jasper:' && url.pathname === '/pair') {
-        const uParam = url.searchParams.get('u');
-        const cParam = url.searchParams.get('c');
-        if (uParam && cParam) {
-          setServerUrl(uParam);
-          setPairingCode(cParam.toUpperCase());
-          setScanning(false);
-          return;
-        }
-      }
-    } catch {
-      // Not a valid URL
-    }
-    Alert.alert('Invalid QR code', 'This QR code does not contain a valid Jasper pairing link.');
-  };
-
-  if (scanning && hasCameraPermission) {
+  if (scanning) {
     return (
-      <Screen style={styles.scannerContainer}>
-        <CameraView
-          style={StyleSheet.absoluteFill}
-          onBarcodeScanned={handleBarCodeScanned}
-        />
-        <View style={styles.scannerOverlay}>
-          <UISText variant="title" style={styles.scannerTitle}>
-            Scan Pairing QR Code
-          </UISText>
-          <UISText variant="body" style={styles.scannerHint}>
-            Point camera at the QR code from the desktop app
-          </UISText>
-          <Button title="Cancel" variant="secondary" onPress={() => setScanning(false)} style={styles.scannerButton} />
+      <View style={styles.scan}>
+        <CameraView style={StyleSheet.absoluteFill} barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={onScanned} />
+        <View style={[styles.scanTop, { top: insets.top + 8 }]}>
+          <CircleButton label="Close scanner" onPress={() => setScanning(false)}>
+            <ChevronLeft size={22} color={theme.colors.text} />
+          </CircleButton>
         </View>
-      </Screen>
+        <Text style={[styles.scanHint, { bottom: insets.bottom + 40 }]}>Point the camera at the QR code on your computer</Text>
+      </View>
     );
   }
 
   return (
-    <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
-            <UISText variant="title" style={styles.title}>
-              Pair with Jasper
-            </UISText>
-            <UISText variant="muted" style={styles.subtitle}>
-              Enter the pairing code from your desktop app
-            </UISText>
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
+        <CircleButton label="Back" onPress={() => router.back()}>
+          <ChevronLeft size={22} color={theme.colors.text} />
+        </CircleButton>
+      </View>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Text style={styles.title} accessibilityRole="header">
+          Connect to Jasper
+        </Text>
+        <Text style={styles.sub}>On your computer run the Jasper phone link, then scan its QR code. Works from anywhere.</Text>
+
+        <Pressable onPress={startScan} style={styles.scanButton} accessibilityRole="button" accessibilityLabel="Scan QR code">
+          <ScanLine size={20} color={theme.colors.pillText} />
+          <Text style={styles.scanButtonText}>Scan QR code</Text>
+        </Pressable>
+
+        <Text style={styles.or}>or type it in</Text>
+        <TextInput
+          value={serverUrl}
+          onChangeText={setServerUrl}
+          placeholder="Address, for example https://abc.trycloudflare.com"
+          placeholderTextColor={theme.colors.faint}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          style={styles.field}
+          accessibilityLabel="Server address"
+        />
+        <TextInput
+          value={code}
+          onChangeText={(text) => setCode(text.toUpperCase())}
+          placeholder="8-character code"
+          placeholderTextColor={theme.colors.faint}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={8}
+          style={[styles.field, styles.codeField]}
+          accessibilityLabel="Pairing code"
+        />
+
+        <Pressable onPress={() => setAdvanced((v) => !v)} style={styles.advanced} accessibilityRole="button" accessibilityLabel="Advanced">
+          <Text style={styles.advancedText}>Advanced</Text>
+          <ChevronDown size={16} color={theme.colors.muted} style={{ transform: [{ rotate: advanced ? '180deg' : '0deg' }] }} />
+        </Pressable>
+        {advanced ? (
+          <View style={{ gap: 10 }}>
+            <TextInput value={cfId} onChangeText={setCfId} placeholder="Cloudflare Access client id (optional)" placeholderTextColor={theme.colors.faint} autoCapitalize="none" style={styles.field} accessibilityLabel="Cloudflare Access client id" />
+            <TextInput value={cfSecret} onChangeText={setCfSecret} placeholder="Cloudflare Access client secret (optional)" placeholderTextColor={theme.colors.faint} autoCapitalize="none" secureTextEntry style={styles.field} accessibilityLabel="Cloudflare Access client secret" />
           </View>
+        ) : null}
 
-          <Card style={styles.card}>
-            <UISText variant="caption" style={styles.fieldLabel}>
-              Server URL
-            </UISText>
-            <TextInput
-              value={serverUrl}
-              onChangeText={setServerUrl}
-              placeholder="https://your-tunnel.trycloudflare.com"
-              autoCapitalize="none"
-              autoComplete="url"
-              keyboardType="url"
-              style={styles.textInput}
-              editable={!loading}
-            />
+        {error ? (
+          <Text style={styles.error} accessibilityRole="alert">
+            {error}
+          </Text>
+        ) : null}
 
-            <Divider style={styles.divider} />
-
-            <UISText variant="caption" style={styles.fieldLabel}>
-              Pairing Code
-            </UISText>
-            <TextInput
-              value={pairingCode}
-              onChangeText={(t) => setPairingCode(t.toUpperCase())}
-              placeholder="ABCD1234"
-              autoCapitalize="characters"
-              maxLength={8}
-              style={styles.textInput}
-              editable={!loading}
-            />
-
-            <Divider style={styles.divider} />
-
-            <UISText variant="caption" style={styles.fieldLabel}>
-              Device Name
-            </UISText>
-            <TextInput
-              value={deviceName}
-              onChangeText={setDeviceName}
-              placeholder="My Phone"
-              autoCapitalize="words"
-              style={styles.textInput}
-              editable={!loading}
-            />
-          </Card>
-
-          <Button
-            title="Scan QR Code"
-            variant="secondary"
-            onPress={handleScanQR}
-            disabled={loading || !hasCameraPermission}
-            style={styles.scanButton}
-          />
-
-          <Button
-            title={showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
-            variant="secondary"
-            onPress={() => setShowAdvanced(!showAdvanced)}
-            disabled={loading}
-            style={styles.advancedToggle}
-          />
-
-          {showAdvanced && (
-            <Card style={styles.advancedCard}>
-              <UISText variant="caption" style={styles.fieldLabel}>
-                Cloudflare Access Client ID (optional)
-              </UISText>
-              <TextInput
-                value={cfClientId}
-                onChangeText={setCfClientId}
-                placeholder="client-id"
-                autoCapitalize="none"
-                style={styles.textInput}
-                editable={!loading}
-              />
-
-              <Divider style={styles.divider} />
-
-              <UISText variant="caption" style={styles.fieldLabel}>
-                Cloudflare Access Client Secret (optional)
-              </UISText>
-              <TextInput
-                value={cfClientSecret}
-                onChangeText={setCfClientSecret}
-                placeholder="client-secret"
-                autoCapitalize="none"
-                secureTextEntry
-                style={styles.textInput}
-                editable={!loading}
-              />
-            </Card>
-          )}
-
-          {error && (
-            <Card style={styles.errorCard}>
-              <UISText variant="body" style={styles.errorText}>
-                {error}
-              </UISText>
-            </Card>
-          )}
-
-          <Button
-            title={loading ? 'Pairing...' : 'Pair'}
-            variant="primary"
-            onPress={handlePair}
-            loading={loading}
-            disabled={loading}
-            style={styles.pairButton}
-          />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Screen>
+        <Button title="Connect" onPress={() => void submit(serverUrl, code)} loading={busy} disabled={!serverUrl || code.length < 8} style={{ height: 52, marginTop: 6 }} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0b0b0b',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 16,
-    paddingBottom: 32,
-    justifyContent: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  subtitle: {
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  card: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  textInput: {
-    backgroundColor: '#1f1f1f',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: '#f2f2f2',
-    fontSize: 16,
-  },
-  divider: {
-    marginVertical: 16,
-  },
-  scanButton: {
-    marginBottom: 12,
-  },
-  advancedToggle: {
-    marginBottom: 12,
-  },
-  advancedCard: {
-    marginBottom: 16,
-  },
-  errorCard: {
-    backgroundColor: 'rgba(239,68,68,0.15)',
-    borderColor: '#ef4444',
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#ef4444',
-    textAlign: 'center',
-  },
-  pairButton: {
-    marginTop: 8,
-  },
-  scannerContainer: {
-    flex: 1,
-  },
-  scannerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  scannerTitle: {
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  scannerHint: {
-    textAlign: 'center',
-    marginBottom: 24,
-    opacity: 0.8,
-  },
-  scannerButton: {
-    width: 200,
-  },
+  root: { flex: 1, backgroundColor: theme.colors.background },
+  top: { paddingHorizontal: 14, paddingBottom: 4 },
+  content: { padding: 20, gap: 14 },
+  title: { fontSize: theme.fontSizes.hero - 6, fontWeight: '600', color: theme.colors.text, marginTop: 6 },
+  sub: { fontSize: theme.fontSizes.base, color: theme.colors.muted, lineHeight: 21 },
+  scanButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 54, borderRadius: 27, backgroundColor: theme.colors.pill, marginTop: 8 },
+  scanButtonText: { color: theme.colors.pillText, fontWeight: '600', fontSize: theme.fontSizes.body },
+  or: { textAlign: 'center', color: theme.colors.faint, fontSize: theme.fontSizes.sm },
+  field: { height: 52, borderRadius: 16, backgroundColor: theme.colors.chipBg, paddingHorizontal: 16, fontSize: theme.fontSizes.body, color: theme.colors.text },
+  codeField: { letterSpacing: 4, fontWeight: '600', textAlign: 'center' },
+  advanced: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', paddingVertical: 4 },
+  advancedText: { fontSize: theme.fontSizes.sm, color: theme.colors.muted },
+  error: { color: theme.colors.danger, fontSize: theme.fontSizes.sm, textAlign: 'center' },
+  scan: { flex: 1, backgroundColor: '#000000' },
+  scanTop: { position: 'absolute', left: 14 },
+  scanHint: { position: 'absolute', alignSelf: 'center', color: '#ffffff', fontSize: theme.fontSizes.base, textAlign: 'center', paddingHorizontal: 30 },
 });

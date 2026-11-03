@@ -14,7 +14,7 @@ export function Card({ children, style, accessibilityLabel, padding = 'lg' }: Ca
     <View
       style={StyleSheet.flatten([styles.container, { padding: theme.spacing[padding] }, style])}
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="group"
+      role="group"
     >
       {children}
     </View>

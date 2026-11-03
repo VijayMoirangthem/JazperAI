@@ -5,6 +5,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 NPX = "npx.cmd" if sys.platform == "win32" else "npx"
 
+
+def project_python() -> str:
+    """Interpreter for Python connectors: the project's venv when it exists, never a bare system Python that lacks our packages
+    (the backend may have been started by hand with whatever 'python' was first on PATH, and connectors inherit sys.executable)."""
+    from pathlib import Path
+    venv = Path(__file__).resolve().parents[2] / ".venv" / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    return str(venv) if venv.exists() else sys.executable
+
 PRESETS: dict[str, dict] = {
     "github": {
         "name": "GitHub (official MCP server)",
@@ -30,7 +38,7 @@ PRESETS: dict[str, dict] = {
     },
     "google-workspace": {
         "name": "Google Workspace (Gmail, Calendar, Drive, Docs, Sheets - read and write)",
-        "command": [sys.executable, "-m", "hub.servers.google_workspace"], "env_secrets": {},
+        "command": [project_python(), "-m", "hub.servers.google_workspace"], "env_secrets": {},
         "needs": "Connect your Google account in the app's Google settings (OAuth) once.",
         # reads default to Tier 1, creates/edits to Tier 2 (mcp.write); outward-facing or destructive actions are Tier 3
         "tool_tiers": {"gmail_send": "mcp.admin", "drive_share": "mcp.admin", "drive_trash": "mcp.admin"},

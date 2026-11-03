@@ -1,3 +1,4 @@
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import React, { useCallback } from 'react';
 import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useRouter, Href } from 'expo-router';
@@ -54,7 +55,7 @@ export default function ActivityScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text variant="title">Activity</Text>
+        <ScreenHeader title="Activity" />
         {status ? (
           <Text style={styles.count}>{status.pending_approvals} pending</Text>
         ) : null}
@@ -260,7 +261,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     padding: theme.spacing.md,
     borderRadius: theme.radii.button,
-    backgroundColor: 'rgba(239,68,68,0.15)',
+    backgroundColor: theme.colors.dangerBg,
     borderWidth: 1,
     borderColor: theme.colors.danger,
     gap: theme.spacing.sm,

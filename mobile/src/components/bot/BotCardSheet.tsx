@@ -348,12 +348,12 @@ function formatDate(iso: string): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0b0b0b',
+    backgroundColor: theme.colors.background,
   },
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: theme.colors.border,
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: theme.colors.hairline,
   },
   label: {
     opacity: 0.6,
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: theme.colors.hairline,
   },
   bodySwatchSelected: {
     borderColor: theme.colors.accent,

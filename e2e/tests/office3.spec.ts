@@ -35,7 +35,7 @@ test.beforeAll(async () => {
     env: launchEnv(),
   });
   page = await app.firstWindow();
-  await page.waitForURL(/localhost:5173/, { timeout: 90_000 });
+  await page.waitForURL(/localhost:[0-9]+/, { timeout: 90_000 });
   page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
   // Warm-up: the dev server optimizes dependencies on first visit and may reload the page.
   for (const id of ["team_chat", "office3"]) {

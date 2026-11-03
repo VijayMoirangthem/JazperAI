@@ -1,3 +1,4 @@
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useCallback } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -34,7 +35,7 @@ export default function ApprovalsScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text variant="title">Approvals</Text>
+        <ScreenHeader title="Approvals" />
         <Text style={styles.count}>
           {requests.length === 0 ? 'Nothing waiting' : `${requests.length} waiting`}
         </Text>
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     padding: theme.spacing.md,
     borderRadius: theme.radii.button,
-    backgroundColor: 'rgba(239,68,68,0.15)',
+    backgroundColor: theme.colors.dangerBg,
     borderWidth: 1,
     borderColor: theme.colors.danger,
     gap: theme.spacing.sm,

@@ -1,5 +1,7 @@
-import { Slot } from 'expo-router';
+import { ExpoRoot } from 'expo-router';
+
+const ctx = require.context('./app');
 
 export default function App() {
-  return <Slot />;
+  return <ExpoRoot context={ctx} />;
 }

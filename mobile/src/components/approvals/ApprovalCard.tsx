@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.raised,
   },
   tierDanger: {
-    backgroundColor: 'rgba(239,68,68,0.18)',
+    backgroundColor: theme.colors.dangerBg,
     borderColor: theme.colors.danger,
   },
   tierText: {
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSizes.sm,
   },
   warning: {
-    backgroundColor: 'rgba(245,158,11,0.15)',
+    backgroundColor: theme.colors.warningBg,
     borderRadius: theme.radii.button,
     borderWidth: 1,
     borderColor: theme.colors.warning,

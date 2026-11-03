@@ -32,7 +32,7 @@ export function Badge({ score, style, textStyle, accessibilityLabel }: BadgeProp
     <View
       style={containerStyle}
       accessibilityLabel={accessibilityLabel ?? `Score: ${label}`}
-      accessibilityRole="status"
+      role="status"
     >
       <Text variant="caption" style={textStyleCombined}>
         {label}

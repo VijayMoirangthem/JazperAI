@@ -12,12 +12,14 @@ export interface LiveAgent {
 
 interface LiveAgentsState {
   agents: Record<string, LiveAgent>;
+  history: Record<string, LiveAgent[]>;
   connected: boolean;
   connect: (url: string) => () => void;
 }
 
 export const useLiveAgents = create<LiveAgentsState>((set) => ({
   agents: {},
+  history: {},
   connected: false,
   connect: (url) => {
     const client = new RpcClient({
@@ -31,7 +33,14 @@ export const useLiveAgents = create<LiveAgentsState>((set) => ({
           slug: p.agent_slug, state: p.to_state ?? "idle", bubble: p.status_bubble ?? null,
           reason: p.reason ?? null, seq: e.seq, ts: e.ts,
         };
-        set((s) => ({ agents: { ...s.agents, [row.slug]: row } }));
+        set((s) => {
+          const prior = s.history[row.slug] ?? [];
+          const previous = prior[prior.length - 1];
+          // The visit card is a lifecycle timeline, not a high-frequency presence log.
+          // Keep only real state transitions, while the latest payload still updates above.
+          const history = previous?.state === row.state ? prior : [...prior, row].slice(-8);
+          return { agents: { ...s.agents, [row.slug]: row }, history: { ...s.history, [row.slug]: history } };
+        });
       },
     });
     client.start();

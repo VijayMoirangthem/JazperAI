@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = path.resolve(__dirname, "../..");
-const RAIL = ["mind_map", "live_agents", "office", "org_chart", "dev_loop", "diff_editor", "connections", "skills", "mcp_hub", "ai_providers", "finops", "business", "system"];
+const RAIL = ["mind_map", "live_agents", "office3", "org_chart", "dev_loop", "diff_editor", "connections", "skills", "mcp_hub", "ai_providers", "finops", "business", "system"];
 let app: ElectronApplication;
 let page: Page;
 const errors: string[] = [];
@@ -35,11 +35,11 @@ test("every rail panel opens and has content within 4 s", async () => {
 });
 
 test("panels stay mounted: returning to a panel shows it immediately with no blocking load", async () => {
-  await page.getByTestId("rail-office").click();
+  await page.getByTestId("rail-office3").click();
   await page.getByTestId("rail-skills").click();
   const t0 = Date.now();
-  await page.getByTestId("rail-office").click();
-  await expect(page.locator("[data-keepalive=office]")).toBeVisible();
+  await page.getByTestId("rail-office3").click();
+  await expect(page.locator("[data-keepalive=office3]")).toBeVisible();
   expect(Date.now() - t0).toBeLessThan(400);
   expect(await page.locator("[data-keepalive]").count()).toBeGreaterThan(5); // kept alive, not re-created
 });
@@ -55,9 +55,9 @@ test("model picker pins a model for the active bot and Automatic resets it", asy
   await expect(page.getByTestId("model-pill")).toContainText("Auto");
 });
 
-test("office scene is not rebuilt by background polling", async () => {
-  await page.getByTestId("rail-office").click();
-  const canvas = page.locator("[data-keepalive=office] canvas").first();
+test("Office 3 scene is not rebuilt by background polling", async () => {
+  await page.getByTestId("rail-office3").click();
+  const canvas = page.locator("[data-keepalive=office3] canvas").first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });
   const handle = await canvas.elementHandle();
   await page.waitForTimeout(13_000); // longer than two roster polls (5 s)

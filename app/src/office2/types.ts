@@ -1,7 +1,7 @@
 /** Shared shapes for the Office 2 modules. Types only: this file has no runtime code. */
 export type Pt = readonly [number, number];
 export type Facing = "up" | "down" | "left" | "right";
-export type Place = "desk" | "meeting" | "tools" | "lounge" | "founder";
+export type Place = "desk" | "meeting" | "tools" | "lounge" | "founder" | "incident";
 
 export interface Area {
   room: string; label: string; kind: string;

@@ -30,6 +30,33 @@ RATE_PER_MIN = 240
 ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no look-alike characters
 
 
+_PAIR_MEM: dict[str, float] = {}  # used only while Redis is unavailable (for example Docker is not running)
+
+
+async def _pair_put(code: str) -> None:
+    try:
+        await layer.client().set(f"tenant:platform:pair:{code}", "1", ex=PAIR_TTL)
+        return
+    except Exception:
+        pass
+    now = time.time()
+    for k in [k for k, exp in _PAIR_MEM.items() if exp < now]:
+        _PAIR_MEM.pop(k, None)
+    _PAIR_MEM[code] = now + PAIR_TTL
+
+
+async def _pair_take(code: str) -> bool:
+    try:
+        c = layer.client()
+        key = f"tenant:platform:pair:{code}"
+        if await c.get(key):
+            await c.delete(key)
+            return True
+    except Exception:
+        pass
+    return _PAIR_MEM.pop(code, 0) > time.time()
+
+
 def _key() -> str:
     k = vault.get("REMOTE_JWT_KEY")
     if not k:
@@ -79,7 +106,7 @@ async def device(request: Request, authorization: str = Header(default="")) -> d
 @local_router.post("/pair/start")
 async def pair_start():
     code = "".join(secrets.choice(ALPHABET) for _ in range(8))
-    await layer.client().set(f"tenant:platform:pair:{code}", "1", ex=PAIR_TTL)
+    await _pair_put(code)
     url = vault.get("REMOTE_PUBLIC_URL") or ""
     await audit.write("create_origins", "remote-pair-start", {"expires_s": PAIR_TTL})
     return {"code": code, "expires_s": PAIR_TTL, "url": url, "qr_payload": f"jasper://pair?u={url}&c={code}"}
@@ -122,11 +149,8 @@ class RefreshIn(BaseModel):
 
 @router.post("/pair/complete")
 async def pair_complete(body: PairIn):
-    c = layer.client()
-    key = f"tenant:platform:pair:{body.code.upper()}"
-    if not await c.get(key):
+    if not await _pair_take(body.code.upper()):  # single use
         raise HTTPException(400, "invalid or expired code")
-    await c.delete(key)  # single use
     dsecret = secrets.token_urlsafe(32)
     rows = await aio.fetch("INSERT INTO shared.devices(name, platform, secret_hash, push_token) VALUES($1,$2,$3,$4) RETURNING id::text AS id", body.name, body.platform, _hash(dsecret), body.push_token)
     await audit.write("create_origins", "remote-device-paired", {"device": rows[0]["id"], "name": body.name, "platform": body.platform})
@@ -151,7 +175,7 @@ async def bots(d: dict = Depends(device)):
     from agents import orgchart
     groups = (await orgchart.tree())["groups"]
     return {"groups": [{"id": g["id"], "label": g["label"], "bots": [{"slug": b["slug"], "display_name": b["display_name"], "position": b["position"], "department": b["department"],
-                                                                     "enabled": b["enabled"], "score": b["score"], "grade": b["grade"]} for b in g["bots"] if b["enabled"]]} for g in groups if g["id"] != "legacy"]}
+                                                                     "enabled": b["enabled"], "score": b["score"], "grade": b["grade"], "look": orgchart.SETTINGS.get(b["slug"], {}).get("look")} for b in g["bots"] if b["enabled"]]} for g in groups if g["id"] != "legacy"]}
 
 
 @router.post("/chat/stream")
@@ -247,3 +271,206 @@ class PushIn(BaseModel):
 async def push_register(body: PushIn, d: dict = Depends(device)):
     await aio.execute("UPDATE shared.devices SET push_token=$2 WHERE id=$1::uuid", d["id"], body.token)
     return {"ok": True}
+
+
+# ── V2: one-tap sign-in (development scaffolding until real accounts exist) ──────────────────────────────
+import ipaddress
+import re
+
+from core.remote_guard import is_remote
+
+
+class DevSigninIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    platform: str = Field(default="", max_length=20)
+    push_token: str | None = None
+
+
+def _private_client(request: Request) -> bool:
+    host = request.client.host if request.client else ""
+    if host in ("localhost", "testclient"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_private
+
+
+async def _rate(key: str, limit: int, window: int) -> None:
+    try:
+        c = layer.client()
+        k = f"tenant:platform:rate:{key}:{int(time.time() // window)}"
+        n = await c.incr(k)
+        if n == 1:
+            await c.expire(k, window + 30)
+        if n > limit:
+            raise HTTPException(429, "too many requests")
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Redis down: do not lock the founder out
+
+
+@router.post("/auth/dev-signin")
+async def dev_signin(body: DevSigninIn, request: Request):
+    """Same response as /pair/complete. Off by default; loopback/LAN only; never through the tunnel."""
+    if vault.get("REMOTE_DEV_SIGNIN") != "1":
+        raise HTTPException(403, "one-tap sign-in is turned off on the computer")
+    if is_remote(request.scope) or not _private_client(request):
+        raise HTTPException(403, "one-tap sign-in works only on the local network")
+    await _rate("devsignin", 5, 3600)
+    dsecret = secrets.token_urlsafe(32)
+    rows = await aio.fetch("INSERT INTO shared.devices(name, platform, secret_hash, push_token) VALUES($1,$2,$3,$4) RETURNING id::text AS id", body.name, body.platform, _hash(dsecret), body.push_token)
+    await audit.write("create_origins", "remote-dev-signin", {"device": rows[0]["id"], "name": body.name})
+    return {"device_id": rows[0]["id"], "device_secret": dsecret, "access_token": _token(rows[0]["id"]), "expires_in": ACCESS_TTL}
+
+
+@local_router.post("/dev-signin/enable")
+async def dev_signin_enable():
+    vault.set("REMOTE_DEV_SIGNIN", "1")
+    await audit.write("create_origins", "remote-dev-signin-enabled", {})
+    return {"enabled": True}
+
+
+@local_router.post("/dev-signin/disable")
+async def dev_signin_disable():
+    vault.set("REMOTE_DEV_SIGNIN", "0")
+    await audit.write("create_origins", "remote-dev-signin-disabled", {})
+    return {"enabled": False}
+
+
+# ── V2: create a bot and its look from the phone ─────────────────────────────────────────────────────────
+LOOK_BODIES = {"circle", "blob", "squircle", "capsule", "triangle", "hexagon", "cloud", "drop", "star", "cursor", "shield", "diamond"}
+LOOK_COLORS = {"white", "brown", "red", "orange", "amber", "green", "teal", "blue", "purple", "pink", "grey", "black"}
+PHONE_CREW = "mobile"
+CORE_BOTS = {"jasper"}
+
+
+class LookIn(BaseModel):
+    body: str
+    color: str
+
+
+def _check_look(look: LookIn) -> dict:
+    if look.body not in LOOK_BODIES or look.color not in LOOK_COLORS:
+        raise HTTPException(422, "unknown shape or colour")
+    return {"body": look.body, "color": look.color}
+
+
+async def _save_look(slug: str, look: dict) -> None:
+    import json as _json
+    from agents import orgchart
+    cur = dict(orgchart.SETTINGS.get(slug, {}))
+    cur["look"] = look
+    orgchart.SETTINGS[slug] = cur
+    await aio.execute("INSERT INTO shared.bot_org(slug) VALUES($1) ON CONFLICT DO NOTHING", slug)
+    await aio.execute("UPDATE shared.bot_org SET settings=$2::jsonb, updated_at=now() WHERE slug=$1", slug, _json.dumps(cur))
+
+
+def _clean(text: str, limit: int) -> str:
+    return re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", text or "").strip()[:limit]
+
+
+class BotCreateIn(BaseModel):
+    display_name: str = Field(min_length=2, max_length=40)
+    role_title: str = Field(default="", max_length=60)
+    instructions: str = Field(default="", max_length=500)
+    look: LookIn | None = None
+
+
+class BotPatchIn(BaseModel):
+    display_name: str | None = Field(default=None, min_length=2, max_length=40)
+    role_title: str | None = Field(default=None, max_length=60)
+
+
+@router.post("/bots")
+async def create_bot(body: BotCreateIn, d: dict = Depends(device)):
+    """Safe defaults are decided here, never by the phone: no tools, standard model tier, crew 'mobile'."""
+    from agents.registry import BotDef, registry
+    await _rate(f"botcreate:{d['id']}", 10, 3600)
+    await registry.reload()
+    name = _clean(body.display_name, 40)
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40] or "bot"
+    slug, n = base, 2
+    while registry.get(slug) or slug in CORE_BOTS or len(slug) < 2:
+        slug, n = f"{base}-{n}", n + 1
+    role = _clean(body.role_title, 60) or "Assistant"
+    prompt = f"You are {name}, a helpful assistant. Role: {role}.\n" + (f"What you should do: {_clean(body.instructions, 500)}\n" if body.instructions else "") + "Be clear, kind and brief."
+    bot = await registry.upsert(BotDef(slug=slug, display_name=name, role_title=role, crew=PHONE_CREW, prompt=prompt, tools=[], reports_to="jasper"))
+    look = _check_look(body.look) if body.look else None
+    if look:
+        await _save_look(slug, look)
+    await audit.write("create_origins", "remote-bot-created", {"device": d["id"], "slug": slug})
+    return {"slug": slug, "display_name": bot.display_name, "position": role, "department": "", "enabled": True, "score": None, "grade": "", "look": look}
+
+
+@router.put("/bots/{slug}/look")
+async def put_look(slug: str, body: LookIn, d: dict = Depends(device)):
+    look = _check_look(body)
+    await _save_look(slug, look)
+    return {"slug": slug, "look": look}
+
+
+@router.patch("/bots/{slug}")
+async def patch_bot(slug: str, body: BotPatchIn, d: dict = Depends(device)):
+    from agents.registry import registry
+    await registry.reload()
+    bot = registry.get(slug)
+    if bot is None or slug in CORE_BOTS:
+        raise HTTPException(403, "this bot can only be changed on the computer")
+    if body.display_name:
+        bot.display_name = _clean(body.display_name, 40)
+    if body.role_title is not None:
+        bot.role_title = _clean(body.role_title, 60)
+    await registry.upsert(bot)
+    await audit.write("create_origins", "remote-bot-renamed", {"device": d["id"], "slug": slug})
+    return {"slug": slug, "display_name": bot.display_name, "role_title": bot.role_title}
+
+
+@router.delete("/bots/{slug}")
+async def archive_bot(slug: str, d: dict = Depends(device)):
+    from agents.registry import registry
+    await registry.reload()
+    bot = registry.get(slug)
+    if bot is None or slug in CORE_BOTS or bot.crew != PHONE_CREW:
+        raise HTTPException(403, "only bots made on the phone can be archived here")
+    await registry.disable(slug)
+    await audit.write("create_origins", "remote-bot-archived", {"device": d["id"], "slug": slug})
+    return {"slug": slug, "enabled": False}
+
+
+# ── V2: read-only plugin catalogue (never secrets) ──────────────────────────────────────────────────────
+FEATURED_IDS = ("gmail", "google-calendar", "google-drive", "slack", "notion", "github")
+
+
+def _logo_key(cid: str) -> str:
+    return re.sub(r"[^a-z0-9-]", "", cid.lower())[:40]
+
+
+@router.get("/connectors")
+async def connectors_catalogue(d: dict = Depends(device)):
+    from agents import connector
+    items = []
+    for st in await connector.overview():
+        cid = str(st.get("id", ""))
+        connected = bool(st.get("connected"))
+        needs = bool(st.get("missing")) and not connected
+        items.append({"id": cid, "name": str(st.get("name") or cid.replace("-", " ").title())[:60],
+                      "description": _clean(str(st.get("why") or st.get("description") or ""), 140),
+                      "category": str(st.get("category") or "general")[:30], "logo_key": _logo_key(cid), "connected": connected,
+                      "status": "added" if connected else "needs_attention" if needs else "available",
+                      "tier_summary": "read_write" if connected else "read"})
+    featured = [i for i in items if i["connected"] or i["id"] in FEATURED_IDS][:8]
+    team = [i for i in items if i not in featured][:8]
+    return {"featured": featured, "team": team, "all": items}
+
+
+@router.post("/connectors/{cid}/request")
+async def connector_request(cid: str, d: dict = Depends(device)):
+    from agents import connector
+    if cid not in connector.catalogue():
+        raise HTTPException(404, "unknown plugin")
+    await _rate(f"connreq:{d['id']}", 20, 3600)
+    await audit.write("create_origins", "remote-connector-request", {"device": d["id"], "connector": cid})
+    return {"requested": True}

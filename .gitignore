@@ -55,3 +55,9 @@ app/public/vad/
 storage/spinoffs/
 
 data/
+
+# Android native build output
+.cxx/
+**/.cxx/
+mobile/android/build/
+mobile/android/.gradle/

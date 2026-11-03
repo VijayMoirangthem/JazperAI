@@ -33,19 +33,34 @@ export function applyLiveStates(actors: Map<string, OfficeActor>, model: MapMode
 export function resolveAttention(actors: Map<string, OfficeActor>, model: MapModel, slug: string, approved: boolean): void {
   const actor = actors.get(slug);
   if (!actor) return;
-  setActorState(actor, "idle", approved ? "Approved ✓" : "Declined");
+  setActorState(actor, "idle", approved ? "👍 Approved" : "Declined");
   window.setTimeout(() => { if (actor.state === "idle") setActorState(actor, "idle", ""); }, 2200);
   actor.place = "desk";
   walkTo(actor, actor.home, model);
 }
 
 export function applyIncident(actors: Map<string, OfficeActor>, model: MapModel, active: boolean): void {
-  if (!active) return;
-  const destination = model.spots.find(spot => spot.room === "tools" && spot.type === "spot") ?? model.spots.find(spot => spot.room === "tools");
-  if (!destination) return;
+  if (!active) {
+    for (const actor of actors.values()) {
+      if (actor.place !== "incident") continue;
+      actor.place = "desk";
+      walkTo(actor, actor.home, model);
+      if (actor.bubble === "Incident response") { setActorState(actor, actor.state, "Incident resolved"); window.setTimeout(() => { if (actor.bubble === "Incident resolved") setActorState(actor, actor.state, ""); }, 2200); }
+    }
+    return;
+  }
+  const destinations = model.spots.filter(spot => spot.room === "tools" && spot.type === "spot");
+  if (!destinations.length) return;
+  const reserved = new Set<string>();
   for (const actor of actors.values()) {
     if (actor.person.kind === "human" || actor.state === "waiting_human" || actor.state === "escalated") continue;
-    if (actor.state === "error" || actor.state === "working" || actor.person.slug.includes("sentry") || actor.person.slug.includes("ops")) walkTo(actor, destination, model);
+    if (actor.state !== "error" && actor.state !== "working" && !actor.person.slug.includes("sentry") && !actor.person.slug.includes("ops")) continue;
+    const destination = assignSpot(destinations, reserved, actor.person.slug);
+    if (!destination) continue;
+    reserved.add(`${destination.x},${destination.y}`);
+    actor.place = "incident";
+    setActorState(actor, actor.state, "Incident response");
+    walkTo(actor, destination, model);
   }
 }
 

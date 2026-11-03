@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     LIGHT_MODEL: str = "openai/gpt-oss-20b"
     EDGE_MODE: bool = False  # local models only allowed when true
     WS_TOKEN: str = ""  # when set, /ws/rpc requires ?token=
+    OFFICE_AUTH_REQUIRED: bool = False  # enables signed founder/admin checks for Office people management
 
     # Embeddings (unified memory, D-5)
     EMBEDDING_PROVIDER: str = "local"
