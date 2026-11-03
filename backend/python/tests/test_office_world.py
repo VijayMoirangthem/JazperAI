@@ -40,3 +40,10 @@ def test_doc_decodes_jsonb_text():
     assert _doc('{"a": 1}') == {"a": 1}
     assert _doc(b'{"a": 1}') == {"a": 1}
     assert _doc({"a": 1}) == {"a": 1}
+
+
+def test_people_schema_creates_invites_before_altering():
+    import inspect
+    from api.routes import people
+    src = inspect.getsource(people._ensure)
+    assert src.index("CREATE TABLE IF NOT EXISTS shared.office_invites") < src.index("ALTER TABLE shared.office_invites")

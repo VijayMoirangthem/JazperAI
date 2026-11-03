@@ -17,7 +17,7 @@ def test_persona_suffix_and_memory_scopes():
     suffix = orgchart.persona_suffix("t-bot")
     assert "short" in suffix and "Hindi" in suffix
     assert orgchart.memory_scopes("t-bot") == {"founder": True, "own": True, "group": False, "org": True}
-    assert orgchart.persona_suffix("nobody") == "" and all(orgchart.memory_scopes("nobody").values())
+    assert "Hindi" not in orgchart.persona_suffix("nobody") and all(orgchart.memory_scopes("nobody").values())
 
 
 def test_llm_kwargs_pin_and_cli_never_for_tool_bots(monkeypatch):

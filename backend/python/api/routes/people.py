@@ -34,12 +34,12 @@ async def _ensure() -> None:
     await aio.execute("ALTER TABLE shared.office_people ADD COLUMN IF NOT EXISTS desk_label text")
     await aio.execute("ALTER TABLE shared.office_people ADD COLUMN IF NOT EXISTS credential_salt text")
     await aio.execute("ALTER TABLE shared.office_people ADD COLUMN IF NOT EXISTS credential_hash text")
-    await aio.execute("ALTER TABLE shared.office_invites ADD COLUMN IF NOT EXISTS invite_code_hash text")
-    await aio.execute("ALTER TABLE shared.office_invites ADD COLUMN IF NOT EXISTS expires_at timestamptz")
     await aio.execute("""CREATE TABLE IF NOT EXISTS shared.office_invites (
       id bigserial PRIMARY KEY, email text NOT NULL, display_name text NOT NULL,
       suggested_id text NOT NULL, role text NOT NULL, mentor_id text, desk_label text, invite_code_hash text, expires_at timestamptz,
       status text NOT NULL DEFAULT 'pending', created_at timestamptz NOT NULL DEFAULT now())""")
+    await aio.execute("ALTER TABLE shared.office_invites ADD COLUMN IF NOT EXISTS invite_code_hash text")
+    await aio.execute("ALTER TABLE shared.office_invites ADD COLUMN IF NOT EXISTS expires_at timestamptz")
     _ready = True
 
 def _auth_key() -> str:
