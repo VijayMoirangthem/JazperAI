@@ -59,12 +59,12 @@ def _run_blocking(cmd: list[str], src: Path, network: str, timeout_s: float, mem
                   run_id: str, image: str = IMAGE, ro_mounts: tuple = ()) -> SandboxResult:
     name = f"jasper-sbx-{uuid4().hex[:10]}"
     docker_cmd = [
-        "docker", "run", "--rm", "--name", name, "--read-only", "--user", "1000:1000", "--cap-drop", "ALL",
+        "docker", "run", "--rm", "--name", name, "--read-only", "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges", "--pids-limit", str(pids), "--memory", mem, "--memory-swap", mem, "--cpus", cpus,
         "--network", network, "--tmpfs", "/tmp:rw,size=64m", "--tmpfs", "/work:rw,exec,size=256m,uid=1000,gid=1000",
         "-v", f"{src.resolve()}:/src:ro", *[x for host, inside in ro_mounts for x in ("-v", f"{Path(host).resolve()}:{inside}:ro")],
         "-e", "HOME=/tmp", "-e", "PYTHONDONTWRITEBYTECODE=1", image,
-        "sh", "-c", 'cp -a /src/. /work/ 2>/dev/null; cd /work && exec "$@"', "sh", *cmd,
+        "sh", "-c", 'cp -a /src/. /work/ 2>/dev/null && chown -R 1000:1000 /work && exec su -s /bin/sh sbx -c \'cd /work && exec "$@"\' sh "$@"', "sh", *cmd,
     ]
     t0 = time.monotonic()
     proc = subprocess.Popen(docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
