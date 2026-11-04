@@ -64,7 +64,7 @@ def _run_blocking(cmd: list[str], src: Path, network: str, timeout_s: float, mem
         "--network", network, "--tmpfs", "/tmp:rw,size=64m", "--tmpfs", "/work:rw,exec,size=256m,uid=1000,gid=1000",
         "-v", f"{src.resolve()}:/src:ro", *[x for host, inside in ro_mounts for x in ("-v", f"{Path(host).resolve()}:{inside}:ro")],
         "-e", "HOME=/tmp", "-e", "PYTHONDONTWRITEBYTECODE=1", image,
-        "sh", "-c", 'cp -a /src/. /work/ 2>/dev/null && chown -R 1000:1000 /work && exec su -s /bin/sh sbx -c \'cd /work && exec "$@"\' sh "$@"', "sh", *cmd,
+        "sh", "-c", 'cp -a /src/. /work/ 2>/dev/null && chown -R 1000:1000 /work && exec su -s /bin/sh -c \'cd /work && exec "$@"\' sbx sh "$@"', "sh", *cmd,
     ]
     t0 = time.monotonic()
     proc = subprocess.Popen(docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
