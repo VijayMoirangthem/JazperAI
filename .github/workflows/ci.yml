@@ -9,6 +9,10 @@ jobs:
   python:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: backend/python } }
+    env:
+      # Non-secret placeholders allow unit-test imports while real services remain unavailable.
+      POSTGRES_PASSWORD: ci-postgres-placeholder
+      REDIS_PASSWORD: ci-redis-placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
