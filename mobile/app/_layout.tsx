@@ -1,8 +1,14 @@
+import { theme } from '@/theme/tokens';
 import { Stack, useRouter, Href, ErrorBoundaryProps } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '@/auth/useAuth';
-import { loadCredentials, clearCredentials } from '@/auth/secureStore';
+import { getAuthProvider } from '@/auth/AuthProvider';
+import { initMetaDb } from '@/db/meta';
+import { useHome } from '@/store/home';
+import { ToastHost } from '@/components/ui/kit';
+import { AppLockGate } from '@/components/AppLockGate';
+import { StatusBar } from 'expo-status-bar';
 import { JasperClient, AuthRevokedError } from '@/api/client';
 import { useApprovals } from '@/store/approvals';
 import { useSettings } from '@/store/settings';
@@ -25,7 +31,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 }
 
 export default function RootLayout() {
-  const { hydrated, credentials, setTokens, setCredentials, clear } = useAuth();
+  const { hydrated, credentials, clear } = useAuth();
   const [initializing, setInitializing] = useState(true);
   const router = useRouter();
   const toggles = useSettings((state) => state.notificationToggles);
@@ -48,10 +54,10 @@ export default function RootLayout() {
 
     let cancelled = false;
     void (async () => {
-      await clearCredentials();
+      await getAuthProvider().signOut();
       if (cancelled) return;
       clear();
-      router.replace('/(auth)/pair' as Href);
+      router.replace('/welcome' as Href);
     })();
 
     return () => {
@@ -96,24 +102,17 @@ export default function RootLayout() {
   useEffect(() => {
     const initialize = async () => {
       if (!hydrated) return;
-
-      const credentials = await loadCredentials();
-      if (!credentials) {
-        setInitializing(false);
-        return;
-      }
-
       try {
-        const client = new JasperClient(credentials.baseUrl);
-        const refreshResponse = await client.refresh(credentials.deviceId, credentials.deviceSecret);
-        const meResponse = await client.me({ deviceId: credentials.deviceId, deviceSecret: credentials.deviceSecret });
-
-        setCredentials(credentials);
-        setTokens(refreshResponse.access_token, credentials.deviceId, meResponse.name);
+        initMetaDb();
+        useHome.getState().refresh();
+      } catch {
+        // The local database is rebuilt on the next launch if it could not open.
+      }
+      try {
+        await getAuthProvider().restore();
       } catch (err) {
         if (err instanceof AuthRevokedError || (err instanceof Error && err.message.includes('401'))) {
-          await clearCredentials();
-          clear();
+          await getAuthProvider().signOut();
         }
       } finally {
         setInitializing(false);
@@ -121,12 +120,12 @@ export default function RootLayout() {
     };
 
     initialize();
-  }, [hydrated, setTokens, setCredentials, clear]);
+  }, [hydrated]);
 
   if (initializing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={theme.colors.accent} />
       </View>
     );
   }
@@ -138,12 +137,22 @@ export default function RootLayout() {
           headerShown: false,
         }}
       >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
         <Stack.Screen name="(auth)/pair" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="chat/[slug]" />
         <Stack.Screen name="bot/[slug]" />
         <Stack.Screen name="thread/[id]" />
+        <Stack.Screen name="search" options={{ animation: 'fade' }} />
+        <Stack.Screen name="create-bot" options={{ presentation: 'transparentModal', animation: 'none' }} />
+        <Stack.Screen name="plugins" options={{ presentation: 'transparentModal', animation: 'none' }} />
+        <Stack.Screen name="profile" options={{ presentation: 'transparentModal', animation: 'none' }} />
+        <Stack.Screen name="menu" options={{ presentation: 'transparentModal', animation: 'none' }} />
       </Stack>
+      <StatusBar style={theme.isDark ? "light" : "dark"} />
+      <ToastHost />
+      <AppLockGate />
       <NotificationBanner />
       <SystemBanner />
     </View>
@@ -156,7 +165,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#0b0b0b',
+    backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },

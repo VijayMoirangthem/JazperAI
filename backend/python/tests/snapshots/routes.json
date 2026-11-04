@@ -461,6 +461,18 @@
  ],
  [
   "DELETE",
+  "/api/v1/office/conversation-data/{person_id}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/office/conversations/{conversation_id}/{message_id}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/office/rooms/{room_id}/lock"
+ ],
+ [
+  "DELETE",
   "/api/v1/org/departments/{dept_id}"
  ],
  [
@@ -470,6 +482,14 @@
  [
   "DELETE",
   "/api/v1/org/teams/{team_id}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/people/invites/{invite_id}"
+ ],
+ [
+  "DELETE",
+  "/api/v1/people/{person_id}"
  ],
  [
   "DELETE",
@@ -566,6 +586,10 @@
  [
   "DELETE",
   "/api/workspaces/{wid}"
+ ],
+ [
+  "DELETE",
+  "/remote/v1/bots/{slug}"
  ],
  [
   "GET",
@@ -913,6 +937,30 @@
  ],
  [
   "GET",
+  "/api/files"
+ ],
+ [
+  "GET",
+  "/api/files/archive"
+ ],
+ [
+  "GET",
+  "/api/files/capabilities"
+ ],
+ [
+  "GET",
+  "/api/files/content"
+ ],
+ [
+  "GET",
+  "/api/files/meta"
+ ],
+ [
+  "GET",
+  "/api/files/sources"
+ ],
+ [
+  "GET",
   "/api/files/{key:path}"
  ],
  [
@@ -938,6 +986,10 @@
  [
   "GET",
   "/api/goals"
+ ],
+ [
+  "GET",
+  "/api/google/capabilities"
  ],
  [
   "GET",
@@ -1797,6 +1849,18 @@
  ],
  [
   "GET",
+  "/api/v1/drive/files"
+ ],
+ [
+  "GET",
+  "/api/v1/drive/{file_id}/meta"
+ ],
+ [
+  "GET",
+  "/api/v1/drive/{file_id}/view"
+ ],
+ [
+  "GET",
   "/api/v1/edit/file"
  ],
  [
@@ -1825,6 +1889,30 @@
  ],
  [
   "GET",
+  "/api/v1/files"
+ ],
+ [
+  "GET",
+  "/api/v1/files/archive"
+ ],
+ [
+  "GET",
+  "/api/v1/files/capabilities"
+ ],
+ [
+  "GET",
+  "/api/v1/files/content"
+ ],
+ [
+  "GET",
+  "/api/v1/files/meta"
+ ],
+ [
+  "GET",
+  "/api/v1/files/sources"
+ ],
+ [
+  "GET",
   "/api/v1/files/{key:path}"
  ],
  [
@@ -1850,6 +1938,10 @@
  [
   "GET",
   "/api/v1/goals"
+ ],
+ [
+  "GET",
+  "/api/v1/google/capabilities"
  ],
  [
   "GET",
@@ -2177,6 +2269,62 @@
  ],
  [
   "GET",
+  "/api/v1/office/agent-controls"
+ ],
+ [
+  "GET",
+  "/api/v1/office/appearance"
+ ],
+ [
+  "GET",
+  "/api/v1/office/appearance/{slug}"
+ ],
+ [
+  "GET",
+  "/api/v1/office/conversation-data/{person_id}"
+ ],
+ [
+  "GET",
+  "/api/v1/office/conversation-reports"
+ ],
+ [
+  "GET",
+  "/api/v1/office/conversations"
+ ],
+ [
+  "GET",
+  "/api/v1/office/conversations/typing"
+ ],
+ [
+  "GET",
+  "/api/v1/office/minutes"
+ ],
+ [
+  "GET",
+  "/api/v1/office/profiles/list"
+ ],
+ [
+  "GET",
+  "/api/v1/office/profiles/{slug}"
+ ],
+ [
+  "GET",
+  "/api/v1/office/room-locks"
+ ],
+ [
+  "GET",
+  "/api/v1/office/snapshots"
+ ],
+ [
+  "GET",
+  "/api/v1/office/world"
+ ],
+ [
+  "GET",
+  "/api/v1/office/worlds"
+ ],
+ [
+  "GET",
   "/api/v1/onboarding/status"
  ],
  [
@@ -2194,6 +2342,22 @@
  [
   "GET",
   "/api/v1/org/teams"
+ ],
+ [
+  "GET",
+  "/api/v1/people"
+ ],
+ [
+  "GET",
+  "/api/v1/people/auth/config"
+ ],
+ [
+  "GET",
+  "/api/v1/people/auth/me"
+ ],
+ [
+  "GET",
+  "/api/v1/people/invites"
  ],
  [
   "GET",
@@ -2533,6 +2697,10 @@
  ],
  [
   "GET",
+  "/remote/v1/connectors"
+ ],
+ [
+  "GET",
   "/remote/v1/me"
  ],
  [
@@ -2749,6 +2917,14 @@
  ],
  [
   "PATCH",
+  "/api/v1/office/conversation-reports/{report_id}"
+ ],
+ [
+  "PATCH",
+  "/api/v1/office/world/objects/{object_id}"
+ ],
+ [
+  "PATCH",
   "/api/v1/org/departments/{dept_id}"
  ],
  [
@@ -2802,6 +2978,10 @@
  [
   "PATCH",
   "/api/webhooks/{webhook_id}/toggle"
+ ],
+ [
+  "PATCH",
+  "/remote/v1/bots/{slug}"
  ],
  [
   "POST",
@@ -3070,6 +3250,18 @@
  [
   "POST",
   "/api/files/"
+ ],
+ [
+  "POST",
+  "/api/files/capabilities/install"
+ ],
+ [
+  "POST",
+  "/api/files/manage"
+ ],
+ [
+  "POST",
+  "/api/files/upload"
  ],
  [
   "POST",
@@ -3465,6 +3657,14 @@
  ],
  [
   "POST",
+  "/api/remote/dev-signin/disable"
+ ],
+ [
+  "POST",
+  "/api/remote/dev-signin/enable"
+ ],
+ [
+  "POST",
   "/api/remote/pair/start"
  ],
  [
@@ -3841,6 +4041,18 @@
  ],
  [
   "POST",
+  "/api/v1/files/capabilities/install"
+ ],
+ [
+  "POST",
+  "/api/v1/files/manage"
+ ],
+ [
+  "POST",
+  "/api/v1/files/upload"
+ ],
+ [
+  "POST",
   "/api/v1/focus/sessions"
  ],
  [
@@ -4165,6 +4377,42 @@
  ],
  [
   "POST",
+  "/api/v1/office/conversations"
+ ],
+ [
+  "POST",
+  "/api/v1/office/conversations/{conversation_id}/{message_id}/report"
+ ],
+ [
+  "POST",
+  "/api/v1/office/minutes"
+ ],
+ [
+  "POST",
+  "/api/v1/office/models/{slug}"
+ ],
+ [
+  "POST",
+  "/api/v1/office/rooms/{room_id}/lock"
+ ],
+ [
+  "POST",
+  "/api/v1/office/snapshots"
+ ],
+ [
+  "POST",
+  "/api/v1/office/snapshots/{snapshot_id}/restore"
+ ],
+ [
+  "POST",
+  "/api/v1/office/worlds/clone"
+ ],
+ [
+  "POST",
+  "/api/v1/office/worlds/{world_id}/activate"
+ ],
+ [
+  "POST",
   "/api/v1/org/activate-agent"
  ],
  [
@@ -4186,6 +4434,26 @@
  [
   "POST",
   "/api/v1/org/teams"
+ ],
+ [
+  "POST",
+  "/api/v1/people"
+ ],
+ [
+  "POST",
+  "/api/v1/people/auth/login"
+ ],
+ [
+  "POST",
+  "/api/v1/people/invites"
+ ],
+ [
+  "POST",
+  "/api/v1/people/invites/{invite_id}/accept"
+ ],
+ [
+  "POST",
+  "/api/v1/people/invites/{invite_id}/redeem"
  ],
  [
   "POST",
@@ -4230,6 +4498,14 @@
  [
   "POST",
   "/api/v1/reminders"
+ ],
+ [
+  "POST",
+  "/api/v1/remote/dev-signin/disable"
+ ],
+ [
+  "POST",
+  "/api/v1/remote/dev-signin/enable"
  ],
  [
   "POST",
@@ -4513,11 +4789,23 @@
  ],
  [
   "POST",
+  "/remote/v1/auth/dev-signin"
+ ],
+ [
+  "POST",
   "/remote/v1/auth/refresh"
  ],
  [
   "POST",
+  "/remote/v1/bots"
+ ],
+ [
+  "POST",
   "/remote/v1/chat/stream"
+ ],
+ [
+  "POST",
+  "/remote/v1/connectors/{cid}/request"
  ],
  [
   "POST",
@@ -4566,6 +4854,14 @@
  [
   "PUT",
   "/api/connections/{cid}/secrets"
+ ],
+ [
+  "PUT",
+  "/api/files/cells"
+ ],
+ [
+  "PUT",
+  "/api/files/content"
  ],
  [
   "PUT",
@@ -4661,6 +4957,14 @@
  ],
  [
   "PUT",
+  "/api/v1/files/cells"
+ ],
+ [
+  "PUT",
+  "/api/v1/files/content"
+ ],
+ [
+  "PUT",
   "/api/v1/finops/budgets"
  ],
  [
@@ -4701,6 +5005,34 @@
  ],
  [
   "PUT",
+  "/api/v1/office/agent-controls/{slug}"
+ ],
+ [
+  "PUT",
+  "/api/v1/office/appearance/{slug}"
+ ],
+ [
+  "PUT",
+  "/api/v1/office/conversations/typing"
+ ],
+ [
+  "PUT",
+  "/api/v1/office/profiles/{slug}"
+ ],
+ [
+  "PUT",
+  "/api/v1/office/world"
+ ],
+ [
+  "PUT",
+  "/api/v1/people/{person_id}/assignment"
+ ],
+ [
+  "PUT",
+  "/api/v1/people/{person_id}/role"
+ ],
+ [
+  "PUT",
   "/api/v1/profile/"
  ],
  [
@@ -4720,8 +5052,16 @@
   "/api/v1/templates/{template_id}"
  ],
  [
+  "PUT",
+  "/remote/v1/bots/{slug}/look"
+ ],
+ [
   "WS",
   "/ws/"
+ ],
+ [
+  "WS",
+  "/ws/office/"
  ],
  [
   "WS",

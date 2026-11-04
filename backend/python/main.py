@@ -266,6 +266,9 @@ app.add_middleware(RemoteGuardMiddleware)  # W8: through a tunnel only /remote/v
 app.add_middleware(
     CORSMiddleware,
     allow_origins=sorted({settings.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3001", "http://127.0.0.1:3001"}),
+    # Local dev/Electron may use an isolated Vite port while another project owns 5173.
+    # Keep this constrained to loopback hosts; remote origins remain forbidden.
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -395,6 +398,7 @@ from api.routes import devloop as devloop_route
 app.include_router(devloop_route.router, prefix="/api/devloop", tags=["devloop"])
 from api.routes import files as files_route
 app.include_router(files_route.router, prefix="/api/files", tags=["files"])
+app.include_router(files_route.router, prefix="/api/v1/files", tags=["files-v1"])
 from api.routes import alerts as alerts_route
 app.include_router(alerts_route.router, prefix="/api/alerts", tags=["alerts"])
 from api.routes import features as features_route

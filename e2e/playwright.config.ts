@@ -3,6 +3,9 @@ import { defineConfig } from "@playwright/test";
 // Drives the real desktop app (Electron). globalSetup starts the backend and renderer if they are not running and stops what it started.
 export default defineConfig({
   testDir: "./tests",
+  // Keep concurrent/manual runs out of an existing locked test-results folder.
+  // The default remains the repository acceptance-artifact location.
+  outputDir: process.env.JASPER_E2E_OUTPUT || "./test-results",
   timeout: 120_000,
   expect: { timeout: 20_000 }, // the dev server compiles each panel on first visit
   retries: 0,

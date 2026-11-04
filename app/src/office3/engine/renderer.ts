@@ -13,7 +13,7 @@ export interface RendererHandle {
 }
 
 export function createRenderer(host: HTMLElement, width: number, height: number): RendererHandle {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(host.clientWidth || 800, host.clientHeight || 600);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -33,6 +33,8 @@ export function createRenderer(host: HTMLElement, width: number, height: number)
   controls.minDistance = 6;
   controls.maxDistance = 110;
   controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+  controls.touches.ONE = THREE.TOUCH.PAN;
+  controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
 
   const resize = () => {
     const nextWidth = host.clientWidth;

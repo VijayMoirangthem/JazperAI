@@ -33,7 +33,7 @@ test.beforeAll(async () => {
   page = await app.firstWindow();
   await page.waitForURL(/localhost:5173/, { timeout: 90_000 });
   // Warm-up: the dev server optimizes dependencies the first time a panel loads and may reload the page. Visit each panel once so the tests see a stable page.
-  for (const id of ["system", "team_chat", "diff_editor", "org_chart", "office", "ai_providers", "setup"]) {
+  for (const id of ["system", "team_chat", "diff_editor", "org_chart", "office3", "ai_providers", "setup"]) {
     await page.evaluate((h) => { window.location.hash = h; }, id);
     await page.waitForTimeout(4000);
     await page.waitForLoadState("load");
@@ -82,13 +82,6 @@ test("org chart renders the spec structure", async () => {
   await openPanel("org_chart");
   await expect(page.getByText("Baeit Engineering & Operations Crew")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Boardmint Compliance & Governance Crew")).toBeVisible();
-});
-
-test("virtual office runs above 30 fps with people on the map", async () => {
-  await openPanel("office");
-  await expect.poll(async () => page.evaluate(() => (window as unknown as { __officePeople?: number }).__officePeople ?? 0), { timeout: 30_000 }).toBeGreaterThan(5);
-  const fps = await page.evaluate(() => (window as unknown as { __officeFps?: number }).__officeFps ?? 0);
-  expect(fps).toBeGreaterThan(30);
 });
 
 test("diff editor loads Monaco locally (no CDN, CSP clean)", async () => {

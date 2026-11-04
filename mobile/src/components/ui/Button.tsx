@@ -18,8 +18,8 @@ interface ButtonProps {
 }
 
 const variantStyles: Record<ButtonVariant, { background: string; text: string; border?: string }> = {
-  primary: { background: theme.colors.accent, text: '#ffffff' },
-  secondary: { background: theme.colors.raised, text: theme.colors.text, border: theme.colors.border },
+  primary: { background: theme.colors.pill, text: theme.colors.pillText },
+  secondary: { background: theme.colors.pillSecondary, text: theme.colors.text },
   danger: { background: theme.colors.danger, text: '#ffffff' },
 };
 
@@ -42,7 +42,7 @@ export function Button({
       onPress={onPress}
       disabled={isDisabled}
       activeOpacity={0.8}
-      style={StyleSheet.flatten([styles.container, { backgroundColor: isDisabled ? theme.colors.border : background, borderColor: border }, style]) ?? undefined}
+      style={StyleSheet.flatten([styles.container, { backgroundColor: isDisabled ? theme.colors.chipBg : background, borderColor: border }, style]) ?? undefined}
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityHint={accessibilityHint}
       accessibilityRole="button"
@@ -64,7 +64,7 @@ export function Button({
 const styles = StyleSheet.create({
   container: {
     minHeight: 44,
-    borderRadius: theme.radii.button,
+    borderRadius: theme.radii.pill,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     alignItems: 'center',

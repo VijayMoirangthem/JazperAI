@@ -17,7 +17,6 @@ export function walkTo(actor: OfficeActor, target: Spot | Pt, model: MapModel): 
 }
 
 export function updateNavigation(actor: OfficeActor, seconds: number, bus: Office3Bus): void {
-  actor.mixer.update(seconds);
   if (!actor.path.length) return;
   const next = actor.path[0], targetX = next[0] + 0.5, targetZ = next[1] + 0.5, position = actor.root.position;
   const dx = targetX - position.x, dz = targetZ - position.z, distance = Math.hypot(dx, dz), step = SPEED * seconds;
@@ -27,5 +26,6 @@ export function updateNavigation(actor: OfficeActor, seconds: number, bus: Offic
     if (!actor.path.length) { settle(actor); bus.emit("actor.arrive", { slug: actor.person.slug }); }
   } else { position.x += dx / distance * step; position.z += dz / distance * step; }
   actor.ring.position.set(position.x, 0.03, position.z);
+  actor.proxy.position.set(position.x, .66, position.z);
   actor.label.position.set(position.x, CHARACTER_HEIGHT + 0.35, position.z);
 }

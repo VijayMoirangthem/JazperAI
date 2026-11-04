@@ -20,6 +20,8 @@ import {
   PushRegisterRequest,
   PushRegisterResponse,
   StoredCredentials,
+  Bot,
+  ConnectorsResponse,
 } from '@/api/types';
 
 export class AuthRevokedError extends Error {
@@ -69,9 +71,8 @@ export class JasperClient {
     validateBaseUrl(baseUrl);
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.accessToken = accessToken ?? null;
-    if (extraHeaders) {
-      this.extraHeaders = extraHeaders;
-    }
+    // ngrok free tunnels show a browser warning page unless this header is present.
+    this.extraHeaders = { 'ngrok-skip-browser-warning': '1', ...(extraHeaders ?? {}) };
   }
 
   setAccessToken(token: string): void {
@@ -79,7 +80,7 @@ export class JasperClient {
   }
 
   setExtraHeaders(headers: Record<string, string>): void {
-    this.extraHeaders = headers;
+    this.extraHeaders = { 'ngrok-skip-browser-warning': '1', ...headers };
   }
 
   private async refreshToken(deviceId: string, deviceSecret: string): Promise<string> {
@@ -329,6 +330,41 @@ export class JasperClient {
       throw await this.errorFromResponse(response);
     }
     return response.blob();
+  }
+
+  async devSignin(body: { name: string; platform: string; push_token?: string }): Promise<PairResponse> {
+    return this.request<PairResponse>('/remote/v1/auth/dev-signin', { method: 'POST', body: JSON.stringify(body) }, false);
+  }
+
+  async createBot(
+    body: { display_name: string; role_title?: string; instructions?: string; look?: { body: string; color: string } },
+    creds: { deviceId: string; deviceSecret: string }
+  ): Promise<Bot> {
+    return this.request<Bot>('/remote/v1/bots', { method: 'POST', body: JSON.stringify(body) }, true, creds);
+  }
+
+  async putLook(slug: string, look: { body: string; color: string }, creds: { deviceId: string; deviceSecret: string }): Promise<void> {
+    await this.request<unknown>('/remote/v1/bots/' + encodeURIComponent(slug) + '/look', { method: 'PUT', body: JSON.stringify(look) }, true, creds);
+  }
+
+  async patchBot(
+    slug: string,
+    body: { display_name?: string; role_title?: string },
+    creds: { deviceId: string; deviceSecret: string }
+  ): Promise<void> {
+    await this.request<unknown>('/remote/v1/bots/' + encodeURIComponent(slug), { method: 'PATCH', body: JSON.stringify(body) }, true, creds);
+  }
+
+  async archiveBot(slug: string, creds: { deviceId: string; deviceSecret: string }): Promise<void> {
+    await this.request<unknown>('/remote/v1/bots/' + encodeURIComponent(slug), { method: 'DELETE' }, true, creds);
+  }
+
+  async getConnectors(creds: { deviceId: string; deviceSecret: string }): Promise<ConnectorsResponse> {
+    return this.request<ConnectorsResponse>('/remote/v1/connectors', {}, true, creds);
+  }
+
+  async requestConnector(id: string, creds: { deviceId: string; deviceSecret: string }): Promise<void> {
+    await this.request<unknown>('/remote/v1/connectors/' + encodeURIComponent(id) + '/request', { method: 'POST' }, true, creds);
   }
 
   async registerPushToken(

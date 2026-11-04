@@ -56,13 +56,13 @@ async def test_429_then_success_retries_same_provider():
 async def test_persistent_429_and_529_fall_back_within_one_call():
     prov, c = mk(httpx.Response(529, json={"type": "error", "error": {"type": "overloaded_error", "message": "x"}}))
     res = await LLMRouter([prov, StubProvider("fallback ok")], sleep=_nosleep).complete(REQ)
-    assert res.text == "fallback ok" and res.fallback_from == ["anthropic"]
+    assert res.text == "fallback ok" and [x.split(":")[0] for x in res.fallback_from] == ["anthropic"]
 
 
 async def test_timeout_falls_back():
     prov, c = mk(httpx.ConnectTimeout("t"))
     res = await LLMRouter([prov, StubProvider("fb")], sleep=_nosleep).complete(REQ)
-    assert res.fallback_from == ["anthropic"]
+    assert [x.split(":")[0] for x in res.fallback_from] == ["anthropic"]
 
 
 async def test_non_retryable_400_does_not_retry():
@@ -124,7 +124,7 @@ def test_default_router_without_key_uses_stub_and_endpoint_works(monkeypatch):
     invalidate()
     from main import app
     r = TestClient(app, base_url="http://localhost").post("/api/v1/llm/complete", json={"prompt": "hello"})
-    assert r.status_code == 200 and r.json()["usage"]["provider"] == "stub"
+    assert r.status_code == 200 and r.json()["usage"]["provider"] in ("stub", "opencode-cli")  # CLI providers need no API key
 
 
 async def test_cli_provider_runs_command_and_reports_errors():

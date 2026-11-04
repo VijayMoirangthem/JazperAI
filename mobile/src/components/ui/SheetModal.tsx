@@ -80,7 +80,7 @@ export function SheetModal({
           <Animated.View
             style={StyleSheet.flatten([styles.sheet, { transform: [{ translateY }] }, style]) ?? undefined}
             accessibilityLabel={accessibilityLabel}
-            accessibilityRole="dialog"
+            role="dialog"
           >
             {title && (
               <View style={styles.header}>
@@ -110,9 +110,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.radii.card,
-    borderTopRightRadius: theme.radii.card,
+    backgroundColor: theme.colors.background,
+    borderTopLeftRadius: theme.radii.sheet,
+    borderTopRightRadius: theme.radii.sheet,
     maxHeight: '85%',
     overflow: 'hidden',
   },

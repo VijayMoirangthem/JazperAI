@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/components/chat/ChatCards.tsx",
+    "src/components/panels/FilesPanel.tsx",
+    "src/components/media/MiniPlayer.tsx",
+    "src/viewers/**/*.ts",
+    "src/viewers/**/*.tsx",
+    "src/stores/fileViewerStore.ts",
+    "src/stores/mediaPlayerStore.ts",
+    "src/lib/fileLinks.ts",
+    "src/chat/chatStore.ts",
+    "src/types/**/*.d.ts"
+  ]
+}

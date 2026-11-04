@@ -1,8 +1,13 @@
-import { View, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
-import React, { useState } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs, react-hooks/preserve-manual-memoization, react-hooks/immutability, react/no-unescaped-entities, import/namespace */
+import React, { useEffect, useRef, useState } from 'react';
+import { Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ArrowUp, Camera, FileText, Image as ImageIcon, Mic, Plus, Square, Trash2, X } from 'lucide-react-native';
 import { Attachment } from '@/api/types';
-import { Button, SheetModal, Spinner, Text } from '@/components/ui';
 import { isImageAttachment } from '@/utils/attachments';
+import { formatDuration } from '@/utils/format';
+import { CircleButton } from '@/components/ui/kit';
 import { theme } from '@/theme/tokens';
 
 export interface ComposerProps {
@@ -11,320 +16,224 @@ export interface ComposerProps {
   streaming: boolean;
   onSend: () => void;
   onStop: () => void;
-  placeholder?: string;
-  attachments?: Attachment[];
-  onAddFromCamera?: () => void;
-  onAddFromGallery?: () => void;
-  onAddFromFiles?: () => void;
-  onRemoveAttachment?: (index: number) => void;
-  recording?: boolean;
-  recordingSeconds?: number;
-  transcribing?: boolean;
-  onStartRecording?: () => void;
-  onStopRecording?: () => void;
-  onCancelRecording?: () => void;
-  voiceError?: string | null;
-  onDismissVoiceError?: () => void;
+  placeholder: string;
+  attachments: Attachment[];
+  onAddFromCamera: () => void;
+  onAddFromGallery: () => void;
+  onAddFromFiles: () => void;
+  onRemoveAttachment: (index: number) => void;
+  recording: boolean;
+  recordingSeconds: number;
+  recordingLevel: number;
+  transcribing: boolean;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
+  onCancelRecording: () => void;
+  voiceError: string | null;
+  onDismissVoiceError: () => void;
+  quote: string | null;
+  onClearQuote: () => void;
+  offline?: boolean;
 }
 
-function formatDuration(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return `${minutes}:${rest.toString().padStart(2, '0')}`;
+const BARS = 28;
+
+function Waveform({ level }: { level: number }) {
+  const history = useRef<number[]>(Array.from({ length: BARS }, () => 0.08));
+  const [, force] = useState(0);
+  useEffect(() => {
+    history.current = [...history.current.slice(1), Math.max(0.08, level)];
+    force((n) => n + 1);
+  }, [level]);
+  return (
+    <View style={styles.wave} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {history.current.map((v, i) => (
+        <View key={i} style={[styles.bar, { height: 4 + v * 26 }]} />
+      ))}
+    </View>
+  );
 }
 
-export function Composer({
-  text,
-  onChangeText,
-  streaming,
-  onSend,
-  onStop,
-  placeholder = 'Message',
-  attachments = [],
-  onAddFromCamera,
-  onAddFromGallery,
-  onAddFromFiles,
-  onRemoveAttachment,
-  recording = false,
-  recordingSeconds = 0,
-  transcribing = false,
-  onStartRecording,
-  onStopRecording,
-  onCancelRecording,
-  voiceError = null,
-  onDismissVoiceError,
-}: ComposerProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const canSend = text.trim().length > 0 || attachments.length > 0;
+export function Composer(props: ComposerProps) {
+  const {
+    text,
+    onChangeText,
+    streaming,
+    onSend,
+    onStop,
+    placeholder,
+    attachments,
+    recording,
+    recordingSeconds,
+    recordingLevel,
+    transcribing,
+    voiceError,
+  } = props;
+  const insets = useSafeAreaInsets();
+  const [menu, setMenu] = useState(false);
+  const [keyboard, setKeyboard] = useState(false);
 
-  const pick = (action?: () => void) => {
-    setMenuOpen(false);
-    action?.();
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboard(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboard(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  const hasContent = text.trim().length > 0 || attachments.length > 0;
+  const pick = (action: () => void) => () => {
+    setMenu(false);
+    action();
   };
 
   return (
-    <View style={styles.container}>
-      {attachments.length > 0 ? (
-        <View style={styles.attachments}>
-          {attachments.map((attachment, index) => (
-            <View key={`${attachment.name}-${index}`} style={styles.attachmentChip}>
-              {isImageAttachment(attachment) ? (
-                <Image source={{ uri: attachment.uri }} style={styles.attachmentThumb} />
-              ) : null}
-              <Text style={styles.attachmentName} numberOfLines={1}>
-                {attachment.name}
-              </Text>
-              <TouchableOpacity
-                onPress={() => onRemoveAttachment?.(index)}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${attachment.name}`}
-              >
-                <Text style={styles.removeIcon}>{'\u2715'}</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+    <View style={[styles.wrap, { paddingBottom: keyboard ? 8 : insets.bottom + 8 }]}>
+      {menu ? (
+        <>
+          <Pressable style={styles.menuBackdrop} onPress={() => setMenu(false)} accessibilityLabel="Close menu" accessibilityRole="button" />
+          <Animated.View entering={FadeIn.duration(120)} exiting={FadeOut.duration(100)} style={[styles.menu, theme.shadows.composer]}>
+            {[
+              { label: 'Camera', icon: <Camera size={20} color={theme.colors.text} />, action: props.onAddFromCamera },
+              { label: 'Photo library', icon: <ImageIcon size={20} color={theme.colors.text} />, action: props.onAddFromGallery },
+              { label: 'File', icon: <FileText size={20} color={theme.colors.text} />, action: props.onAddFromFiles },
+            ].map((item) => (
+              <Pressable key={item.label} onPress={pick(item.action)} style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: theme.colors.chipBg }]} accessibilityRole="button" accessibilityLabel={item.label}>
+                {item.icon}
+                <Text style={styles.menuText}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </Animated.View>
+        </>
+      ) : null}
+
+      {props.quote ? (
+        <View style={styles.quote}>
+          <View style={styles.quoteBar} />
+          <Text style={styles.quoteText} numberOfLines={2}>
+            {props.quote}
+          </Text>
+          <Pressable onPress={props.onClearQuote} accessibilityRole="button" accessibilityLabel="Remove quote" hitSlop={10}>
+            <X size={16} color={theme.colors.muted} />
+          </Pressable>
         </View>
       ) : null}
 
+      {attachments.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.attachRow} keyboardShouldPersistTaps="handled">
+          {attachments.map((attachment, index) => (
+            <View key={`${attachment.name}-${index}`} style={styles.attachItem}>
+              {isImageAttachment(attachment) ? (
+                <Image source={{ uri: attachment.uri }} style={styles.attachThumb} accessibilityLabel={`Image ${attachment.name}`} />
+              ) : (
+                <View style={styles.attachFile}>
+                  <FileText size={16} color={theme.colors.muted} />
+                  <Text style={styles.attachName} numberOfLines={1}>
+                    {attachment.name}
+                  </Text>
+                </View>
+              )}
+              <Pressable onPress={() => props.onRemoveAttachment(index)} style={styles.attachRemove} accessibilityRole="button" accessibilityLabel={`Remove ${attachment.name}`} hitSlop={8}>
+                <X size={12} color="#ffffff" />
+              </Pressable>
+            </View>
+          ))}
+        </ScrollView>
+      ) : null}
+
+      {props.offline ? <Text style={styles.offline}>Will send when you're back online</Text> : null}
       {voiceError ? (
-        <View style={styles.voiceError}>
-          <Text style={styles.voiceErrorText}>{voiceError}</Text>
-          {onDismissVoiceError ? (
-            <TouchableOpacity onPress={onDismissVoiceError} accessibilityRole="button" accessibilityLabel="Dismiss voice error">
-              <Text style={styles.removeIcon}>{'\u2715'}</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        <Pressable onPress={props.onDismissVoiceError} accessibilityRole="alert" accessibilityLabel="Dismiss voice error">
+          <Text style={styles.voiceError}>{voiceError}</Text>
+        </Pressable>
       ) : null}
 
       {recording ? (
-        <View style={styles.recordingBar}>
-          <View style={styles.recordingDot} />
-          <Text style={styles.timer}>{formatDuration(recordingSeconds)}</Text>
-          <View style={styles.recordingActions}>
-            <Button title="Cancel" variant="secondary" onPress={onCancelRecording} style={styles.recordingButton} />
-            <Button
-              title="Stop"
-              onPress={onStopRecording}
-              loading={transcribing}
-              style={styles.recordingButton}
-            />
+        <Animated.View entering={FadeIn.duration(140)} style={styles.line}>
+          <CircleButton label="Cancel recording" onPress={props.onCancelRecording} tone="grey">
+            <Trash2 size={19} color={theme.colors.text} />
+          </CircleButton>
+          <View style={[styles.pill, styles.recordPill, theme.shadows.composer]}>
+            <View style={styles.recDot} />
+            <Text style={styles.recTime}>{formatDuration(recordingSeconds)}</Text>
+            <Waveform level={recordingLevel} />
           </View>
-        </View>
+          <CircleButton label="Finish recording" onPress={props.onStopRecording} tone="black">
+            <ArrowUp size={20} color={theme.colors.pillText} />
+          </CircleButton>
+        </Animated.View>
       ) : (
-        <View style={styles.pill}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => setMenuOpen(true)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Add attachment"
-          >
-            <Text style={styles.plusIcon}>+</Text>
-          </TouchableOpacity>
-
-          <TextInput
-            style={styles.input}
-            value={text}
-            onChangeText={onChangeText}
-            placeholder={placeholder}
-            placeholderTextColor={theme.colors.muted}
-            multiline
-            maxLength={4000}
-            accessibilityLabel="Message"
-          />
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={onStartRecording}
-            disabled={transcribing}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Record voice note"
-          >
-            {transcribing ? (
-              <Spinner size="small" color={theme.colors.muted} />
+        <View style={styles.line}>
+          <CircleButton label="Add attachment" onPress={() => setMenu((v) => !v)}>
+            <Plus size={22} color={theme.colors.text} />
+          </CircleButton>
+          <Animated.View layout={LinearTransition.duration(140)} style={[styles.pill, theme.shadows.composer]}>
+            <TextInput
+              value={text}
+              onChangeText={onChangeText}
+              placeholder={placeholder}
+              placeholderTextColor={theme.colors.faint}
+              multiline
+              style={styles.input}
+              accessibilityLabel={placeholder}
+              maxFontSizeMultiplier={1.4}
+              textAlignVertical="center"
+            />
+            {streaming ? (
+              <CircleButton label="Stop" onPress={onStop} tone="black" size={36}>
+                <Square size={13} color={theme.colors.pillText} fill={theme.colors.pillText} />
+              </CircleButton>
+            ) : hasContent ? (
+              <CircleButton label="Send" onPress={onSend} tone="black" size={36}>
+                <ArrowUp size={19} color={theme.colors.pillText} />
+              </CircleButton>
             ) : (
-              <Text style={styles.micIcon}>{'\u{1F3A4}'}</Text>
+              <CircleButton label={transcribing ? 'Transcribing' : 'Record a voice note'} onPress={props.onStartRecording} tone="grey" size={36} disabled={transcribing}>
+                {transcribing ? <Text style={styles.dots}>···</Text> : <Mic size={18} color={theme.colors.muted} />}
+              </CircleButton>
             )}
-          </TouchableOpacity>
-
-          {streaming ? (
-            <TouchableOpacity
-              style={styles.sendButton}
-              onPress={onStop}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Stop"
-            >
-              <Text style={styles.stopIcon}>{'\u25A0'}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
-              onPress={onSend}
-              disabled={!canSend}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Send"
-            >
-              <Text style={styles.sendIcon}>{'\u2191'}</Text>
-            </TouchableOpacity>
-          )}
+          </Animated.View>
         </View>
       )}
-
-      <SheetModal
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        title="Add attachment"
-        contentStyle={styles.menu}
-      >
-        <Button title="Camera" variant="secondary" onPress={() => pick(onAddFromCamera)} />
-        <Button title="Gallery" variant="secondary" onPress={() => pick(onAddFromGallery)} />
-        <Button title="Files" variant="secondary" onPress={() => pick(onAddFromFiles)} />
-      </SheetModal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    gap: theme.spacing.sm,
-  },
-  attachments: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
-  attachmentChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-    maxWidth: '100%',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.radii.pill,
-    backgroundColor: theme.colors.raised,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  attachmentThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-  },
-  attachmentName: {
-    color: theme.colors.text,
-    fontSize: theme.fontSizes.xs,
-    maxWidth: 160,
-  },
-  removeIcon: {
-    color: theme.colors.muted,
-    fontSize: 12,
-  },
-  voiceError: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radii.button,
-    backgroundColor: 'rgba(239,68,68,0.15)',
-    borderWidth: 1,
-    borderColor: theme.colors.danger,
-  },
-  voiceErrorText: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: theme.fontSizes.xs,
-  },
-  recordingBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.composer,
-    borderRadius: theme.radii.card,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-  },
-  recordingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.colors.danger,
-  },
-  timer: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: theme.fontSizes.base,
-  },
-  recordingActions: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  recordingButton: {
-    minWidth: 84,
-  },
+  wrap: { paddingHorizontal: 12, paddingTop: 6, backgroundColor: 'transparent', gap: 8 },
+  line: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   pill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 8,
     backgroundColor: theme.colors.composer,
-    borderRadius: theme.radii.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 24,
+    paddingLeft: 16,
+    paddingRight: 5,
+    paddingVertical: 4,
+    minHeight: 44,
   },
-  iconButton: {
-    width: 32,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  plusIcon: {
-    color: theme.colors.muted,
-    fontSize: 22,
-    lineHeight: 24,
-  },
-  micIcon: {
-    fontSize: 16,
-  },
-  input: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: theme.fontSizes.base,
-    minHeight: 32,
-    maxHeight: 120,
-    paddingTop: 6,
-    paddingBottom: 6,
-  },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.accent,
-  },
-  sendButtonDisabled: {
-    opacity: 0.4,
-  },
-  sendIcon: {
-    color: '#ffffff',
-    fontSize: 16,
-  },
-  stopIcon: {
-    color: '#ffffff',
-    fontSize: 14,
-  },
-  menu: {
-    flex: 0,
-    gap: theme.spacing.sm,
-  },
+  input: { flex: 1, maxHeight: 140, fontSize: theme.fontSizes.body, color: theme.colors.text, paddingTop: 8, paddingBottom: 8, paddingRight: 8 },
+  recordPill: { alignItems: 'center', gap: 10, height: 44, paddingVertical: 0, paddingRight: 14 },
+  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.danger },
+  recTime: { fontSize: theme.fontSizes.base, color: theme.colors.text, fontVariant: ['tabular-nums'], width: 40 },
+  wave: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 34 },
+  bar: { width: 3, borderRadius: 2, backgroundColor: theme.colors.muted },
+  dots: { fontSize: 18, color: theme.colors.muted, fontWeight: '700' },
+  menuBackdrop: { position: 'absolute', top: -2000, bottom: 0, left: 0, right: 0 },
+  menu: { position: 'absolute', left: 12, bottom: 70, backgroundColor: theme.colors.circle, borderRadius: 18, paddingVertical: 6, minWidth: 190, zIndex: 20 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, height: 48 },
+  menuText: { fontSize: theme.fontSizes.body, color: theme.colors.text },
+  quote: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: theme.colors.chipBg, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
+  quoteBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: theme.colors.muted },
+  quoteText: { flex: 1, fontSize: theme.fontSizes.sm, color: theme.colors.muted },
+  attachRow: { gap: 10, paddingVertical: 2, paddingRight: 8 },
+  attachItem: { position: 'relative' },
+  attachThumb: { width: 64, height: 64, borderRadius: 14 },
+  attachFile: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 44, maxWidth: 170, paddingHorizontal: 12, borderRadius: 14, backgroundColor: theme.colors.chipBg, marginTop: 10 },
+  attachName: { fontSize: theme.fontSizes.sm, color: theme.colors.text, flexShrink: 1 },
+  attachRemove: { position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: '#6b6b6b', alignItems: 'center', justifyContent: 'center' },
+  offline: { fontSize: theme.fontSizes.xs, color: theme.colors.faint, textAlign: 'center' },
+  voiceError: { fontSize: theme.fontSizes.sm, color: theme.colors.danger, textAlign: 'center' },
 });

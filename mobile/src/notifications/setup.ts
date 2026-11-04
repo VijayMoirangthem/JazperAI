@@ -34,6 +34,21 @@ export async function ensureChannels(): Promise<void> {
     name: 'General',
     importance: AndroidImportance.DEFAULT,
   });
+  await Notifications.setNotificationChannelAsync('messages', {
+    name: 'Messages',
+    description: 'New replies from your bots',
+    importance: AndroidImportance.DEFAULT,
+  });
+  await Notifications.setNotificationChannelAsync('mail', {
+    name: 'Mail',
+    description: 'Important mail',
+    importance: AndroidImportance.DEFAULT,
+  });
+  await Notifications.setNotificationChannelAsync('runs', {
+    name: 'Runs',
+    description: 'When a run finishes',
+    importance: AndroidImportance.LOW,
+  });
 }
 
 export async function registerForPushNotifications(): Promise<string | null> {

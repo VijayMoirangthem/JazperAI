@@ -63,7 +63,7 @@ export function assignSpot<T extends { x: number; y: number }>(spots: readonly T
 /** Ring colour under an avatar per agent state (0xRRGGBB). Unknown states use the idle colour. */
 export const STATE_RING: Readonly<Record<string, number>> = {
   idle: 0x64748b, working: 0x22c55e, planning: 0x38bdf8, waiting_human: 0xf59e0b, error: 0xef4444, testing: 0xa855f7,
-  waiting_tool: 0x14b8a6, repairing: 0xf97316, rolled_back: 0xdc2626, escalated: 0xfbbf24, deprecated: 0x475569,
+  waiting_tool: 0x14b8a6, repairing: 0xf97316, rolled_back: 0xdc2626, escalated: 0xfbbf24, deprecated: 0x475569, away: 0x94a3b8,
 };
 export const ringColor = (state: string): number => STATE_RING[state] ?? STATE_RING.idle;
 /** States that need a human: their name tag and bubble stay visible. */

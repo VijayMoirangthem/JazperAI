@@ -183,6 +183,18 @@ def docs_replace(doc_id: str, find: str, replace: str, match_case: bool = False)
     return {"id": doc_id, "replaced": r["replies"][0].get("replaceAllText", {}).get("occurrencesChanged", 0)}
 
 
+def docs_replace_all(doc_id: str, text: str) -> dict:
+    """Replace native Google Docs text using Docs batchUpdate, not a Drive media upload."""
+    d = get_google_service("docs", "v1")
+    doc = _call(lambda: d.documents().get(documentId=doc_id, fields="body(content(endIndex))").execute())
+    end = int(doc["body"]["content"][-1]["endIndex"])
+    requests = []
+    if end > 2: requests.append({"deleteContentRange": {"range": {"startIndex": 1, "endIndex": end - 1}}})
+    if text: requests.append({"insertText": {"location": {"index": 1}, "text": text}})
+    if requests: _call(lambda: d.documents().batchUpdate(documentId=doc_id, body={"requests": requests}).execute())
+    return {"id": doc_id, "updated_chars": len(text)}
+
+
 # ── Sheets ──────────────────────────────────────────────────────────────────────────────────────
 
 def create_sheet(title: str, parent_id: str | None = None) -> dict:
