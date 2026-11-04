@@ -119,6 +119,8 @@ class ProbeAgent:
                 "error":      None,
             }
 
+        except subprocess.TimeoutExpired:
+            return cls._timeout_result(target_path, timeout)
         except FileNotFoundError:
             return cls._error_result("pytest not found — run: pip install pytest pytest-asyncio")
         except Exception as e:
