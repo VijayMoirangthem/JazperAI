@@ -1,0 +1,5 @@
+{
+  "name": "JazperAI",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "postCreateCommand": "bash .devcontainer/install-doppler.sh"
+}
