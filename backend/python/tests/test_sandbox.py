@@ -80,3 +80,14 @@ async def test_pytest_runs_inside_the_sandbox(src):
     (src / "test_ok.py").write_text("def test_ok():\n    assert 1 + 1 == 2\n")
     r = await run([PY, "-m", "pytest", "-q", "-p", "no:cacheprovider"], src, timeout_s=60)
     assert r.exit_code == 0 and "1 passed" in r.output
+
+
+async def test_private_host_files_are_readable_inside_and_host_tree_is_not_mounted(tmp_path):
+    # Regression: on Linux CI the project dir is owner-only (0700) and owned by a different uid than the sandbox user (1000).
+    d = tmp_path / "private"
+    d.mkdir()
+    (d / "secret_free.txt").write_text("hello")
+    (d / "secret_free.txt").chmod(0o600)
+    d.chmod(0o700)
+    r = await run(["sh", "-c", "cat secret_free.txt; echo; test -e /src && echo MOUNTED || echo NOT_MOUNTED"], d)
+    assert r.exit_code == 0 and r.output.split() == ["hello", "NOT_MOUNTED"], r.output
