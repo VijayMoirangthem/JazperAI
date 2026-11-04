@@ -114,6 +114,7 @@ async def test_stream_stub_ends_with_usage():
     assert isinstance(items[-1], Usage) and "".join(items[:-1]).strip() == "a b"
 
 
+@pytest.mark.db
 def test_default_router_without_key_uses_stub_and_endpoint_works(monkeypatch):
     from core import vault
     from core.config import settings
