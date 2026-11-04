@@ -47,6 +47,7 @@ async def test_resume_after_simulated_restart_with_postgres_checkpointer():
         assert out["log"][-1] == "report" and out["answer"]
 
 
+@pytest.mark.db
 def test_directive_endpoint(monkeypatch):
     from core import vault
     from core.config import settings
