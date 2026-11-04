@@ -12,11 +12,21 @@ These tests use the mock_ai fixture from conftest.py — no real API calls.
 import pytest
 import sys
 import os
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 # ── Shared assertion helper ───────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def mock_embeddings():
+    """Agent smoke tests must not download embedding models or call model services."""
+    with patch("core.services.embedding_service.embed_memory", return_value=None), \
+         patch("core.services.embedding_service.embed", return_value=None), \
+         patch("core.services.embedding_service.is_available", return_value=False):
+        yield
+
 
 def assert_valid_result(result, agent_name: str):
     from agents.roster.base_agent import AgentResult
