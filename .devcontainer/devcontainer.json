@@ -19,5 +19,6 @@
     8000,
     3001
   ],
-  "postCreateCommand": "python -m pip --version && node --version && npm --version"
+  "postCreateCommand": "python -m pip --version && node --version && npm --version",
+  "remoteUser": "vscode"
 }
