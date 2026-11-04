@@ -16,13 +16,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 class TestProbeRunSuite:
 
     def _make_proc(self, stdout: bytes, returncode: int):
-        proc = AsyncMock()
-        proc.communicate = AsyncMock(return_value=(stdout, b""))
-        proc.returncode  = returncode
-        proc.kill        = MagicMock()
-        return proc
+        return MagicMock(stdout=stdout, stderr=b"", returncode=returncode)
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("agents.roster.probe_agent.subprocess.run")
     async def test_all_pass_returns_ok_true(self, mock_exec):
         mock_exec.return_value = self._make_proc(
             b"45 passed in 1.09s", returncode=0
@@ -33,7 +29,7 @@ class TestProbeRunSuite:
         assert result["passed"] == 45
         assert result["failed"] == 0
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("agents.roster.probe_agent.subprocess.run")
     async def test_some_failures_ok_false(self, mock_exec):
         output = (
             b"FAILED tests/test_foo.py::TestBar::test_bad - AssertionError: got 1\n"
@@ -46,7 +42,7 @@ class TestProbeRunSuite:
         assert result["failed"] == 3
         assert result["passed"] == 42
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("agents.roster.probe_agent.subprocess.run")
     async def test_failures_list_populated(self, mock_exec):
         output = (
             b"FAILED tests/test_foo.py::TestBar::test_bad - AssertionError: expected 1\n"
@@ -59,7 +55,7 @@ class TestProbeRunSuite:
         assert len(result["failures"]) == 2
         assert result["failures"][0]["test_id"] == "tests/test_foo.py::TestBar::test_bad"
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("agents.roster.probe_agent.subprocess.run")
     async def test_result_has_required_keys(self, mock_exec):
         mock_exec.return_value = self._make_proc(b"1 passed in 0.5s", returncode=0)
         from agents.roster.probe_agent import ProbeAgent
@@ -67,41 +63,36 @@ class TestProbeRunSuite:
         for key in ("ok", "passed", "failed", "errors", "total", "duration_s", "failures", "output", "error"):
             assert key in result, f"Missing key: {key}"
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("agents.roster.probe_agent.subprocess.run")
     async def test_timeout_returns_ok_false(self, mock_exec):
-        import asyncio as _asyncio
-        async def _slow_communicate():
-            raise _asyncio.TimeoutError()
-        proc = AsyncMock()
-        proc.communicate = _slow_communicate
-        proc.kill = MagicMock()
-        mock_exec.return_value = proc
+        import subprocess as _subprocess
+        mock_exec.side_effect = _subprocess.TimeoutExpired(cmd="pytest", timeout=1)
         from agents.roster.probe_agent import ProbeAgent
         result = await ProbeAgent.run_suite(timeout=1)
         assert result["ok"] is False
         assert "timed out" in result["error"].lower()
 
-    @patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError())
+    @patch("agents.roster.probe_agent.subprocess.run", side_effect=FileNotFoundError())
     async def test_pytest_not_found_returns_error(self, mock_exec):
         from agents.roster.probe_agent import ProbeAgent
         result = await ProbeAgent.run_suite()
         assert result["ok"] is False
         assert result["error"] is not None
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("agents.roster.probe_agent.subprocess.run")
     async def test_stop_on_first_passes_x_flag(self, mock_exec):
         mock_exec.return_value = self._make_proc(b"5 passed in 0.5s", returncode=0)
         from agents.roster.probe_agent import ProbeAgent
         await ProbeAgent.run_suite(stop_on_first=True)
-        called_cmd = mock_exec.call_args[0]
+        called_cmd = mock_exec.call_args[0][0]
         assert "-x" in called_cmd
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("agents.roster.probe_agent.subprocess.run")
     async def test_full_suite_no_x_flag_by_default(self, mock_exec):
         mock_exec.return_value = self._make_proc(b"5 passed in 0.5s", returncode=0)
         from agents.roster.probe_agent import ProbeAgent
         await ProbeAgent.run_suite()
-        called_cmd = mock_exec.call_args[0]
+        called_cmd = mock_exec.call_args[0][0]
         assert "-x" not in called_cmd
 
 
