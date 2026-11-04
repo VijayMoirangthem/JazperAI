@@ -9,3 +9,7 @@ paths = [
   '''backend/python/tests/test_secrets_guard\.py''',
   '''Project_References/''',
 ]
+# Doppler apt signing key fingerprint: a public identifier, not a credential.
+regexes = [
+  '''BD8F51EC1320748CED4E6E3BDE2A7741A397C129''',
+]
