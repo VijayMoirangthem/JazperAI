@@ -6,7 +6,7 @@ import pytest
 from core.eventbus import EventBus
 from hub import sandbox
 
-pytestmark = pytest.mark.skipif(not sandbox.available(), reason="docker not available")
+pytestmark = [pytest.mark.integration, pytest.mark.skipif(not sandbox.available(), reason="docker not available")]
 PY = "python"
 
 
