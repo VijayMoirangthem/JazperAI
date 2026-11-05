@@ -47,3 +47,103 @@ jobs:
       - run: pip install -r requirements.txt pytest pytest-asyncio httpx respx
       - run: docker info --format '{{.ServerVersion}}'
       - run: pytest -q -m integration --timeout=120 --timeout-method=thread
+  python-db:
+    # Postgres (pgvector) + Redis service containers so the db-marked tests (RLS, tenancy, memory, vault, audit, HITL ...) run in CI.
+    # Throwaway containers with placeholder credentials; no real secrets and no external services.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults: { run: { working-directory: backend/python } }
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: sirjazper
+      POSTGRES_DB: coos
+      POSTGRES_PASSWORD: ci-postgres-placeholder
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ci-redis-placeholder
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.0-pg16
+        env:
+          POSTGRES_USER: sirjazper
+          POSTGRES_PASSWORD: ci-postgres-placeholder
+          POSTGRES_DB: coos
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sirjazper -d coos"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start Redis (password-protected, same image as infra/docker-compose.yml)
+        working-directory: .
+        run: |
+          docker run -d --name ci-redis -p 127.0.0.1:6379:6379 redis:7.4-alpine redis-server --requirepass "$REDIS_PASSWORD"
+          for i in $(seq 1 20); do
+            docker exec ci-redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG && exit 0
+            sleep 1
+          done
+          echo "redis did not become ready" >&2; exit 1
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip, cache-dependency-path: backend/python/requirements.txt }
+      - run: pip install -r requirements.txt pytest pytest-asyncio httpx respx
+      - name: Fail loudly if a service is unreachable (the tests skip, not fail, when it is)
+        run: |
+          python - <<'PY'
+          import os, psycopg2, redis
+          psycopg2.connect(host=os.environ["POSTGRES_HOST"], port=int(os.environ["POSTGRES_PORT"]), user=os.environ["POSTGRES_USER"],
+                           password=os.environ["POSTGRES_PASSWORD"], dbname="postgres").close()
+          redis.Redis(host=os.environ["REDIS_HOST"], port=int(os.environ["REDIS_PORT"]), password=os.environ["REDIS_PASSWORD"]).ping()
+          print("postgres and redis reachable")
+          PY
+      - name: Apply migrations to the CI database (same step as README quick start)
+        run: python -m alembic upgrade head
+      - name: Seed baseline org data (the calls main.py makes at startup; httpx ASGITransport tests skip the lifespan)
+        run: |
+          python - <<'PY'
+          import asyncio
+          from agents.org import ensure_org
+          from agents.orgchart import ensure_orgchart
+          from agents.staffing import ensure_staffing
+          async def main():
+              await ensure_org(); await ensure_orgchart(); await ensure_staffing()
+          asyncio.run(main())
+          PY
+      - name: Database tests
+        run: pytest -q -rs -m "db and not integration" --timeout=120 --timeout-method=thread --junitxml=db-junit.xml
+      - name: Summarise database test results (public annotation; logs need auth)
+        if: always()
+        run: |
+          python - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          if not os.path.exists("db-junit.xml"):
+              print("::error title=db tests::no junit report produced"); raise SystemExit(0)
+          root = ET.parse("db-junit.xml").getroot()
+          cases = list(root.iter("testcase"))
+          bad = [(c, c.find("failure") if c.find("failure") is not None else c.find("error")) for c in cases]
+          bad = [(c, b) for c, b in bad if b is not None]
+          skipped = [c for c in cases if c.find("skipped") is not None]
+          passed = len(cases) - len(bad) - len(skipped)
+          print(f"db tests: {passed} passed, {len(bad)} failed/errored, {len(skipped)} skipped, {len(cases)} total")
+          lines = [f"{passed} passed, {len(bad)} failed, {len(skipped)} skipped of {len(cases)}"]
+          for c, b in bad[:25]:
+              msg = (b.get("message") or "").splitlines()[:1]
+              lines.append(f"FAIL {c.get('classname')}::{c.get('name')} - {(msg[0] if msg else '')[:140]}")
+          for c in skipped[:10]:
+              s = c.find("skipped")
+              lines.append(f"SKIP {c.get('classname')}::{c.get('name')} - {(s.get('message') or '')[:100]}")
+          import collections, subprocess, sys
+          per = collections.defaultdict(lambda: [0, 0, 0])
+          for c in cases:
+              k = c.get("classname").split(".")[-1]
+              per[k][2 if c.find("skipped") is not None else 1 if (c.find("failure") is not None or c.find("error") is not None) else 0] += 1
+          lines.append("PER FILE (pass/fail/skip): " + "; ".join(f"{k} {v[0]}/{v[1]}/{v[2]}" for k, v in sorted(per.items())))
+          out = subprocess.run([sys.executable, "-m", "pytest", "-o", "addopts=", "--collect-only", "-q", "-m", "db and not integration"], capture_output=True, text=True).stdout
+          collected = sum(1 for l in out.splitlines() if "::" in l)
+          lines.append(f"collected={collected} reported={len(cases)} " + ("MISMATCH" if collected != len(cases) else "ok"))
+          for c in skipped[10:25]:
+              s = c.find("skipped")
+              lines.append(f"SKIP {c.get('classname')}::{c.get('name')} - {(s.get('message') or '')[:100]}")
+          body = "%0A".join(lines)[:3800]
+          print(f"::{'error' if bad else 'notice'} title=db test summary::{body}")
+          PY
