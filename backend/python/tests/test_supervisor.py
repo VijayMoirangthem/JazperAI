@@ -68,3 +68,17 @@ async def test_get_checkpointer_is_postgres_backed():
     saver = await durable.get_checkpointer()
     assert type(saver).__name__ == "AsyncPostgresSaver"
     await durable.close_checkpointer()
+
+
+@pytest.mark.db
+async def test_checkpointer_opened_on_another_event_loop_is_not_reused():
+    """Regression: the pool is loop-bound. One opened on a loop that has since closed (e.g. a TestClient request)
+    must be replaced, not reused or awaited from this loop ('Event loop is closed')."""
+    import asyncio
+    from core import durable
+    await durable.close_checkpointer()
+    other = await asyncio.to_thread(lambda: type(asyncio.run(durable.get_checkpointer())).__name__)
+    assert other == "AsyncPostgresSaver"
+    saver = await durable.get_checkpointer()  # now on this loop; the stale pool is dropped
+    assert type(saver).__name__ == "AsyncPostgresSaver"
+    await durable.close_checkpointer()

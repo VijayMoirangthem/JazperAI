@@ -132,6 +132,18 @@ jobs:
           for c in skipped[:10]:
               s = c.find("skipped")
               lines.append(f"SKIP {c.get('classname')}::{c.get('name')} - {(s.get('message') or '')[:100]}")
+          import collections, subprocess, sys
+          per = collections.defaultdict(lambda: [0, 0, 0])
+          for c in cases:
+              k = c.get("classname").split(".")[-1]
+              per[k][2 if c.find("skipped") is not None else 1 if (c.find("failure") is not None or c.find("error") is not None) else 0] += 1
+          lines.append("PER FILE (pass/fail/skip): " + "; ".join(f"{k} {v[0]}/{v[1]}/{v[2]}" for k, v in sorted(per.items())))
+          out = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q", "-m", "db and not integration"], capture_output=True, text=True).stdout
+          collected = sum(1 for l in out.splitlines() if "::" in l)
+          lines.append(f"collected={collected} reported={len(cases)} " + ("MISMATCH" if collected != len(cases) else "ok"))
+          for c in skipped[10:25]:
+              s = c.find("skipped")
+              lines.append(f"SKIP {c.get('classname')}::{c.get('name')} - {(s.get('message') or '')[:100]}")
           body = "%0A".join(lines)[:3800]
           print(f"::{'error' if bad else 'notice'} title=db test summary::{body}")
           PY
