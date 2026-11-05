@@ -77,7 +77,9 @@ if [ "$FULL" = 1 ]; then cp "$REQ" "$LIGHT"; else
   # Heavy, lazily-imported AI/ML packages are skipped; memory embeddings, voice and browser tools degrade gracefully (see docs/CLOUD_DEV.md).
   grep -v -i -E '^(sentence-transformers|faster-whisper|playwright)\b' "$REQ" > "$LIGHT"
 fi
-printf 'pytest\npytest-asyncio\nhttpx\nrespx\nruff\n' >> "$LIGHT"
+# networkx (+ scipy for its PageRank) is imported by core/repomap.py but is NOT declared in requirements.txt; it normally arrives
+# transitively via the ML stack, so the light set must add it or test_ast_repair/repomap break. Dev tools are added here too.
+printf '%s\n' networkx scipy pytest pytest-asyncio httpx respx ruff >> "$LIGHT"
 want="$(sha256sum "$LIGHT" | cut -d' ' -f1)"
 if [ -f "$VENV/.deps.sha" ] && [ "$(cat "$VENV/.deps.sha")" = "$want" ]; then
   echo "dependencies unchanged; skipping pip"

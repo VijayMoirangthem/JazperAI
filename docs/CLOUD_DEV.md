@@ -43,7 +43,7 @@ deploys or configures production, and your existing Windows workflow (`infra/doc
 | faster-whisper | voice transcription endpoints unavailable |
 | playwright | browser/Voyager/LinkedIn tools unavailable |
 
-`requirements.txt` itself is unchanged, so production builds are unaffected.
+`requirements.txt` itself is unchanged, so production builds are unaffected. Verified: with the light set the non-database suite gives the same result as the full install (345 passed). `networkx` and `scipy` are imported by `core/repomap.py` but are not declared in `requirements.txt` (they only arrive via the ML stack), so the bootstrap adds them explicitly; declaring them upstream is a recommended follow-up.
 
 ## Doppler
 
