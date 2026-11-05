@@ -70,7 +70,9 @@ jobs:
         run: ./scripts/dev/bootstrap.sh --check
       - name: Representative database tests on the bootstrapped environment
         working-directory: backend/python
-        run: ../.venv-linux/bin/python -m pytest -q -m "db and not integration" tests/test_rls.py tests/test_hitl.py tests/test_audit.py tests/test_redis_layer.py --timeout=120 -p no:cacheprovider
+        run: |
+          source ../../scripts/dev/env.sh
+          ../.venv-linux/bin/python -m pytest -q -m "db and not integration" tests/test_rls.py tests/test_hitl.py tests/test_audit.py tests/test_redis_layer.py --timeout=120 -p no:cacheprovider
       - name: Resource usage
         if: always()
         run: |

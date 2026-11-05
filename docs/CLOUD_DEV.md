@@ -29,7 +29,7 @@ deploys or configures production, and your existing Windows workflow (`infra/doc
    ./scripts/dev/bootstrap.sh --start    # same, then run the API on :8000
    ```
    Options: `--full` (heavy ML deps), `--frontend` (`npm ci` in `app/`), `--check` (report only), `--no-compose`.
-3. Tests: `cd backend/python && ../.venv-linux/bin/python -m pytest -q -m "not integration"`.
+3. Tests: `source scripts/dev/env.sh && cd backend/python && ../.venv-linux/bin/python -m pytest -q -m "not integration"` (`env.sh` exports the dev connection settings; the dev container already has them).
 4. Claude Code: `claude` (log in once; open a new terminal if `claude` is not on PATH yet, or run `export PATH=$HOME/.npm-global/bin:$PATH`).
 
 ## Light vs full dependencies

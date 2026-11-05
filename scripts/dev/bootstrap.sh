@@ -29,13 +29,9 @@ t0=$(date +%s)
 log() { printf '\n==> %s\n' "$*"; }
 retry() { local n=0; until "$@"; do n=$((n + 1)); [ "$n" -ge 3 ] && return 1; echo "   retry $n/3 in $((n * 5))s: $*" >&2; sleep $((n * 5)); done; }
 
-# --- connection settings -----------------------------------------------------------------------------------------
-# Inside the dev container the compose file already exports POSTGRES_HOST=db etc. Outside it, use the published ports.
-if getent hosts db >/dev/null 2>&1 && [ -z "${POSTGRES_HOST:-}" ]; then export POSTGRES_HOST=db POSTGRES_PORT=5432 REDIS_HOST=redis REDIS_PORT=6379; fi
-export POSTGRES_HOST="${POSTGRES_HOST:-127.0.0.1}" POSTGRES_PORT="${POSTGRES_PORT:-${DEV_PG_PORT:-5433}}"
-export POSTGRES_USER="${POSTGRES_USER:-sirjazper}" POSTGRES_DB="${POSTGRES_DB:-coos}" POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-jazper-dev-only}"
-export REDIS_HOST="${REDIS_HOST:-127.0.0.1}" REDIS_PORT="${REDIS_PORT:-${DEV_REDIS_PORT:-6379}}" REDIS_PASSWORD="${REDIS_PASSWORD:-jazper-dev-only}"
-export JAZPER_ENV="${JAZPER_ENV:-dev}"
+# --- connection settings (shared with your shell via: source scripts/dev/env.sh) ---------------------------------------
+# shellcheck source=scripts/dev/env.sh
+source "$ROOT/scripts/dev/env.sh"
 
 py_probe() { # exit 0 when Postgres AND Redis answer; uses only the stdlib so it works before deps are installed
   python3 - <<'PY'
@@ -107,7 +103,7 @@ command -v doppler >/dev/null 2>&1 && echo "doppler $(doppler --version)" || ech
 echo "doppler token: $([ -n "${DOPPLER_TOKEN:-}" ] && echo 'set (value not shown)' || echo 'not set -> using dev defaults')"
 
 log "Ready in $(( $(date +%s) - t0 ))s. Activate: source backend/.venv-linux/bin/activate"
-echo "Run the API:   ./scripts/dev/bootstrap.sh --start      Tests: cd backend/python && pytest -m 'not integration'"
+echo "Run the API:   ./scripts/dev/bootstrap.sh --start      Tests: source scripts/dev/env.sh && cd backend/python && ../.venv-linux/bin/python -m pytest -m 'not integration'"
 
 # --- 6. Optionally start the API --------------------------------------------------------------------------------
 if [ "$START" = 1 ]; then
