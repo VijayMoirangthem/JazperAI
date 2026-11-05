@@ -1,10 +1,21 @@
 {
   "name": "JazperAI cloud development",
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "workspace",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "shutdownAction": "stopCompose",
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "4gb",
+    "storage": "32gb"
+  },
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "22"
     }
+  },
+  "remoteEnv": {
+    "PATH": "${containerEnv:HOME}/.npm-global/bin:${containerEnv:PATH}"
   },
   "customizations": {
     "vscode": {
@@ -12,12 +23,27 @@
         "ms-python.python",
         "ms-python.vscode-pylance",
         "dbaeumer.vscode-eslint"
-      ]
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/backend/.venv-linux/bin/python",
+        "files.watcherExclude": {
+          "**/node_modules/**": true,
+          "**/.venv*/**": true,
+          "**/__pycache__/**": true,
+          "**/storage/**": true,
+          "**/data/**": true
+        },
+        "search.exclude": {
+          "**/node_modules": true,
+          "**/.venv*": true
+        }
+      }
     }
   },
-  "forwardPorts": [
-    8000,
-    3001
-  ],
-  "postCreateCommand": "python -m pip --version && node --version && npm --version && bash .devcontainer/install-doppler.sh"
+  "forwardPorts": [8000, 5173],
+  "portsAttributes": {
+    "8000": { "label": "Jazper API" },
+    "5173": { "label": "Jazper app (Vite)" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
 }
