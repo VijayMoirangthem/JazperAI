@@ -22,12 +22,12 @@ services:
       JAZPER_ENV: dev
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PIP_NO_INPUT: "1"
+    # Start order only: do NOT gate on service_healthy. If a service is slow/unhealthy the dev container must still start
+    # (otherwise Codespaces drops into recovery mode); scripts/dev/bootstrap.sh waits for the services itself.
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    mem_limit: 4g
+      - db
+      - redis
+    # No mem_limit here: the container also hosts the VS Code server; the Codespaces machine type is the cap.
 
   db:
     image: pgvector/pgvector:0.8.0-pg16

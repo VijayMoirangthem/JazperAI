@@ -13,7 +13,7 @@ Claude Code ready, without manual setup and without the crashes of the earlier i
 | Python env | `backend/.venv-linux` (git-ignored; separate from the Windows `backend/.venv`). |
 | Claude Code | installed to a user-owned prefix `~/.npm-global` (no sudo), version pinned in `scripts/dev/install-claude-code.sh`. |
 | Doppler CLI | existing pinned, signature-verified installer `.devcontainer/install-doppler.sh`. |
-| Resource caps | db 1 GB, redis 256 MB, workspace 4 GB; `hostRequirements` asks for 2 cores / 4 GB / 32 GB. |
+| Resource caps | db 1 GB, redis 256 MB (workspace uncapped; the machine type is the limit); `hostRequirements` asks for 2 cores / 4 GB / 32 GB. |
 
 Everything above is **development only**. Credentials in the compose file are throwaway defaults for containers that are not
 exposed beyond `127.0.0.1`; override with `POSTGRES_PASSWORD` / `REDIS_PASSWORD` (Doppler or Codespaces secrets). Nothing here
@@ -66,6 +66,7 @@ never printed. Authentication itself is a founder step: create the project/confi
 
 * **Recovery mode / "unable to find user vscode"**: `devcontainer.json` must not set `remoteUser` to a user the image lacks. This
   config uses the image default. The Alpine shell you may have seen is the Codespaces *recovery container*, not this image.
+* **Changed `POSTGRES_PASSWORD` after the first start and logins fail**: the database volume keeps the old password. Wipe the dev database: `docker volume rm jazper-dev_pgdata` (dev data only), then re-run `bootstrap.sh`.
 * **`bootstrap.sh` says Postgres/Redis unreachable**: inside the dev container run `docker compose` is not available; services come
   from the compose stack, so rebuild the container. Outside it, install Docker or pass `--no-compose` with `POSTGRES_*`/`REDIS_*`.
 * **`claude: command not found`**: `bash scripts/dev/install-claude-code.sh`, then `export PATH=$HOME/.npm-global/bin:$PATH`.
