@@ -98,6 +98,17 @@ jobs:
           PY
       - name: Apply migrations to the CI database (same step as README quick start)
         run: python -m alembic upgrade head
+      - name: Seed baseline org data (the calls main.py makes at startup; httpx ASGITransport tests skip the lifespan)
+        run: |
+          python - <<'PY'
+          import asyncio
+          from agents.org import ensure_org
+          from agents.orgchart import ensure_orgchart
+          from agents.staffing import ensure_staffing
+          async def main():
+              await ensure_org(); await ensure_orgchart(); await ensure_staffing()
+          asyncio.run(main())
+          PY
       - name: Database tests
         run: pytest -q -rs -m "db and not integration" --timeout=120 --timeout-method=thread --junitxml=db-junit.xml
       - name: Summarise database test results (public annotation; logs need auth)
