@@ -96,6 +96,8 @@ jobs:
           redis.Redis(host=os.environ["REDIS_HOST"], port=int(os.environ["REDIS_PORT"]), password=os.environ["REDIS_PASSWORD"]).ping()
           print("postgres and redis reachable")
           PY
+      - name: Apply migrations to the CI database (same step as README quick start)
+        run: python -m alembic upgrade head
       - name: Database tests
         run: pytest -q -rs -m "db and not integration" --timeout=120 --timeout-method=thread --junitxml=db-junit.xml
       - name: Summarise database test results (public annotation; logs need auth)
