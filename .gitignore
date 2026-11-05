@@ -78,3 +78,4 @@ tools/cloudflared/*.exe
 !**/.env.template
 .doppler.yaml
 .infisical.json
+.venv-*/

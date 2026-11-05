@@ -1,0 +1,79 @@
+name: devenv-validate
+# Proves the cloud development environment works on Linux: static checks, then a real run of scripts/dev/bootstrap.sh
+# against throwaway Postgres+pgvector and Redis containers. Placeholder dev credentials only; no secrets.
+on:
+  push:
+    branches: ["claude/**"]
+    paths:
+      - ".devcontainer/**"
+      - "scripts/dev/**"
+      - "docs/CLOUD_DEV.md"
+      - ".github/workflows/devenv-validate.yml"
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - "scripts/dev/**"
+      - "docs/CLOUD_DEV.md"
+      - ".github/workflows/devenv-validate.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: devcontainer.json is valid JSON and uses the compose stack
+        run: |
+          python3 - <<'PY'
+          import json
+          d = json.load(open(".devcontainer/devcontainer.json"))
+          assert d["service"] == "workspace" and d["dockerComposeFile"] == "docker-compose.yml"
+          print("devcontainer.json ok:", d["name"])
+          PY
+      - name: docker compose config
+        run: docker compose -f .devcontainer/docker-compose.yml config -q
+      - name: shell syntax and shellcheck
+        run: |
+          for f in .devcontainer/*.sh scripts/dev/*.sh; do bash -n "$f"; echo "syntax ok: $f"; done
+          sudo apt-get install -y -qq shellcheck >/dev/null
+          shellcheck -S warning .devcontainer/post-create.sh scripts/dev/*.sh
+      - name: no real env files or secret values added
+        run: python3 scripts/secrets/check_repo.py
+
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Bootstrap (cold) - starts Postgres+Redis, creates venv, installs light deps, migrates
+        run: |
+          s=$(date +%s)
+          ./scripts/dev/bootstrap.sh
+          echo "::notice title=bootstrap cold::$(( $(date +%s) - s ))s (light deps, includes Docker image pulls and Claude Code install)"
+      - name: Bootstrap (warm) - must be idempotent and fast
+        run: |
+          s=$(date +%s)
+          ./scripts/dev/bootstrap.sh
+          echo "::notice title=bootstrap warm::$(( $(date +%s) - s ))s"
+      - name: Claude Code is installed without root and runs
+        run: |
+          export PATH="$HOME/.npm-global/bin:$PATH"
+          claude --version
+          test "$(stat -c %U "$(command -v claude)")" = "$USER"
+      - name: Environment check
+        run: ./scripts/dev/bootstrap.sh --check
+      - name: Representative database tests on the bootstrapped environment
+        working-directory: backend/python
+        run: ../.venv-linux/bin/python -m pytest -q -m "db and not integration" tests/test_rls.py tests/test_hitl.py tests/test_audit.py tests/test_redis_layer.py --timeout=120 -p no:cacheprovider
+      - name: Resource usage
+        if: always()
+        run: |
+          free -m | sed -n 1,2p
+          df -h . | tail -1
+          docker stats --no-stream --format '{{.Name}} mem={{.MemUsage}} cpu={{.CPUPerc}}' 2>/dev/null || true
