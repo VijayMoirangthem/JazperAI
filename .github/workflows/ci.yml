@@ -97,4 +97,28 @@ jobs:
           print("postgres and redis reachable")
           PY
       - name: Database tests
-        run: pytest -q -rs -m "db and not integration" --timeout=120 --timeout-method=thread
+        run: pytest -q -rs -m "db and not integration" --timeout=120 --timeout-method=thread --junitxml=db-junit.xml
+      - name: Summarise database test results (public annotation; logs need auth)
+        if: always()
+        run: |
+          python - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          if not os.path.exists("db-junit.xml"):
+              print("::error title=db tests::no junit report produced"); raise SystemExit(0)
+          root = ET.parse("db-junit.xml").getroot()
+          cases = list(root.iter("testcase"))
+          bad = [(c, c.find("failure") if c.find("failure") is not None else c.find("error")) for c in cases]
+          bad = [(c, b) for c, b in bad if b is not None]
+          skipped = [c for c in cases if c.find("skipped") is not None]
+          passed = len(cases) - len(bad) - len(skipped)
+          print(f"db tests: {passed} passed, {len(bad)} failed/errored, {len(skipped)} skipped, {len(cases)} total")
+          lines = [f"{passed} passed, {len(bad)} failed, {len(skipped)} skipped of {len(cases)}"]
+          for c, b in bad[:25]:
+              msg = (b.get("message") or "").splitlines()[:1]
+              lines.append(f"FAIL {c.get('classname')}::{c.get('name')} - {(msg[0] if msg else '')[:140]}")
+          for c in skipped[:10]:
+              s = c.find("skipped")
+              lines.append(f"SKIP {c.get('classname')}::{c.get('name')} - {(s.get('message') or '')[:100]}")
+          body = "%0A".join(lines)[:3800]
+          print(f"::{'error' if bad else 'notice'} title=db test summary::{body}")
+          PY
