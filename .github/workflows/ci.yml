@@ -47,3 +47,54 @@ jobs:
       - run: pip install -r requirements.txt pytest pytest-asyncio httpx respx
       - run: docker info --format '{{.ServerVersion}}'
       - run: pytest -q -m integration --timeout=120 --timeout-method=thread
+  python-db:
+    # Postgres (pgvector) + Redis service containers so the db-marked tests (RLS, tenancy, memory, vault, audit, HITL ...) run in CI.
+    # Throwaway containers with placeholder credentials; no real secrets and no external services.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults: { run: { working-directory: backend/python } }
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: sirjazper
+      POSTGRES_DB: coos
+      POSTGRES_PASSWORD: ci-postgres-placeholder
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ci-redis-placeholder
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.0-pg16
+        env:
+          POSTGRES_USER: sirjazper
+          POSTGRES_PASSWORD: ci-postgres-placeholder
+          POSTGRES_DB: coos
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sirjazper -d coos"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start Redis (password-protected, same image as infra/docker-compose.yml)
+        working-directory: .
+        run: |
+          docker run -d --name ci-redis -p 127.0.0.1:6379:6379 redis:7.4-alpine redis-server --requirepass "$REDIS_PASSWORD"
+          for i in $(seq 1 20); do
+            docker exec ci-redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG && exit 0
+            sleep 1
+          done
+          echo "redis did not become ready" >&2; exit 1
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip, cache-dependency-path: backend/python/requirements.txt }
+      - run: pip install -r requirements.txt pytest pytest-asyncio httpx respx
+      - name: Fail loudly if a service is unreachable (the tests skip, not fail, when it is)
+        run: |
+          python - <<'PY'
+          import os, psycopg2, redis
+          psycopg2.connect(host=os.environ["POSTGRES_HOST"], port=int(os.environ["POSTGRES_PORT"]), user=os.environ["POSTGRES_USER"],
+                           password=os.environ["POSTGRES_PASSWORD"], dbname="postgres").close()
+          redis.Redis(host=os.environ["REDIS_HOST"], port=int(os.environ["REDIS_PORT"]), password=os.environ["REDIS_PASSWORD"]).ping()
+          print("postgres and redis reachable")
+          PY
+      - name: Database tests
+        run: pytest -q -rs -m "db and not integration" --timeout=120 --timeout-method=thread
