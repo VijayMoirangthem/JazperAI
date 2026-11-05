@@ -1,12 +1,13 @@
 """Ephemeral Docker sandbox runner (spec §10): one-shot containers for anything an agent wants to execute.
 
 Hardening: read-only root filesystem, non-root user, all capabilities dropped, no-new-privileges, pids/memory/cpu limits, tmpfs
-workdir, the project mounted READ-ONLY at /src and copied into the tmpfs /work (copy-on-write: the host tree is never written),
+workdir, the project streamed in as a tar archive on stdin and extracted into the tmpfs /work (the host tree is never mounted or written),
 no network by default, output size cap, wall-clock limit. Output streams to the `execution-log` bus topic.
 Egress allow-listing through a proxy container is not implemented: network is either "none" (default) or explicitly "bridge".
 """
 import asyncio
 import subprocess
+import tarfile
 import threading
 import time
 from dataclasses import dataclass
@@ -55,6 +56,16 @@ async def ensure_image() -> None:
         raise RuntimeError("sandbox image build failed: " + r.stderr.decode(errors="ignore")[-300:])
 
 
+def _tar_filter(ti: tarfile.TarInfo) -> tarfile.TarInfo | None:
+    """Only plain files, directories and symlinks enter the sandbox (no devices/fifos/sockets); owned by the sandbox user, owner-accessible."""
+    if not (ti.isreg() or ti.isdir() or ti.issym()):
+        return None
+    ti.uid = ti.gid = 1000
+    ti.uname = ti.gname = ""
+    ti.mode |= 0o700 if ti.isdir() else 0o600
+    return ti
+
+
 def _run_blocking(cmd: list[str], src: Path, network: str, timeout_s: float, mem: str, cpus: str, pids: int, max_output: int,
                   run_id: str, image: str = IMAGE, ro_mounts: tuple = ()) -> SandboxResult:
     name = f"jasper-sbx-{uuid4().hex[:10]}"
@@ -62,14 +73,29 @@ def _run_blocking(cmd: list[str], src: Path, network: str, timeout_s: float, mem
         "docker", "run", "--rm", "--name", name, "--read-only", "--user", "1000:1000", "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges", "--pids-limit", str(pids), "--memory", mem, "--memory-swap", mem, "--cpus", cpus,
         "--network", network, "--tmpfs", "/tmp:rw,size=64m", "--tmpfs", "/work:rw,exec,size=256m,uid=1000,gid=1000",
-        "-v", f"{src.resolve()}:/src:ro", *[x for host, inside in ro_mounts for x in ("-v", f"{Path(host).resolve()}:{inside}:ro")],
-        "-e", "HOME=/tmp", "-e", "PYTHONDONTWRITEBYTECODE=1", image,
-        "sh", "-c", 'cp -a /src/. /work/ 2>/dev/null; cd /work && exec "$@"', "sh", *cmd,
+        *[x for host, inside in ro_mounts for x in ("-v", f"{Path(host).resolve()}:{inside}:ro")],
+        "-i", "-e", "HOME=/tmp", "-e", "PYTHONDONTWRITEBYTECODE=1", image,
+        # the project arrives as a tar stream on stdin (never bind-mounted), so host file permissions cannot block a uid-1000 reader
+        "sh", "-c", 'tar -xf - -C /work && cd /work && exec "$@"', "sh", *cmd,
     ]
     t0 = time.monotonic()
-    proc = subprocess.Popen(docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    proc = subprocess.Popen(docker_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     buf: list[bytes] = []
     state = {"size": 0, "truncated": False}
+
+    def feed():
+        try:
+            with tarfile.open(fileobj=proc.stdin, mode="w|") as tf:
+                tf.add(src, arcname=".", filter=_tar_filter)
+        except (OSError, ValueError):
+            pass  # container exited/was killed before reading everything; the exit code reports the outcome
+        finally:
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
+
+    threading.Thread(target=feed, daemon=True).start()
 
     def reader():
         for line in iter(proc.stdout.readline, b""):
