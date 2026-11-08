@@ -12,6 +12,7 @@ from collections import deque
 import datetime
 
 from api.routes import chat, memory, health, tasks, ws, models, voice, history, logs as logs_route, dashboard as dashboard_route, notifications as notifications_route
+from api.routes import performance as performance_route
 from api.routes import jobs as jobs_route
 from api.routes import google as google_route
 from api.routes import apply as apply_route
@@ -179,6 +180,13 @@ async def lifespan(app: FastAPI):
     log.info("Sir Jazper OS starting", model=settings.AI_MODEL, env=settings.ENV)
     from memory.db.init import ensure_tables
     ensure_tables()
+
+    # Resource-aware execution: stored performance settings + agent activation, applied before anything heavy starts.
+    try:
+        from core.perf import runtime as _perf_runtime
+        await _perf_runtime.startup()
+    except Exception as perf_exc:
+        log.warning("performance settings init failed (non-fatal, defaults apply)", error=str(perf_exc)[:160])
 
     from api.business.db import ensure_business_tables
     ensure_business_tables()
@@ -386,6 +394,7 @@ from api.routes import drive as drive_route
 app.include_router(drive_route.router, prefix="/api/v1/drive", tags=["drive"])
 from api.routes import edit as edit_route
 app.include_router(edit_route.router, prefix="/api/edit", tags=["edit"])
+app.include_router(performance_route.router, prefix="/api/performance", tags=["performance"])
 from api.routes import company as company_route
 app.include_router(company_route.router, prefix="/api/company", tags=["company"])
 from api.routes import finops as finops_route
