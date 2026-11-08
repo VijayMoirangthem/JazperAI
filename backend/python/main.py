@@ -256,6 +256,14 @@ async def lifespan(app: FastAPI):
     except Exception as fw_exc:
         log.warning("FileWatcher: failed to start (non-fatal)", error=str(fw_exc))
 
+    # Jobs were registered above, after the settings were first loaded: re-apply so a deactivated agent's scheduled jobs are
+    # paused (and the alert interval/limiters/log level are set) from the very first minute after a restart.
+    try:
+        from core.perf import runtime as _perf_runtime2
+        _perf_runtime2.apply()
+    except Exception as perf_exc2:
+        log.warning("performance settings re-apply failed (non-fatal)", error=str(perf_exc2)[:160])
+
     yield
 
     stop_scheduler()

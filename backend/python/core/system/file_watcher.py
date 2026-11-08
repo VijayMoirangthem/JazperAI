@@ -61,9 +61,21 @@ _trigger_lock   = threading.Lock()
 _loop: asyncio.AbstractEventLoop | None = None
 
 
+# Project-root folders that are runtime data or vendored references, never source: the MinIO object store alone produced ~70
+# filesystem events per second while idle, each of which cost a path resolve. Matched only at the top level so a source folder that
+# happens to be called "data" deeper in the tree is still watched.
+_IGNORE_TOP = {"data", "Project_References", "storage"}
+
+
 def _is_ignored(path_str: str) -> bool:
-    parts = Path(path_str).parts
-    return any(p in _IGNORE_DIRS for p in parts)
+    p = Path(path_str)
+    try:
+        rel = p.relative_to(_PROJECT_ROOT).parts
+    except ValueError:
+        rel = ()
+    if rel and rel[0] in _IGNORE_TOP:
+        return True
+    return any(part in _IGNORE_DIRS for part in p.parts)
 
 
 def _debounced(path: str) -> bool:

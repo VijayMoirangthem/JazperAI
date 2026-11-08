@@ -123,3 +123,40 @@ async def test_memory_warning_fires_when_over_budget(monkeypatch):
     monkeypatch.setattr(monitor, "processes", lambda: [{"pid": 1, "name": "x", "role": "backend", "rss_mb": 900.0, "threads": 1}])
     s = await monitor.status()
     assert any("above the 256 MB budget" in w for w in s["warnings"])
+
+
+async def test_nested_slot_does_not_deadlock_with_limit_one():
+    """An agent holding the only slot calls another agent: the nested call is part of the same task and must not wait."""
+    L = lim.ResizableLimiter("nest", 1)
+    order = []
+
+    async def inner():
+        async with L.slot():
+            order.append("inner")
+
+    async def outer():
+        async with L.slot():
+            order.append("outer")
+            await inner()                                              # same task
+            await asyncio.create_task(inner())                         # child task inherits the context
+            await asyncio.gather(inner(), inner())
+
+    async with asyncio.timeout(2):                                     # a deadlock would hit this timeout
+        await outer()
+    assert order == ["outer", "inner", "inner", "inner", "inner"] and L.running == 0 and L.completed == 1
+
+
+async def test_independent_tasks_still_queue_behind_the_limit():
+    L = lim.ResizableLimiter("indep", 1)
+    running = peak = 0
+
+    async def work():
+        nonlocal running, peak
+        async with L.slot():
+            running += 1
+            peak = max(peak, running)
+            await asyncio.sleep(0.01)
+            running -= 1
+
+    await asyncio.gather(*(work() for _ in range(5)))                  # siblings are not nested: they queue
+    assert peak == 1 and L.completed == 5

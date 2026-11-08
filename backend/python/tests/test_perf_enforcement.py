@@ -193,3 +193,14 @@ def test_main_interface_lists_hide_inactive_agents_unless_asked(client):
     assert "scout" in tree() and tree()["scout"]["active"] is False
     client.put("/api/performance/agents/scout", json={"active": True})
     assert roster()["scout"]["active"] is True and tree()["scout"]["active"] is True
+
+
+def test_file_watcher_ignores_runtime_data_and_references_but_not_nested_source_dirs():
+    from core.system import file_watcher as fw
+    root = fw._PROJECT_ROOT
+    assert fw._is_ignored(str(root / "data" / "minio" / "bucket" / "obj"))
+    assert fw._is_ignored(str(root / "Project_References" / "mem0" / "x.py"))
+    assert fw._is_ignored(str(root / "storage" / "hive" / "log.txt"))
+    assert fw._is_ignored(str(root / "backend" / "python" / ".venv" / "lib.py"))          # existing rule still works
+    assert not fw._is_ignored(str(root / "backend" / "python" / "data" / "loader.py"))    # nested "data" is source: still watched
+    assert not fw._is_ignored(str(root / "backend" / "python" / "main.py"))

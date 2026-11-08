@@ -6,9 +6,14 @@ and each waiter is woken on the loop that created it. Cancellation never leaks a
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import threading
 from collections import deque
 from contextlib import asynccontextmanager
+
+# Names of limiters the current logical task already holds a slot of. A nested call (an agent calling another agent) must not
+# wait for a second slot of the same limiter, or a limit of 1 would deadlock. Child tasks inherit this through the context.
+_holding: contextvars.ContextVar[frozenset] = contextvars.ContextVar("limiter_holding", default=frozenset())
 
 
 class ResizableLimiter:
@@ -87,10 +92,16 @@ class ResizableLimiter:
 
     @asynccontextmanager
     async def slot(self):
+        held = _holding.get()
+        if self.name in held:  # re-entrant: this task (or its parent) already owns a slot, the nested work is part of it
+            yield
+            return
         await self._acquire()
+        token = _holding.set(held | {self.name})
         try:
             yield
         finally:
+            _holding.reset(token)
             self._release()
 
 

@@ -59,7 +59,7 @@ def preset_values(name: str) -> dict:
                     log_level="WARNING", log_retention_entries=200, mcp_autoconnect=False, file_watcher=False,
                     auto_repair_loop=False, pii_engine="regex", memory_budget_mb=max(512, int(ram_mb * 0.10)))
     if name == "balanced":
-        return dict(preset="balanced", max_active_agents=16, max_concurrent_tasks=3, max_background_jobs=2, background_jobs_enabled=True,
+        return dict(preset="balanced", max_active_agents=max(16, cores * 2), max_concurrent_tasks=3, max_background_jobs=2, background_jobs_enabled=True,
                     poll_scale=1.5, ui_update_ms=400, animations="reduced", max_fps=30, show_inactive_agents=False,
                     log_level="INFO", log_retention_entries=500, mcp_autoconnect=True, file_watcher=True,
                     auto_repair_loop=True, pii_engine="presidio", memory_budget_mb=max(1024, int(ram_mb * 0.20)))
