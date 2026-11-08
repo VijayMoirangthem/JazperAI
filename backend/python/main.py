@@ -140,7 +140,13 @@ async def _auto_repair_loop():
 
     try:
         while True:
-            await asyncio.sleep(0.5)
+            from core.perf import settings as _perf
+            await asyncio.sleep(0.5 * _perf.current().poll_scale)
+            if not _perf.current().auto_repair_loop:  # Performance Settings: drain and idle
+                while not q.empty():
+                    q.get_nowait()
+                await asyncio.sleep(5)
+                continue
             while not q.empty():
                 try:
                     entry = q.get_nowait()
@@ -242,7 +248,11 @@ async def lifespan(app: FastAPI):
     # Phase 7D: start filesystem watcher (daemon thread, auto-triggers npm/pip install)
     from core.system.file_watcher import start as fw_start
     try:
-        fw_start(asyncio.get_event_loop())
+        from core.perf import settings as _perf_s
+        if _perf_s.current().file_watcher:
+            fw_start(asyncio.get_event_loop())
+        else:
+            log.info("FileWatcher disabled by Performance Settings")
     except Exception as fw_exc:
         log.warning("FileWatcher: failed to start (non-fatal)", error=str(fw_exc))
 

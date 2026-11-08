@@ -73,8 +73,9 @@ class BotRegistry:
         return self._bots.get(slug)
 
     def routable(self, slug: str) -> BotDef | None:
+        from agents import activation
         b = self._bots.get(slug)
-        return b if b and b.enabled else None
+        return b if b and b.enabled and activation.is_active(slug) else None
 
     def roster(self) -> list[dict]:
         from agents.registry_adapter import builtin_roster
@@ -87,9 +88,11 @@ class BotRegistry:
         router = await get_router()
         announce(slug, "working", bubble=text[:100])
         try:
-            with finops.attribute(slug, b.crew):
-                res = await router.complete(LLMRequest(system=b.prompt, messages=[{"role": "user", "content": text}],
-                                                        tier=b.model_policy.get("default_tier", "standard")))
+            from core.perf import limiter
+            async with limiter.agent_tasks.slot():  # Performance Settings: max concurrent agent tasks
+                with finops.attribute(slug, b.crew):
+                    res = await router.complete(LLMRequest(system=b.prompt, messages=[{"role": "user", "content": text}],
+                                                            tier=b.model_policy.get("default_tier", "standard")))
         except Exception as e:
             announce(slug, "error", reason=str(e))
             raise

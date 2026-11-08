@@ -265,7 +265,10 @@ async def disconnect(cid: str) -> dict:
 async def autoconnect() -> None:
     """Background, after startup: bring up connectors that are already authorised (Google signed in, secrets present). Never raises."""
     import asyncio
+    from core.perf import settings as perf_settings
     await asyncio.sleep(5)
+    if not perf_settings.current().mcp_autoconnect:  # Performance Settings: connect on demand from the hub instead
+        return
     for cid in ("google-workspace", "github", "slack", "notion"):
         try:
             st = await check(cid)

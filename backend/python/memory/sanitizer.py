@@ -72,6 +72,9 @@ _engine_failed = False
 
 def _presidio():
     global _engine, _engine_failed
+    from core.perf import settings as perf_settings
+    if perf_settings.current().pii_engine == "regex":  # Performance Settings (Eco): skip the spaCy/Presidio second opinion
+        return None
     if _engine is not None or _engine_failed:
         return _engine
     try:

@@ -15,6 +15,31 @@ log = structlog.get_logger()
 
 scheduler = AsyncIOScheduler(timezone="UTC")
 
+
+def _limit_background(func):
+    """Performance Settings: at most N scheduled/background coroutines run at once (others wait their turn)."""
+    import functools
+    from core.perf import limiter
+
+    @functools.wraps(func)
+    async def wrapper(*a, **kw):
+        async with limiter.background_jobs.slot():
+            return await func(*a, **kw)
+    return wrapper
+
+
+_add_job = scheduler.add_job
+
+
+def _add_job_limited(func, *args, **kwargs):
+    import asyncio as _asyncio
+    if _asyncio.iscoroutinefunction(func):
+        func = _limit_background(func)
+    return _add_job(func, *args, **kwargs)
+
+
+scheduler.add_job = _add_job_limited
+
 WORKER_REGISTRY: dict[str, type] = {}
 
 
@@ -101,6 +126,10 @@ def _create_notification(title: str, body: str, ntype: str, job_run_id: str | No
 
 
 async def _run_job(cron_job_id: str, worker_type: str, config: dict, job_name: str) -> None:
+    from agents import activation
+    if not activation.worker_allowed(worker_type):  # the owning agent is deactivated: do not execute, do not record a run
+        log.info("Cron job skipped: owning agent is deactivated", job=job_name, worker=worker_type)
+        return
     run_id = await asyncio.get_event_loop().run_in_executor(
         None, _create_run_record, cron_job_id
     )

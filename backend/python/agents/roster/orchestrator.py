@@ -295,6 +295,12 @@ async def orchestrate(
         return True
 
     async def _run_one(agent_name: str) -> AgentResult:
+        from agents import activation
+        from core.perf import limiter as _limiter
+        if not activation.is_active(agent_name.lower()):
+            dummy = AgentTrace(agent_name=agent_name, task=message, model="", system_prompt="", messages_sent=[])
+            return AgentResult(content=f"[{agent_name} is deactivated - turn it on in Performance Settings]", trace=dummy, success=False)
+        agent_registry._ensure_loaded()  # picks up an agent that was activated after startup
         agent = agent_registry.get(agent_name)
         if not agent:
             log.warning("Unknown agent in plan", agent=agent_name)
@@ -305,12 +311,13 @@ async def orchestrate(
         if overrides.get("model"):
             agent.model = overrides["model"]
         try:
-            return await agent.run(
-                task=message,
-                context={**context, "agent_overrides": overrides},
-                session_id=session_id,
-                emit=emit,
-            )
+            async with _limiter.agent_tasks.slot():  # Performance Settings: max concurrent agent tasks
+                return await agent.run(
+                    task=message,
+                    context={**context, "agent_overrides": overrides},
+                    session_id=session_id,
+                    emit=emit,
+                )
         finally:
             agent.model = original_model
 

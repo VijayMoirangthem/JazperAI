@@ -303,6 +303,11 @@ def _make_handler():
 # ── Public start/stop ─────────────────────────────────────────────────────────
 
 _observer_thread = None
+_stop_event = threading.Event()
+
+
+def is_running() -> bool:
+    return _observer_thread is not None and _observer_thread.is_alive()
 
 
 def start(loop: asyncio.AbstractEventLoop) -> None:
@@ -313,6 +318,9 @@ def start(loop: asyncio.AbstractEventLoop) -> None:
     global _loop, _observer_thread
 
     _loop = loop
+    if is_running():  # idempotent: Performance Settings may call start() again
+        return
+    _stop_event.clear()
 
     try:
         from watchdog.observers import Observer  # type: ignore
@@ -328,8 +336,8 @@ def start(loop: asyncio.AbstractEventLoop) -> None:
         log.info("FileWatcher: started", root=str(_PROJECT_ROOT))
         observer.start()
         try:
-            while not getattr(observer, "_stopped", False):
-                time.sleep(1)
+            while not _stop_event.is_set():
+                _stop_event.wait(1)
         except Exception:
             pass
         finally:
@@ -345,4 +353,6 @@ def start(loop: asyncio.AbstractEventLoop) -> None:
 def stop() -> None:
     """Signal the observer to stop (called from lifespan shutdown)."""
     log.info("FileWatcher: stopping")
-    # The observer stops automatically when the daemon thread dies on shutdown.
+    _stop_event.set()  # the observer thread notices within ~1 s, stops and joins the OS observer
+    if _observer_thread is not None:
+        _observer_thread.join(timeout=5)

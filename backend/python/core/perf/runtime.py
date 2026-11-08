@@ -28,7 +28,35 @@ def apply(cfg: perf_settings.PerfSettings | None = None) -> perf_settings.PerfSe
 
     from agents import activation
     activation.apply_scheduler_gating()
+    _apply_housekeeping(cfg)
+    _apply_file_watcher(cfg)
     return cfg
+
+
+def _apply_housekeeping(cfg: perf_settings.PerfSettings) -> None:
+    """Alert checks normally run every 2 min; stretch the interval by poll_scale (when that job exists)."""
+    try:
+        from apscheduler.triggers.interval import IntervalTrigger
+        from core.scheduler.scheduler import scheduler
+        if scheduler.get_job("__alerts__") is not None:
+            scheduler.reschedule_job("__alerts__", trigger=IntervalTrigger(seconds=int(120 * cfg.poll_scale)))
+    except Exception as e:
+        log.debug("housekeeping reschedule skipped", error=str(e)[:120])
+
+
+def _apply_file_watcher(cfg: perf_settings.PerfSettings) -> None:
+    """Start/stop the project file watcher live. Only touches it once the app is running (the lifespan starts it at boot)."""
+    if sys.modules.get("main") is None:
+        return
+    try:
+        import asyncio
+        from core.system import file_watcher as fw
+        if cfg.file_watcher and not fw.is_running():
+            fw.start(asyncio.get_running_loop())
+        elif not cfg.file_watcher and fw.is_running():
+            fw.stop()
+    except Exception as e:  # no running loop (sync caller) or watchdog missing: leave as is
+        log.debug("file watcher toggle skipped", error=str(e)[:120])
 
 
 async def startup() -> perf_settings.PerfSettings:

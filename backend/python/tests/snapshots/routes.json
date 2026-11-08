@@ -1337,6 +1337,18 @@
  ],
  [
   "GET",
+  "/api/performance/agents"
+ ],
+ [
+  "GET",
+  "/api/performance/settings"
+ ],
+ [
+  "GET",
+  "/api/performance/status"
+ ],
+ [
+  "GET",
   "/api/phases/personalities"
  ],
  [
@@ -2358,6 +2370,18 @@
  [
   "GET",
   "/api/v1/people/invites"
+ ],
+ [
+  "GET",
+  "/api/v1/performance/agents"
+ ],
+ [
+  "GET",
+  "/api/v1/performance/settings"
+ ],
+ [
+  "GET",
+  "/api/v1/performance/status"
  ],
  [
   "GET",
@@ -3613,6 +3637,14 @@
  ],
  [
   "POST",
+  "/api/performance/agents/bulk"
+ ],
+ [
+  "POST",
+  "/api/performance/preset/{name}"
+ ],
+ [
+  "POST",
   "/api/phases/chat"
  ],
  [
@@ -4457,6 +4489,14 @@
  ],
  [
   "POST",
+  "/api/v1/performance/agents/bulk"
+ ],
+ [
+  "POST",
+  "/api/v1/performance/preset/{name}"
+ ],
+ [
+  "POST",
   "/api/v1/phases/chat"
  ],
  [
@@ -4905,6 +4945,14 @@
  ],
  [
   "PUT",
+  "/api/performance/agents/{slug}"
+ ],
+ [
+  "PUT",
+  "/api/performance/settings"
+ ],
+ [
+  "PUT",
   "/api/profile/"
  ],
  [
@@ -5030,6 +5078,14 @@
  [
   "PUT",
   "/api/v1/people/{person_id}/role"
+ ],
+ [
+  "PUT",
+  "/api/v1/performance/agents/{slug}"
+ ],
+ [
+  "PUT",
+  "/api/v1/performance/settings"
  ],
  [
   "PUT",

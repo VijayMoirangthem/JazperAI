@@ -6,6 +6,7 @@ Seeding is idempotent and never overwrites a placement the founder changed.
 import json
 from datetime import datetime, timezone
 
+from agents import activation
 from agents.registry import BotDef, registry
 from memory.db import aio
 
@@ -162,7 +163,8 @@ async def tree() -> dict:
         st = score_of(stats.get(r["slug"]))
         g["bots"].append({
             "slug": r["slug"], "display_name": r["display_name"], "role_title": r["role_title"], "crew": r["crew"], "reports_to": r.get("reports_to"),
-            "enabled": r.get("enabled", True), "source": r.get("source", "dynamic"), "lifecycle": r.get("lifecycle"),
+            "enabled": r.get("enabled", True), "active": activation.effective(r), "critical": r["slug"] in activation.CRITICAL,
+            "source": r.get("source", "dynamic"), "lifecycle": r.get("lifecycle"),
             "department": o.get("department", ""), "position": o.get("position") or r["role_title"], "sort_order": o.get("sort_order", 1000),
             "created_at": (created.get(r["slug"]) or o.get("created_at")), "started_at": o.get("started_at"), "has_prompt_override": bool(o.get("prompt_override")),
             "tier": (r.get("model_policy") or {}).get("default_tier", "standard"), "tools": r.get("tools", []), "settings": SETTINGS.get(r["slug"], {}), **st,
