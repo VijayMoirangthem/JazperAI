@@ -177,3 +177,19 @@ def test_api_status_reports_real_numbers(client):
     assert s["rss_mb"] > 20 and s["threads"] > 0 and s["processes"] and s["agents"]["total"] > 0
     assert set(s["tasks"]) >= {"agent", "background", "asyncio_tasks", "scheduled", "paused"}
     assert isinstance(s["warnings"], list) and s["host"]["ram_total_mb"] > 1000
+
+
+@pytest.mark.db
+def test_main_interface_lists_hide_inactive_agents_unless_asked(client):
+    """The roster and org tree behind every agent surface (office, chat, mind map) omit deactivated agents, immediately
+    (cache busted), and bring them back flagged when 'show inactive' is on."""
+    roster = lambda: {b["slug"]: b for b in client.get("/api/v1/bots/").json()["bots"]}          # noqa: E731
+    tree = lambda: {b["slug"]: b for g in client.get("/api/v1/bots/tree").json()["groups"] for b in g["bots"]}   # noqa: E731
+    assert "scout" in roster() and "scout" in tree()                                  # primes the Redis response cache
+    client.put("/api/performance/agents/scout", json={"active": False})
+    assert "scout" not in roster() and "scout" not in tree() and "hermes" in roster()   # gone at once, not after the cache TTL
+    client.put("/api/performance/settings", json={"show_inactive_agents": True})
+    assert roster()["scout"]["deactivated"] is True and roster()["scout"]["active"] is False
+    assert "scout" in tree() and tree()["scout"]["active"] is False
+    client.put("/api/performance/agents/scout", json={"active": True})
+    assert roster()["scout"]["active"] is True and tree()["scout"]["active"] is True

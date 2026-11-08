@@ -1,5 +1,6 @@
 "use client";
 
+import { setScaledInterval } from "@/lib/perfRuntime";
 import { Sun, Moon, Command, Cpu, Building2, LayoutDashboard, MonitorDot } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useState, useEffect, useRef } from "react";
@@ -90,8 +91,8 @@ export function Topbar({ title, onCommandCenter, studioMode, onStudioToggle, rig
     }
     fetchModel();
     fetchProviderStatus();
-    const id1 = setInterval(fetchModel, 15000);
-    const id2 = setInterval(fetchProviderStatus, 10000);
+    const id1 = setScaledInterval(fetchModel, 15000);
+    const id2 = setScaledInterval(fetchProviderStatus, 10000);
     return () => { clearInterval(id1); clearInterval(id2); };
   }, []);
 

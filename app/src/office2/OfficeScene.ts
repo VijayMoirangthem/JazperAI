@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { getMaxFps } from "@/lib/perfRuntime";
 import type { LiveAgent } from "@/stores/liveAgentsStore";
 import { AvatarLayer, type Avatar } from "./avatars.ts";
 import { BubbleLayer } from "./bubbles.ts";
@@ -217,6 +218,7 @@ export interface OfficeHandle {
 export async function startOffice(host: HTMLElement): Promise<OfficeHandle> {
   const scene = new OfficeScene();
   const game = new Phaser.Game({
+    fps: { target: getMaxFps() },  // Performance Settings: max_fps
     type: Phaser.AUTO, parent: host, backgroundColor: "#0b0f14", pixelArt: true, roundPixels: true, antialias: false,
     scale: { mode: Phaser.Scale.RESIZE, width: host.clientWidth || 800, height: host.clientHeight || 600 },
     scene,

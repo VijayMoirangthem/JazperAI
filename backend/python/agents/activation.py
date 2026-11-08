@@ -95,6 +95,17 @@ def annotate(roster: list[dict]) -> list[dict]:
 
 # ------------------------------------------------------------------ changes
 
+async def bust_caches() -> None:
+    """Roster/tree responses are cached (Redis, a few seconds); drop them so a change shows immediately. Never raises."""
+    try:
+        from core import cache
+        from core.http_cache import HttpCacheMiddleware
+        await cache.invalidate("org_tree")
+        await HttpCacheMiddleware(None)._invalidate("/api/v1/bots")
+    except Exception:
+        pass
+
+
 def _known(slug: str) -> dict | None:
     return next((r for r in _roster() if r["slug"] == slug), None)
 
@@ -129,6 +140,7 @@ async def set_active(slug: str, active: bool, *, force: bool = False, reason: st
                                          "deactivate another agent or raise the limit in Performance Settings")
     await _persist(slug, active, "" if active else (reason or "deactivated by user"))
     apply_scheduler_gating()
+    await bust_caches()
     announce(slug, "idle" if active else "deprecated", reason="activated" if active else "deactivated")
     return {"slug": slug, "active": effective(r)}
 
@@ -153,6 +165,8 @@ async def bulk(slugs: list[str], active: bool, *, reason: str = "") -> dict:
             await _persist(slug, active, "" if active else (reason or "deactivated by user"))
             changed.append(slug)
     apply_scheduler_gating()
+    if changed:
+        await bust_caches()
     for slug in changed:
         announce(slug, "idle" if active else "deprecated", reason="activated" if active else "deactivated")
     return {"changed": changed, "skipped": skipped, "counts": counts()}

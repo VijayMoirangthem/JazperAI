@@ -29,7 +29,12 @@ class MessageIn(BaseModel):
 @router.get("/")
 async def roster():
     await registry.reload()
-    return {"bots": registry.roster()}
+    from agents import activation
+    from core.perf import settings as perf_settings
+    rows = activation.annotate(registry.roster())
+    if not perf_settings.current().show_inactive_agents:  # Performance Settings: deactivated agents are not rendered
+        rows = [r for r in rows if not r["deactivated"]]
+    return {"bots": rows}
 
 
 @router.put("/")

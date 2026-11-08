@@ -2,6 +2,7 @@
 
 // Read-only window onto what bots say to each other and which tools they call (Jasper <-> Herald <-> Connector, meetings...).
 // Live feed comes from the Redis stream behind /api/v1/comms/recent; history from Postgres.
+import { setScaledInterval } from "@/lib/perfRuntime";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Wrench } from "lucide-react";
 import { MausAvatar, lookFor, useBotLook } from "@/mascot/MausAvatar";
@@ -17,7 +18,7 @@ export function useCommsThreads(): CommsThread[] {
   useEffect(() => {
     const load = () => fetch(`${API}/api/v1/comms/threads`).then((r) => r.json()).then((d) => setThreads(d.threads ?? [])).catch(() => undefined);
     void load();
-    const t = setInterval(load, 4000);
+    const t = setScaledInterval(load, 4000);
     return () => clearInterval(t);
   }, []);
   return threads;
@@ -38,7 +39,7 @@ export function CommsView({ thread, includeTools = true }: { thread: string; inc
       } catch { /* backend busy */ }
     };
     void tick();
-    const t = setInterval(tick, 2000);
+    const t = setScaledInterval(tick, 2000);
     return () => { stop = true; clearInterval(t); };
   }, [thread]);
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [msgs.length]);

@@ -1,2 +1,11 @@
 @import "./app/globals.css";
 :root { --font-inter: "Inter", system-ui, sans-serif; --font-jetbrains: "JetBrains Mono", monospace; }
+
+/* Performance Settings -> animations. data-animations is set from /api/performance/settings (lib/perfRuntime.ts). */
+/* Loading spinners (.animate-spin) are kept in every mode so progress stays visible. */
+html[data-animations="off"] :not(.animate-spin), html[data-animations="off"] :not(.animate-spin)::before, html[data-animations="off"] :not(.animate-spin)::after {
+  animation: none !important; transition: none !important; scroll-behavior: auto !important;
+}
+html[data-animations="reduced"] *, html[data-animations="reduced"] *::before, html[data-animations="reduced"] *::after {
+  transition-duration: 0.1s !important; scroll-behavior: auto !important;
+}

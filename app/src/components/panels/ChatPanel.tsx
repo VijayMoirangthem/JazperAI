@@ -1,5 +1,6 @@
 "use client";
 
+import { setScaledInterval } from "@/lib/perfRuntime";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Send, MessageSquare, Copy, Check, SquarePen, Globe, Mic, MicOff, Volume2, VolumeX, Radio, Zap, Paperclip, Camera, X, Clock, Ghost, Save, Play, Square, Brain, ChevronDown, ChevronRight, Search, Mail, Database, Eye, Cpu } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
@@ -750,7 +751,7 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded, globalVoiceActive = 
 
   // Focus timer countdown — updates every second
   useEffect(() => {
-    const iv = setInterval(() => {
+    const iv = setScaledInterval(() => {
       if (!focusTimerRef.current) return;
       const { endAt, msgId } = focusTimerRef.current;
       const rem = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
@@ -813,7 +814,7 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded, globalVoiceActive = 
     loadingRef.current = loading;
     if (loading) {
       setElapsed(0);
-      timerRef.current = setInterval(() => setElapsed(e => e + 100), 100);
+      timerRef.current = setScaledInterval(() => setElapsed(e => e + 100), 100);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -1322,7 +1323,7 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded, globalVoiceActive = 
     setLiveMode(true);
     // Kick off immediately then repeat
     runLiveCapture();
-    liveIntervalRef.current = setInterval(runLiveCapture, liveInterval * 1000);
+    liveIntervalRef.current = setScaledInterval(runLiveCapture, liveInterval * 1000);
   }
 
   function stopLiveMode() {
@@ -2024,7 +2025,7 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded, globalVoiceActive = 
                       setLiveInterval(v);
                       if (liveMode) {
                         if (liveIntervalRef.current) clearInterval(liveIntervalRef.current);
-                        liveIntervalRef.current = setInterval(runLiveCapture, v * 1000);
+                        liveIntervalRef.current = setScaledInterval(runLiveCapture, v * 1000);
                       }
                     }}
                     style={{ flex: 1, accentColor: "var(--color-accent)" }}

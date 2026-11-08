@@ -157,7 +157,11 @@ async def tree() -> dict:
     created = {r["slug"]: r["created_at"] for r in await aio.fetch("SELECT slug, created_at FROM shared.bot_definitions")}
     groups = [dict(r) | {"bots": []} for r in await aio.fetch("SELECT * FROM shared.org_groups ORDER BY sort_order, id")]
     by_id = {g["id"]: g for g in groups}
+    from core.perf import settings as perf_settings
+    show_inactive = perf_settings.current().show_inactive_agents
     for r in registry.roster():
+        if not activation.is_active(r["slug"]) and not show_inactive:  # deactivated by the user: not rendered (data stays intact)
+            continue
         o = org.get(r["slug"], {})
         g = by_id.get(o.get("org_group", "legacy")) or by_id["legacy"]
         st = score_of(stats.get(r["slug"]))

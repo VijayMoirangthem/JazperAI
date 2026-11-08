@@ -44,6 +44,7 @@ import { instantiateRoomTemplate, templateForRoomKind, type RoomTemplateId } fro
 import { OfficeSync } from "./systems/sync";
 import { inWorldBounds, overlapsBlockingObject, type BuilderObject } from "./core/builder";
 import { rotatedFootprint } from "./core/catalog";
+import { shouldSkipFrame } from "../lib/perfRuntime";
 
 export interface Office3Stats { fps: number; calls: number; triangles: number; people: number; loadedMs: number; p95Ms: number; heapMb: number | null }
 export interface Office3Handle { ready: Promise<void>; setActive(active: boolean): void; setViewSettings(settings: ViewSettings): void; setTheme(id: string): void; setZoneOverlay(visible: boolean): void; setEditMode(enabled: boolean): void; setPhotoMode(enabled: boolean): void; capturePng(transparent?: boolean): string; setBuilderPrefab(id: string): void; insertRoomTemplate(roomId: string, template: RoomTemplateId): void; autoFurnishRoom(roomId: string): void; applyRoomRules(roomId: string, rules: import("./core/world").World["rooms"][number]["rules"]): void; applyRoomRect(roomId: string, rect: [number, number, number, number]): void; applyObjectTransform(id: string, patch: Partial<Pick<import("./core/world").World["objects"][number], "pos" | "rot" | "scale">>): void; setFounderSpawn(position: [number, number]): void; saveBuilderDraft(): void; sync(people: Person[]): void; setFounderAppearance(appearance: import("./core/appearance").Appearance): void; setFounderCustomModel(url: string): Promise<void>; rooms(): { id: string; label: string; kind: string }[]; focusPerson(slug: string): void; focusRoom(id: string): void; focusPoint(x: number, z: number): void; resolveAttention(slug: string, approved: boolean): void; applyLive(live: Record<string, LiveAgent>): void; stats(): Office3Stats; destroy(): void; }
@@ -538,9 +539,11 @@ export async function startOffice3(host: HTMLElement): Promise<Office3Handle> {
   let taskElapsed = 0;
   const frameMs: number[] = [];
   const wandering = hashParams().get("wander") === "1";
+  let lastFrameAt = 0;
   const loop = () => {
     frame = requestAnimationFrame(loop);
     if (!active) return;
+    { const t = performance.now(); if (shouldSkipFrame(t, lastFrameAt)) return; lastFrameAt = t; }  // Performance Settings: max_fps
     const seconds = Math.min(clock.getDelta(), 0.1);
     frameMs.push(seconds * 1000);
     view.camera.updateMatrixWorld();

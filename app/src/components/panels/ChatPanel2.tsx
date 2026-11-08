@@ -2,6 +2,7 @@
 
 // Chat UI modelled on Project_References/OpenMausBot: bot list with animated mascots, pill composer,
 // per-bot customisation (colour + body), mascot faces that follow what the bot is doing.
+import { setScaledInterval } from "@/lib/perfRuntime";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { ArrowDown, Check, CheckCheck, Copy, Hand, Loader2, MoreHorizontal, Mic, Paperclip, Pencil, RefreshCw, SendHorizontal, ShieldCheck, Square, ThumbsDown, ThumbsUp, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { readNdjson } from "@/chat/ndjson";
@@ -309,14 +310,14 @@ export function ChatPanel2() {
   useEffect(() => { unreadRef.current = unreadAt; }, [active.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => connect(WS_URL), [connect]);
-  useEffect(() => { void loadTree(); const t = setInterval(loadTree, 30000); return () => clearInterval(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void loadTree(); const t = setScaledInterval(loadTree, 30000); return () => clearInterval(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const bots: Bot[] = useMemo(() => groups.flatMap((g) => g.bots).filter((b) => b.enabled).map((b) => ({ slug: b.slug, display_name: b.display_name, role_title: b.role_title, crew: b.crew, enabled: true })), [groups]);
   useEffect(() => {
     const load = () => fetch(`${API}/api/v1/hitl/pending`).then((r) => r.json()).then((d) => setPending(d.requests ?? [])).catch(() => undefined);
     load();
     const c = new RpcClient({ url: WS_URL, topics: ["human-intervention-request"], onEvent: load });
     c.start();
-    const t = setInterval(load, 5000);
+    const t = setScaledInterval(load, 5000);
     return () => { c.stop(); clearInterval(t); };
   }, []);
   useEffect(() => {

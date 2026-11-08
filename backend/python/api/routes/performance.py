@@ -41,6 +41,7 @@ async def put_settings(patch: dict):
     except ValidationError as e:
         raise HTTPException(422, [{"field": ".".join(map(str, x["loc"])), "message": x["msg"]} for x in e.errors()])
     runtime.apply(cfg)
+    await activation.bust_caches()  # show_inactive_agents changes what the roster/tree return
     return {"settings": cfg.model_dump(), "over_cap": await activation.plan_for_cap(cfg.max_active_agents)}
 
 
@@ -55,6 +56,7 @@ async def apply_preset(name: str, dry_run: bool = Query(False), enforce_cap: boo
     cfg = await perf_settings.apply_preset(name)
     deactivated = (await activation.bulk(plan, False, reason=f"{name} preset")) if plan else {"changed": [], "skipped": []}
     runtime.apply(cfg)
+    await activation.bust_caches()
     return {"settings": cfg.model_dump(), "deactivated": deactivated["changed"], "counts": activation.counts()}
 
 

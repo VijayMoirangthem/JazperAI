@@ -1,5 +1,6 @@
 "use client";
 
+import { setScaledInterval } from "@/lib/perfRuntime";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Server, Monitor, Terminal, Cpu, RefreshCw,
@@ -534,9 +535,9 @@ export function ControlTowerPanel() {
     fetchProcesses();
     fetchResources();
     fetchTermLog();
-    const id1 = setInterval(fetchProcesses, 5_000);
-    const id2 = setInterval(fetchResources, 3_000);
-    const id3 = setInterval(fetchTermLog,   2_000);
+    const id1 = setScaledInterval(fetchProcesses, 5_000);
+    const id2 = setScaledInterval(fetchResources, 3_000);
+    const id3 = setScaledInterval(fetchTermLog,   2_000);
     return () => { clearInterval(id1); clearInterval(id2); clearInterval(id3); };
   }, [fetchProcesses, fetchResources, fetchTermLog]);
 

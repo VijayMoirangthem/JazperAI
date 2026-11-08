@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createCoalescer } from "@/lib/perfRuntime";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const WS_URL = API.replace(/^http/, "ws") + "/ws/";
@@ -178,6 +179,8 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
 
 let _ws: WebSocket | null = null;
 let _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+// Performance Settings (ui_update_ms): a burst of status/action/message/activity events renders once per window, not once per event.
+const _coalescer = createCoalescer();
 
 export function connectCommandCenterWS() {
   if (typeof window === "undefined") return;
@@ -205,15 +208,15 @@ export function connectCommandCenterWS() {
       const msg = JSON.parse(e.data as string) as { event: string; payload: Record<string, unknown> };
       if (msg.event === "AGENT_STATUS") {
         const { agent_id, runtime_status } = msg.payload as { agent_id: string; runtime_status: AgentLive["runtime_status"] };
-        useAgentStore.getState().setRuntimeStatus(agent_id, runtime_status);
+        _coalescer.push(() => useAgentStore.getState().setRuntimeStatus(agent_id, runtime_status));
       }
       if (msg.event === "AGENT_ACTION") {
         const { agent_id, action } = msg.payload as { agent_id: string; action: string };
-        if (agent_id && action) useAgentStore.getState().setAgentAction(agent_id, action);
+        if (agent_id && action) _coalescer.push(() => useAgentStore.getState().setAgentAction(agent_id, action));
       }
       if (msg.event === "AGENT_MESSAGE") {
         const p = msg.payload as any;
-        useAgentStore.getState().appendMessages([{
+        _coalescer.push(() => useAgentStore.getState().appendMessages([{
           id: p.id ?? `${p.from}->${p.to}:${Date.now()}`,
           from: p.from,
           to: p.to,
@@ -223,17 +226,17 @@ export function connectCommandCenterWS() {
           body: p.body ?? "",
           act: p.act ?? "inform",
           ts: p.ts ?? new Date().toISOString(),
-        }]);
+        }]));
       }
       if (msg.event === "AGENT_ACTIVITY") {
         const p = msg.payload as any;
-        useAgentStore.getState().appendActivity([{
+        _coalescer.push(() => useAgentStore.getState().appendActivity([{
           id: p.id ?? Date.now(),
           agent: p.agent,
           ts: p.ts ?? Date.now(),
           kind: p.kind ?? "system",
           text: p.text ?? "",
-        }]);
+        }]));
       }
       // CHAT_REPLY or other events: mark Jazper as "working" briefly
       if (msg.event === "CHAT_REPLY") {

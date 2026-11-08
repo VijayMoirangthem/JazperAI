@@ -1,5 +1,6 @@
 "use client";
 
+import { setScaledInterval } from "@/lib/perfRuntime";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Activity, CheckCircle2, MessageSquare, Brain, Clock, RefreshCw, AlertTriangle, Radio, Search, Mail, Database, Eye, Cpu, Globe, Sparkles, User, ChevronRight, CalendarDays } from "lucide-react";
 
@@ -193,7 +194,7 @@ export function DashboardPanel() {
     loadProdScore();
     loadOnboarding();
     loadCalEvents();
-    const interval = setInterval(load, POLL_MS);
+    const interval = setScaledInterval(load, POLL_MS);
     return () => clearInterval(interval);
   }, [load, loadBrief, loadProfile, loadProdScore, loadOnboarding, loadCalEvents]);
 
@@ -272,7 +273,7 @@ export function DashboardPanel() {
       } catch { /* silent */ }
     }
     loadBackground();
-    const id = setInterval(loadBackground, 60_000);
+    const id = setScaledInterval(loadBackground, 60_000);
     return () => clearInterval(id);
   }, []);
 

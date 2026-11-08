@@ -1,5 +1,6 @@
 "use client";
 
+import { setScaledInterval } from "@/lib/perfRuntime";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi } from "@/lib/swr";
 import { useViewActive } from "@/lib/viewActive";
@@ -146,7 +147,7 @@ export function Office3Panel() {
   }, []);
   useEffect(() => { const onResolved = (event: Event) => { const detail = (event as CustomEvent<{ agent?: string; approved: boolean }>).detail; if (detail.agent) handle.current?.resolveAttention(detail.agent, detail.approved); }; window.addEventListener("office3:approval-resolved", onResolved); return () => window.removeEventListener("office3:approval-resolved", onResolved); }, []);
   useEffect(() => { type ConversationEvent = { members: { slug: string; name: string; kind: "human" | "agent" | "bot" }[]; privateRoom: boolean }; const detail = (event: Event): ConversationEvent | null => { const value = (event as CustomEvent<unknown>).detail; if (Array.isArray(value)) return { members: value as ConversationEvent["members"], privateRoom: false }; const payload = value as { members?: unknown; privateRoom?: unknown } | null; if (!payload || !Array.isArray(payload.members)) return null; return { members: payload.members as ConversationEvent["members"], privateRoom: payload.privateRoom === true }; }; const open = (event: Event) => { const next = detail(event); if ((next?.members.length ?? 0) > 1) setConversation(next); }; const group = (event: Event) => { const next = detail(event); if ((next?.members.length ?? 0) > 1) setConversation(current => current ?? next); }; window.addEventListener("office3:open-conversation", open); window.addEventListener("office3:conversation-group", group); return () => { window.removeEventListener("office3:open-conversation", open); window.removeEventListener("office3:conversation-group", group); }; }, []);
-  useEffect(() => { const check = () => fetch(`${API}/health`).then(response => setBackendOnline(response.ok)).catch(() => setBackendOnline(false)); check(); const timer = window.setInterval(check, 15000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { const check = () => fetch(`${API}/health`).then(response => setBackendOnline(response.ok)).catch(() => setBackendOnline(false)); check(); const timer = setScaledInterval(check, 15000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!backendOnline) return;
     const pending = pendingObjectPatches(), entries = Object.entries(pending);
@@ -186,7 +187,7 @@ export function Office3Panel() {
       .then(value => { if (!cancelled && value) setBirthdayProfiles(value); })
       .catch(() => undefined);
     load();
-    const timer = window.setInterval(load, 300000);
+    const timer = setScaledInterval(load, 300000);
     window.addEventListener("office3:person-session-changed", load);
     return () => { cancelled = true; window.clearInterval(timer); window.removeEventListener("office3:person-session-changed", load); };
   }, []);
@@ -225,7 +226,7 @@ export function Office3Panel() {
         unbind = bindLive({ applyLive: (l) => h?.applyLive(l) });
       } catch (e) { console.error("office3 init failed", e); setErr(String(e)); setRefreshingScene(false); }
     })();
-    const t = setInterval(() => { if (handle.current) setStats(handle.current.stats()); }, 1000);
+    const t = setScaledInterval(() => { if (handle.current) setStats(handle.current.stats()); }, 1000);
     return () => { cancelled = true; clearInterval(t); unbind?.(); h?.destroy(); handle.current = null; };
   }, [sceneEpoch]);
 

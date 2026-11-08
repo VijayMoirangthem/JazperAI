@@ -2,6 +2,7 @@
 
 // useHive — live hive data (state, board, tasks, activity, terminals, messaging).
 
+import { setScaledInterval } from "@/lib/perfRuntime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgentStore } from "@/stores/agentStore";
 
@@ -78,8 +79,8 @@ export function useHive(active = true) {
     if (!active) return;
     refreshState();
     refreshActivity();
-    const iv = setInterval(refreshState, 15_000);
-    const iv2 = setInterval(refreshActivity, 5_000);
+    const iv = setScaledInterval(refreshState, 15_000);
+    const iv2 = setScaledInterval(refreshActivity, 5_000);
     return () => { clearInterval(iv); clearInterval(iv2); };
   }, [active, refreshState, refreshActivity]);
 

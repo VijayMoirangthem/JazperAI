@@ -14,6 +14,7 @@ const AiProvidersPanel = lazy(() => import("@/components/panels/AiProvidersPanel
 const BusinessPanel = lazy(() => import("@/components/panels/BusinessPanel").then((m) => ({ default: m.BusinessPanel })));
 const DiffEditorPanel = lazy(() => import("@/components/panels/DiffEditorPanel").then((m) => ({ default: m.DiffEditorPanel })));
 const CompanyPanel = lazy(() => import("@/components/panels/CompanyPanel").then((m) => ({ default: m.CompanyPanel })));
+const PerformancePanel = lazy(() => import("@/components/panels/PerformancePanel").then((m) => ({ default: m.PerformancePanel })));
 const FinOpsPanel = lazy(() => import("@/components/panels/FinOpsPanel").then((m) => ({ default: m.FinOpsPanel })));
 const McpHubPanel = lazy(() => import("@/components/panels/McpHubPanel").then((m) => ({ default: m.McpHubPanel })));
 const SystemPanel = lazy(() => import("@/components/panels/SystemPanel").then((m) => ({ default: m.SystemPanel })));
@@ -271,6 +272,7 @@ export default function Home() {
     setup:          <SetupPanel onNavigate={(v) => navigate(v)} />,
     system: <SystemPanel />,
     mcp_hub: <McpHubPanel />,
+    performance: <PerformancePanel />,
     finops: <FinOpsPanel />,
     org_chart: <CompanyPanel />,
     diff_editor:    <DiffEditorPanel />,

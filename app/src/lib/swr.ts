@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useViewActive } from "./viewActive";
+import { getPollScale, scalePoll, subscribePerf } from "./perfRuntime";
 
 interface CacheEntry<T> {
   data: T;
@@ -105,6 +106,7 @@ export function useApi<T = unknown>(url: string, options: UseApiOptions<T> = {})
 
   const cacheKey = url;
   const active = useViewActive();
+  const pollScale = useSyncExternalStore(subscribePerf, getPollScale, () => 1);  // Performance Settings: stretches every poll
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -230,10 +232,10 @@ export function useApi<T = unknown>(url: string, options: UseApiOptions<T> = {})
 
     if (poll && poll > 0) {
       pollInterval.current = setInterval(() => {
-        if (active && mounted.current) {
+        if (active && mounted.current && !(typeof document !== "undefined" && document.hidden)) {
           fetchData(true);
         }
-      }, poll);
+      }, scalePoll(poll, pollScale));
     }
 
     return () => {
@@ -242,7 +244,7 @@ export function useApi<T = unknown>(url: string, options: UseApiOptions<T> = {})
         pollInterval.current = null;
       }
     };
-  }, [active, poll, fetchData]);
+  }, [active, poll, pollScale, fetchData]);
 
   useEffect(() => {
     if (!revalidateOnFocus) return;

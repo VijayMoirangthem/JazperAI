@@ -23,7 +23,7 @@ import {
   Target, Newspaper, Inbox, Smile, Sparkles, SendHorizonal, BookMarked,
   TrendingUp, Mic, FolderGit2, MessagesSquare, GitCompare, Wrench, ListChecks, Share2, PlugZap, GraduationCap,
   User, Briefcase as BriefcaseIcon, MessageCircle, Lightbulb, CheckSquare,
-  Palette, Building, Bot, Factory,
+  Palette, Building, Bot, Factory, Gauge,
   type LucideIcon,
 } from "lucide-react";
 
@@ -304,6 +304,7 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
   { id: "ai_providers",  label: "AI Providers",  description: "Add AI providers, models and tier routing", icon: Cpu, group: "agent_os", system: "jazper" },
   { id: "business",      label: "Business",      description: "Clients, projects, team and finance", icon: BriefcaseBusiness, group: "agent_os", system: "jazper" },
   { id: "diff_editor",   label: "AI Diff Editor", description: "Streamed AI edits with per-hunk accept/reject", icon: GitCompare, group: "agent_os", system: "jazper" },
+  { id: "performance", label: "Performance", description: "Presets, limits, agent on/off and live CPU/RAM", icon: Gauge, group: "agent_os", system: "jazper" },
   { id: "finops", label: "FinOps", description: "Token usage, budgets and forecast", icon: DollarSign, group: "agent_os", system: "jazper" },
   { id: "mcp_hub", label: "Tool Hub", description: "MCP connectors and tools", icon: Wrench, group: "agent_os", system: "jazper" },
   { id: "system", label: "System", description: "Health, secrets and backups", icon: ShieldCheck, group: "agent_os", system: "jazper" },
