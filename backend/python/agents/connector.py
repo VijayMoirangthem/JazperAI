@@ -21,19 +21,62 @@ EXTRA = {
     "slack": {"name": "Slack (official MCP server)", "command": [hub_presets.NPX, "-y", "@modelcontextprotocol/server-slack"],
               "env_secrets": {"SLACK_BOT_TOKEN": "SLACK_BOT_TOKEN", "SLACK_TEAM_ID": "SLACK_TEAM_ID"}, "needs": "Slack bot token (xoxb-...) and team id.",
               "tool_tiers": {"slack_post_message": "mcp.write", "slack_reply_to_thread": "mcp.write", "slack_add_reaction": "mcp.write"}, "untested": True},
-    "brave-search": {"name": "Brave Search (official MCP server)", "command": [hub_presets.NPX, "-y", "@modelcontextprotocol/server-brave-search"],
+    "brave-search": {"name": "Brave Search (Brave's maintained MCP server)", "command": [hub_presets.NPX, "-y", "@brave/brave-search-mcp-server", "--transport", "stdio"],
                      "env_secrets": {"BRAVE_API_KEY": "BRAVE_API_KEY"}, "needs": "Brave Search API key (free tier available).", "tool_tiers": {}, "untested": True},
     "playwright": {"name": "Playwright browser (official MCP server)", "command": [hub_presets.NPX, "-y", "@playwright/mcp@latest", "--headless"],
                    "env_secrets": {}, "needs": "", "tool_tiers": {"browser_click": "mcp.write", "browser_type": "mcp.write", "browser_navigate": "mcp.write"}},  # verified live 2026-10-21: 25 tools, browser_tabs read ok
     "notion": {"name": "Notion (official MCP server)", "command": [hub_presets.NPX, "-y", "@notionhq/notion-mcp-server"],
                "env_secrets": {"NOTION_TOKEN": "NOTION_TOKEN"}, "needs": "Notion internal integration token.", "tool_tiers": {}, "untested": True},
 }
+# --- added 2026-11-09: package names, versions and key requirements verified against the npm registry and each package README.
+# Every one of these is "untested": the package exists and the launch arguments/keys follow its README, but none has been connected yet.
+# Use Connections -> Test; the three that need no account (context7, sequential-thinking, chrome-devtools) are the easiest first check.
+EXTRA.update({
+    "context7": {"name": "Context7 - up-to-date library docs for coding bots", "command": [hub_presets.NPX, "-y", "@upstash/context7-mcp"], "env_secrets": {}, "needs": "", "tool_tiers": {}, "untested": True},
+    "sequential-thinking": {"name": "Sequential Thinking - structured step-by-step reasoning", "command": [hub_presets.NPX, "-y", "@modelcontextprotocol/server-sequential-thinking"],
+                            "env_secrets": {}, "needs": "", "tool_tiers": {}, "untested": True},
+    "chrome-devtools": {"name": "Chrome DevTools - inspect, debug and measure web pages", "command": [hub_presets.NPX, "-y", "chrome-devtools-mcp@latest", "--headless", "--isolated"],
+                        "env_secrets": {}, "needs": "Chrome installed on this PC.", "tool_tiers": {}, "untested": True},
+    "firecrawl": {"name": "Firecrawl - scrape and crawl websites into clean text", "command": [hub_presets.NPX, "-y", "firecrawl-mcp"],
+                  "env_secrets": {"FIRECRAWL_API_KEY": "FIRECRAWL_API_KEY"}, "needs": "Firecrawl API key (free tier available).", "tool_tiers": {}, "untested": True},
+    "tavily": {"name": "Tavily - web search built for AI agents", "command": [hub_presets.NPX, "-y", "tavily-mcp@latest"],
+               "env_secrets": {"TAVILY_API_KEY": "TAVILY_API_KEY"}, "needs": "Tavily API key (free tier available).", "tool_tiers": {}, "untested": True},
+    "apify": {"name": "Apify - thousands of ready scrapers (LinkedIn, maps, social, e-commerce)", "command": [hub_presets.NPX, "-y", "@apify/actors-mcp-server"],
+              "env_secrets": {"APIFY_TOKEN": "APIFY_TOKEN"}, "needs": "Apify API token (free monthly credits).", "tool_tiers": {}, "untested": True},
+    "sentry": {"name": "Sentry - production errors and performance", "command": [hub_presets.NPX, "-y", "@sentry/mcp-server@latest"],
+               "env_secrets": {"SENTRY_AUTH_TOKEN": "SENTRY_AUTH_TOKEN"}, "needs": "Sentry user auth token.", "tool_tiers": {}, "untested": True},
+    "supabase": {"name": "Supabase - database, auth and storage (read-only mode)", "command": [hub_presets.NPX, "-y", "@supabase/mcp-server-supabase@latest", "--read-only"],
+                 "env_secrets": {"SUPABASE_ACCESS_TOKEN": "SUPABASE_ACCESS_TOKEN"}, "needs": "Supabase personal access token. Started read-only; writes are off.", "tool_tiers": {}, "untested": True},
+    "stripe": {"name": "Stripe - payments, invoices, subscriptions", "command": [hub_presets.NPX, "-y", "@stripe/mcp"],
+               "env_secrets": {"STRIPE_SECRET_KEY": "STRIPE_SECRET_KEY"}, "needs": "Stripe secret key. Use a restricted key (or test key) with only the permissions you want.",
+               "tool_tiers": {"create_refund": "mcp.admin", "cancel_subscription": "mcp.admin", "update_subscription": "mcp.admin", "finalize_invoice": "mcp.admin",
+                              "create_payment_link": "mcp.admin", "create_invoice": "mcp.admin", "update_dispute": "mcp.admin"}, "untested": True},
+    "hubspot": {"name": "HubSpot - CRM contacts, companies and deals", "command": [hub_presets.NPX, "-y", "@hubspot/mcp-server"],
+                "env_secrets": {"PRIVATE_APP_ACCESS_TOKEN": "HUBSPOT_ACCESS_TOKEN"}, "needs": "HubSpot private app access token.", "tool_tiers": {}, "untested": True},
+    "airtable": {"name": "Airtable - bases, tables and records", "command": [hub_presets.NPX, "-y", "airtable-mcp-server"],
+                 "env_secrets": {"AIRTABLE_API_KEY": "AIRTABLE_API_KEY"}, "needs": "Airtable personal access token.", "tool_tiers": {}, "untested": True},
+    "todoist": {"name": "Todoist - tasks and projects", "command": [hub_presets.NPX, "-y", "@doist/todoist-mcp"],
+                "env_secrets": {"TODOIST_API_KEY": "TODOIST_API_KEY"}, "needs": "Todoist API token.", "tool_tiers": {}, "untested": True},
+    "resend": {"name": "Resend - send transactional email", "command": [hub_presets.NPX, "-y", "resend-mcp"],
+               "env_secrets": {"RESEND_API_KEY": "RESEND_API_KEY"}, "needs": "Resend API key.", "tool_tiers": {"send-email": "mcp.admin", "send_email": "mcp.admin", "send-batch-emails": "mcp.admin"}, "untested": True},
+    "figma": {"name": "Figma - read designs and components", "command": [hub_presets.NPX, "-y", "figma-developer-mcp", "--stdio"],
+              "env_secrets": {"FIGMA_API_KEY": "FIGMA_API_KEY"}, "needs": "Figma personal access token.", "tool_tiers": {}, "untested": True},
+    # hosted (remote) MCP servers reached through the mcp-remote bridge: first connect opens a browser sign-in. Endpoints are from the vendors' docs.
+    "linear": {"name": "Linear - issues and projects (hosted, browser sign-in)", "command": [hub_presets.NPX, "-y", "mcp-remote", "https://mcp.linear.app/mcp"],
+               "env_secrets": {}, "needs": "Sign in to Linear in the browser window that opens on first connect.", "tool_tiers": {}, "untested": True},
+    "atlassian": {"name": "Atlassian - Jira and Confluence (hosted, browser sign-in)", "command": [hub_presets.NPX, "-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"],
+                  "env_secrets": {}, "needs": "Sign in to Atlassian in the browser window that opens on first connect.", "tool_tiers": {}, "untested": True},
+})
 LABELS = {"BRAVE_API_KEY": "Brave Search API key", "GITHUB_TOKEN": "GitHub personal access token (fine-grained)", "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)", "SLACK_TEAM_ID": "Slack team id",
-          "NOTION_TOKEN": "Notion integration token"}
+          "NOTION_TOKEN": "Notion integration token", "FIRECRAWL_API_KEY": "Firecrawl API key", "TAVILY_API_KEY": "Tavily API key", "APIFY_TOKEN": "Apify API token",
+          "SENTRY_AUTH_TOKEN": "Sentry auth token", "SUPABASE_ACCESS_TOKEN": "Supabase access token", "STRIPE_SECRET_KEY": "Stripe secret/restricted key",
+          "HUBSPOT_ACCESS_TOKEN": "HubSpot private app token", "AIRTABLE_API_KEY": "Airtable personal access token", "TODOIST_API_KEY": "Todoist API token",
+          "RESEND_API_KEY": "Resend API key", "FIGMA_API_KEY": "Figma personal access token"}
 # harmless read used to prove a connection works: (tool, arguments)
 TESTS = {"google-workspace": ("gmail_search", {"query": "newer_than:1d", "max_results": 1}), "github": ("search_repositories", {"query": "repo:modelcontextprotocol/servers", "perPage": 1}),
          "filesystem": ("list_allowed_directories", {}), "memory": ("read_graph", {}), "playwright": ("browser_tabs", {"action": "list"})}
-ALIASES = {"gmail": "google-workspace", "google": "google-workspace", "calendar": "google-workspace", "google calendar": "google-workspace", "drive": "google-workspace",
+ALIASES = {"jira": "atlassian", "confluence": "atlassian", "payments": "stripe", "docs for code": "context7", "web scraping": "firecrawl", "scraper": "apify",
+           "errors": "sentry", "crm": "hubspot", "tasks": "todoist", "email sending": "resend", "design": "figma", "search": "tavily", "gmail": "google-workspace", "google": "google-workspace", "calendar": "google-workspace", "google calendar": "google-workspace", "drive": "google-workspace",
            "google-calendar": "google-workspace", "files": "filesystem", "knowledge": "memory"}
 
 # what the founder asks for ("drive", "google docs", "email"...) -> a Google capability that is proven by a real call, not by a connector label

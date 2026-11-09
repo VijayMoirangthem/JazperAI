@@ -8,7 +8,10 @@ cls
 ::  CONFIG — edit these if paths change
 :: ══════════════════════════════════════════════════════════════════════════════
 set ROOT=%~dp0
-set PYTHON=C:\Users\vijay\AppData\Local\Programs\Python\Python311\python.exe
+:: Prefer the project virtual environment (it has every backend dependency; e.g. the Google Workspace connector needs `referencing`).
+:: Fall back to the global Python only if the venv is missing.
+set PYTHON=%ROOT%backend\.venv\Scripts\python.exe
+if not exist "%PYTHON%" set PYTHON=C:\Users\vijay\AppData\Local\Programs\Python\Python311\python.exe
 set PATH=%PATH%;C:\Program Files\Docker\Docker\resources\bin
 
 :: Chrome runs COOS. Edge runs LinkedIn automation (Edge has LinkedIn logged in).

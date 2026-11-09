@@ -1,6 +1,7 @@
 "use client";
 
 import { setScaledInterval } from "@/lib/perfRuntime";
+import { JazperPerformanceStrip } from "@/components/chat/JazperPerformanceStrip";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Send, MessageSquare, Copy, Check, SquarePen, Globe, Mic, MicOff, Volume2, VolumeX, Radio, Zap, Paperclip, Camera, X, Clock, Ghost, Save, Play, Square, Brain, ChevronDown, ChevronRight, Search, Mail, Database, Eye, Cpu } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
@@ -1763,6 +1764,8 @@ export function ChatPanel({ sessionToLoad, onSessionLoaded, globalVoiceActive = 
           )}
         </div>
       </div>
+
+      <JazperPerformanceStrip />
 
       {/* Scrollable messages */}
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "var(--sp-3) var(--sp-4)", display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>

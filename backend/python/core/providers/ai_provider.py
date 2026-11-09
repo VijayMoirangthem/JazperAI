@@ -42,6 +42,20 @@ def _strip_reasoning(text: str) -> tuple[str, str]:
     return (answer, reasoning) if answer else (text, "")
 
 
+# Groq retired these models (requests return 404, which sent every persona agent and many routes to the weak local fallback).
+# Any request for one is served by a current free model instead: small -> LIGHT_MODEL, 70B-class -> the main model.
+_RETIRED_SMALL = {"llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"}
+_RETIRED_MAIN = {"llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"}
+
+
+def resolve_model(name: str) -> str:
+    if name in _RETIRED_SMALL:
+        return settings.LIGHT_MODEL
+    if name in _RETIRED_MAIN:
+        return settings.AI_MODEL
+    return name
+
+
 @dataclass
 class ChatResult:
     content: str
@@ -178,7 +192,7 @@ class AIProvider:
         allow_local_fallback: bool = True,
     ) -> ChatResult:
         start      = time.monotonic()
-        use_model  = model or self.default_model
+        use_model  = resolve_model(model or self.default_model)
 
         def _build_kwargs(m: str, is_local: bool) -> dict:
             kw: dict = dict(model=m, messages=messages)
@@ -239,7 +253,7 @@ class AIProvider:
         enable_thinking: bool = False,
         allow_local_fallback: bool = True,
     ) -> AsyncGenerator[str, None]:
-        use_model = model or self.default_model
+        use_model = resolve_model(model or self.default_model)
 
         def _build_kwargs(m: str, is_local: bool) -> dict:
             kw: dict = dict(model=m, messages=messages, stream=True)
@@ -314,7 +328,7 @@ class AIProvider:
         If model decides to call a tool, yields a dict sentinel instead of content:
           {"tool_call": True, "name": "web_search", "query": "...", "id": "..."}
         Caller should execute the tool and call stream() again with results appended."""
-        use_model = model or self.default_model
+        use_model = resolve_model(model or self.default_model)
         _ = enable_thinking  # intentionally ignored — tool calls always use reasoning_effort=none
 
         def _build_kwargs(m: str, is_local: bool) -> dict:

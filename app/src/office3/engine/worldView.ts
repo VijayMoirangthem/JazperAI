@@ -3,7 +3,8 @@ import type { OfficeTheme } from "../core/themes";
 import type { World } from "../core/world";
 import { PrefabLoader } from "./prefabs";
 
-const C: Record<string, string> = { office: "#8a5a33", "carpet-blue": "#1e3a8a", "carpet-purple": "#5b2a7a", "carpet-green": "#1f6b4a", "tile-light": "#cbd5e1", "tile-dark": "#334155", stone: "#6b7280" };
+// Light, readable floor palette (the previous dark tones were further darkened by the theme tint and looked dull).
+const C: Record<string, string> = { office: "#d9b88f", "carpet-blue": "#8fa8e6", "carpet-purple": "#b794d6", "carpet-green": "#86cfa8", "tile-light": "#eef1f5", "tile-dark": "#a9b5c6", stone: "#b8bec8" };
 const wallColors: Record<World["walls"][number]["style"], string> = { plaster: "#dfe6ee", brick: "#9b5c4b", glass: "#9dd8ee" };
 type OfficeDoor = { pivot: THREE.Group; closedRotation: number; progress: number; open: boolean; locked: boolean; x: number; z: number };
 type WorldInstanceRef = { mesh: THREE.InstancedMesh; index: number; source: THREE.Mesh };
@@ -89,7 +90,7 @@ const batchRepeatedWorldObjects = (scene: THREE.Scene, objects: ReadonlyArray<Wo
 
 export function addWorld(scene: THREE.Scene, world: World, prefabs: PrefabLoader): Promise<void>[] {
   const { w, h } = world.size, canvas = document.createElement("canvas"), px = 16; canvas.width = w * px; canvas.height = h * px;
-  const c = canvas.getContext("2d"); if (!c) throw Error("Office floor canvas is unavailable"); c.fillStyle = "#0b0f14"; c.fillRect(0, 0, canvas.width, canvas.height);
+  const c = canvas.getContext("2d"); if (!c) throw Error("Office floor canvas is unavailable"); c.fillStyle = "#c9d1dc"; c.fillRect(0, 0, canvas.width, canvas.height);  /* light base under walls/gaps (was near-black) */
   for (const floorFill of world.floors) { c.fillStyle = C[floorFill.material] ?? "#444"; for (let y = floorFill.rect[1]; y <= floorFill.rect[3]; y++) for (let x = floorFill.rect[0]; x <= floorFill.rect[2]; x++) { c.fillRect(x * px, y * px, px, px); c.fillStyle = "rgba(0,0,0,.1)"; c.fillRect(x * px, y * px, px, 1); c.fillStyle = C[floorFill.material] ?? "#444"; } }
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: texture, roughness: .9 })); floor.rotation.x = -Math.PI / 2; floor.position.set(w / 2, 0, h / 2); scene.add(floor); scene.userData.office3Floor = floor;
@@ -120,6 +121,8 @@ export function applyWorldObjectTransform(scene: THREE.Scene, id: string, object
 
 export function applyTheme(scene: THREE.Scene, theme: OfficeTheme): void {
   const floor = scene.userData.office3Floor as THREE.Mesh | undefined, walls = scene.userData.office3Walls as THREE.Object3D | undefined;
-  if (floor) (floor.material as THREE.MeshStandardMaterial).color.set(theme.floor);
+  // The floor colour MULTIPLIES the floor texture. Using the theme's dark floor colour directly turned the warm wood near-black, so
+  // apply it only as a gentle tint over white: the theme still gives a hint, the floor stays bright.
+  if (floor) (floor.material as THREE.MeshStandardMaterial).color.set("#ffffff").lerp(new THREE.Color(theme.floor), theme.light === "night" ? 0.35 : 0.12);
   walls?.traverse(item => { if (item instanceof THREE.Mesh && item.material instanceof THREE.MeshStandardMaterial && !item.material.transparent) item.material.color.set(theme.wall); }); scene.background = new THREE.Color(theme.sky);
 }
