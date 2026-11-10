@@ -17,6 +17,7 @@ import email as email_lib
 import hashlib
 import json
 import re
+import time
 import structlog
 from memory.db.legacy_pg import _pg
 from core.config import settings
@@ -194,6 +195,59 @@ def _build_credentials(token_data: dict):
     )
 
 
+class GoogleReauthRequired(RuntimeError):
+    """Google rejected the saved refresh token (invalid_grant): it was revoked, or it expired. Google Cloud apps left in 'Testing'
+    status expire refresh tokens after 7 days, which is the usual cause. The fix is a fresh one-click sign-in."""
+
+
+REAUTH_MESSAGE = ("Your Google sign-in expired or was revoked (invalid_grant), so Gmail and Drive are unreachable. "
+                  "Reconnect Google once (Connections -> Google Workspace -> Connect), then try again.")
+_HEALTH_TTL_S = 120
+_health: dict[str, tuple[float, bool, str]] = {}   # email -> (checked_at, token still accepted by Google, reason)
+
+
+def _refresh(creds, email_key: str | None = None) -> None:
+    """creds.refresh() that turns Google's invalid_grant into GoogleReauthRequired and remembers the account's health."""
+    from google.auth.exceptions import RefreshError
+    from google.auth.transport.requests import Request
+    try:
+        creds.refresh(Request())
+    except RefreshError as e:
+        if email_key:
+            _health[email_key] = (time.monotonic(), False, str(e)[:160])
+        raise GoogleReauthRequired(REAUTH_MESSAGE) from e
+    if email_key:
+        _health[email_key] = (time.monotonic(), True, "")
+
+
+def accounts_with_health(force: bool = False) -> list[dict]:
+    """Every stored Google account plus whether Google still accepts its saved login. 'Connected' means a token row exists; this
+    says whether it WORKS (cached ~2 min, one cheap token refresh per account when stale)."""
+    out = []
+    for a in list_connected_accounts():
+        email = a["email"]
+        cached = _health.get(email)
+        if force or not cached or time.monotonic() - cached[0] > _HEALTH_TTL_S:
+            token_data = load_token(email)
+            if not token_data or not token_data.get("refresh_token"):
+                _health[email] = (time.monotonic(), False, "no refresh token stored")
+            else:
+                try:
+                    creds = _build_credentials(token_data)
+                    _refresh(creds, email)
+                    token_data.update({"access_token": creds.token, "expiry": creds.expiry.isoformat() if creds.expiry else None})
+                    save_token(email, token_data)
+                except GoogleReauthRequired:
+                    pass
+                except Exception as e:  # network down etc.: not proof the login is bad, so do not cache a failure
+                    _health.pop(email, None)
+                    out.append({**a, "healthy": True, "reason": f"could not verify: {str(e)[:80]}"})
+                    continue
+        _, healthy, reason = _health[email]
+        out.append({**a, "healthy": healthy, "reason": reason})
+    return out
+
+
 def _get_service(email: str = "default"):
     from googleapiclient.discovery import build
     from google.auth.transport.requests import Request
@@ -209,7 +263,7 @@ def _get_service(email: str = "default"):
     creds = _build_credentials(token_data)
 
     if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        _refresh(creds, email_key)
         token_data.update({
             "access_token": creds.token,
             "refresh_token": creds.refresh_token,
@@ -230,7 +284,7 @@ def get_google_service(api: str, version: str):
         raise RuntimeError("No Google account connected. Authorise via /api/google/oauth/authorize")
     creds = _build_credentials(token_data)
     if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        _refresh(creds, email_key)
         token_data.update({"access_token": creds.token, "refresh_token": creds.refresh_token,
                            "expiry": creds.expiry.isoformat() if creds.expiry else None})
         save_token(email_key, token_data)

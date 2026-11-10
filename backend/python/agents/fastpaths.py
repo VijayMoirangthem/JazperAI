@@ -19,6 +19,7 @@ APPROVED = re.compile(r"i approved google \((drive|docs|sheets|gmail|calendar|cl
 CLEAR = re.compile(r"\b(delete|clear|wipe|remove|erase)\b.*\b(chats?|history|messages?|conversation)\b|\b(chats?|history)\b.*\b(delete|clear|wipe|remove)\b", re.I)
 USAGE = re.compile(r"\b(tokens?|usage|quota|credits?|provider|which model|what model|how much)\b.*\b(left|remaining|used|using|use|usage|provider|model|spent|cost)\b|\bwhich provider\b", re.I)
 HEALTH = re.compile(r"\b(system|backend|everything)\b.*\b(health|status|ok|working|running)\b|\bhealth check\b", re.I)
+EMAIL = re.compile(r"\b(e-?mails?|inbox|gmail|mail|messages? from)\b", re.I)  # an email request must never be turned into a Drive file search
 SMARTER = re.compile(r"\b(smarter|more powerful|more capable|upgrade you|improve you|what should i connect)\b", re.I)
 
 
@@ -95,7 +96,11 @@ KINDS: list[tuple[re.Pattern, str, list[str]]] = [
 
 def latest_request(text: str, history=None):
     """('document', [mimes]) when the founder wants the newest file of some type, from this message or (for 'just open it') the last user message that asked."""
+    if EMAIL.search(text):
+        return None
     for cand in [text] + [str(getattr(h, "content", "")) for h in reversed((history or [])[-6:]) if getattr(h, "role", "") == "user"]:
+        if EMAIL.search(cand):
+            continue
         if LATEST.search(cand):
             pool = [cand] + [str(getattr(h, "content", "")) for h in reversed((history or [])[-6:]) if getattr(h, "role", "") == "user"]  # no type named here: reuse the one from the earlier request
             kind = next(((label, mimes) for c in pool for rx, label, mimes in KINDS if rx.search(c)), None)
@@ -103,6 +108,16 @@ def latest_request(text: str, history=None):
         if cand is text and re.search(r"[A-Za-z0-9]{3,}\s+\w+", text) and not re.fullmatch(r"(?i).{0,60}\b(it|that|this|them|again|here|window|tab)\b.{0,40}", text):
             break  # a new, specific request: do not reuse older history
     return None
+
+
+async def _drive_error(e: Exception) -> AsyncIterator[Event]:
+    """Explain a Drive failure. Google's expired-login error becomes a one-click reconnect card, not a raw API dump."""
+    from agents import healer
+    if healer.classify(str(e))[0] == "google_reauth":
+        yield {"ui": connector._oauth_request("google-workspace", "drive", "Your Google sign-in expired. One click to reconnect.")}
+        yield {"delta": "Your Google sign-in expired (Google rejected the saved login), so I can't reach Drive or Gmail right now. Tap **Reconnect Google** below, sign in once, and ask me again."}
+    else:
+        yield {"delta": f"Couldn't reach Drive: {str(e)[:160]}"}
 
 
 async def _open_latest(text: str, history=None, open_it: bool = True) -> AsyncIterator[Event]:
@@ -114,7 +129,8 @@ async def _open_latest(text: str, history=None, open_it: bool = True) -> AsyncIt
         files = await asyncio.to_thread(drive_service.raw_query, q, 5)
     except Exception as e:
         yield _tool("open_file", f"Finding your latest {label}", "error", str(e))
-        yield {"delta": f"Couldn't reach Drive: {str(e)[:160]}"}
+        async for ev in _drive_error(e):
+            yield ev
         return
     if not files:
         yield _tool("open_file", f"Finding your latest {label}", "ok", "none")
@@ -156,7 +172,8 @@ async def _open(text: str, history=None, attachments=None) -> AsyncIterator[Even
         hits.sort(key=lambda f: (not f.name.casefold().startswith(q.casefold()), f.name.casefold()))
     except Exception as e:
         yield _tool("open_file", f"Finding {q}", "error", str(e))
-        yield {"delta": f"Couldn't reach Drive: {str(e)[:160]}"}
+        async for ev in _drive_error(e):
+            yield ev
         return
     yield _tool("open_file", f"Finding {q}", "ok", f"{len(hits)} match(es)")
     if not hits:
@@ -273,6 +290,8 @@ def match(slug: str, text: str, history=None, attachments=None):
     t = text.strip()
     if len(t) > 400:
         return None
+    if EMAIL.search(t) and not (CLEAR.search(t) or USAGE.search(t) or HEALTH.search(t) or SMARTER.search(t)):
+        return None  # email questions go to the normal tool loop (Gmail), never to the Drive shortcuts
     recent = " ".join(str(getattr(h, "content", "")) for h in (history or [])[-6:] if getattr(h, "role", "") == "user")
     prior_latest = any(LATEST.search(str(getattr(h, "content", ""))) for h in (history or [])[-6:] if getattr(h, "role", "") == "user")
     wants_open = OPEN.search(t) or re.search(r"(get|find|fetch|give)", t, re.I) or (prior_latest and LATEST.search(t))  # a complaint like 'these are not the latest' re-runs the search

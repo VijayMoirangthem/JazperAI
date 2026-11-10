@@ -175,9 +175,10 @@ async def capabilities():
 
 @router.get("/oauth/status")
 async def oauth_status():
-    from core.services.gmail_service import list_connected_accounts
-    accounts = await _run(list_connected_accounts)
-    return {"connected": accounts}
+    from core.services.gmail_service import accounts_with_health
+    accounts = await _run(accounts_with_health)  # each account carries healthy=False when Google no longer accepts its saved login
+    expired = [a["email"] for a in accounts if not a["healthy"]]
+    return {"connected": accounts, "expired": expired, "needs_reauth": bool(expired)}
 
 
 @router.delete("/oauth/{email}")

@@ -127,15 +127,19 @@ def find_secret(vault_name: str) -> tuple[str | None, str]:
     return None, "none"
 
 
-async def _google_accounts() -> list[str]:
+async def _google_health() -> list[dict]:
+    """Stored Google accounts with healthy=False when Google no longer accepts the saved login (a token row alone is not 'connected')."""
     import asyncio
 
-    from core.services.gmail_service import list_connected_accounts
+    from core.services.gmail_service import accounts_with_health
     try:
-        r = await asyncio.to_thread(list_connected_accounts)
-        return [a if isinstance(a, str) else str(a.get("email", a)) for a in r]
+        return await asyncio.to_thread(accounts_with_health)
     except Exception:
         return []
+
+
+async def _google_accounts() -> list[str]:
+    return [a["email"] for a in await _google_health() if a["healthy"]]
 
 
 def _needs(cid: str, spec: dict) -> list[str]:
@@ -153,8 +157,12 @@ async def check(cid: str) -> dict:
            "missing": missing, "oauth": None, "untested": bool(spec.get("untested")), "registered": cid in hub.manifests,
            "tiers": {"read": 1, "write": 2, "admin": 3}}
     if cid == "google-workspace":
-        accounts = await _google_accounts()
-        out["oauth"] = {"provider": "google", "connected": bool(accounts), "accounts": accounts, "authorize_url": f"{API}/api/google/oauth/authorize"}
+        health = await _google_health()
+        accounts = [a["email"] for a in health if a["healthy"]]
+        expired = [a["email"] for a in health if not a["healthy"]]
+        out["oauth"] = {"provider": "google", "connected": bool(accounts), "accounts": accounts, "expired": expired, "authorize_url": f"{API}/api/google/oauth/authorize"}
+        if expired and not accounts:
+            out["needs"] = "Your Google sign-in expired. Click Connect to sign in again."
     st = _status.get(cid, {})
     ready = not missing and (not out["oauth"] or out["oauth"]["connected"])
     out.update({"ready": ready, "connected": ready and bool(st.get("ok")), "last_test": st.get("at"), "detail": st.get("detail", ""), "tools": st.get("tools", 0)})
