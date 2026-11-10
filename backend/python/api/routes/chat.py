@@ -434,10 +434,19 @@ def _detect_darwin_intent(text: str) -> str | None:
 
 
 def _detect_label(text: str) -> str:
-    """Detect which Gmail folder the user is asking about."""
+    """Detect which Gmail folder the user is asking about.
+
+    Whole words only, and only with folder context ("updates tab", "my spam", "in promotions"). The old plain substring test read
+    "give me the update on latest emails" as the Updates TAB (and "present" as Sent, "combining" as Bin), so a search for a sender in
+    the main inbox looked in the wrong place and truthfully answered "no emails"."""
+    import re
     lower = text.lower()
-    for alias, label in _LABEL_ALIASES.items():
-        if alias in lower:
+    ctx_after = r"(?:tab|folder|category|label|emails?|mail|messages?|inbox)"
+    for alias, label in sorted(_LABEL_ALIASES.items(), key=lambda kv: -len(kv[0])):
+        a = re.escape(alias)
+        named_as_folder = re.search(rf"\b{a}\b\s+{ctx_after}\b", lower)
+        pointed_at = re.search(rf"\b(?:in|into|from|check|open|show|see|my)\s+(?:the\s+|my\s+)?{a}\b(?!\s+(?:on|about|of|regarding|from|for|to|by)\b)", lower)
+        if named_as_folder or pointed_at:
             return label
     return "INBOX"
 
@@ -661,6 +670,17 @@ async def _dispatch_tool_standalone(
                              f"   Subject:{e.get('subject','(no subject)')}\n"
                              f"   Preview:{e.get('snippet','')[:200]}\n"
                              f"   Date:{e.get('date','')}\n")
+            # "Show me the full email ..." -> when exactly one email is identifiable (its subject is named, or it is the only match)
+            # include its whole body, not just the preview. Ambiguous -> no guess, the list is shown.
+            _msg_l = user_message.lower()
+            if any(kw in _msg_l for kw in _DETAIL_KW):
+                _named = [m for m in emails if (m.get("subject") or "").strip() and m["subject"].strip().lower() in _msg_l]
+                if len(_named) > 1:  # "Re: X" contains "X": the longest subject named is the one meant
+                    _top = max(len(m["subject"].strip()) for m in _named)
+                    _named = [m for m in _named if len(m["subject"].strip()) == _top]
+                _pick = _named[0] if len(_named) == 1 else (emails[0] if len(emails) == 1 else None)
+                if _pick:
+                    lines.append("[FULL TEXT OF THE REQUESTED EMAIL - show it to the user in full]\n" + fetch_full_email_context(_pick.get("id", "")))
             return "\n".join(lines)
         try:
             return await loop.run_in_executor(executor, _fetch)
@@ -1446,6 +1466,31 @@ async def chat_stream(req: ChatRequest):
                         _pf_q, limit=10, label=_pf_label, force_refresh=_pf_fresh
                     ),
                 )
+                # A sender/keyword filter hides everything else. When the message ALSO asks for a general update ("latest emails today ...
+                # is there any from Kunal?") fetch the last 24 h unfiltered too, so the answer never claims "no other emails" from a
+                # list that was filtered to one sender.
+                import re as _re
+                if _pf_q and _re.search(r"\b(latest|recent|new|today|updates?|overview|summary|what came)\b", req.message, _re.I) \
+                        and _re.search(r"\b(e-?mails?|inbox|mail)\b", req.message, _re.I):
+                    _overview = await loop.run_in_executor(
+                        _executor,
+                        lambda: fetch_email_context("newer_than:1d", limit=10, label=_pf_label, force_refresh=_pf_fresh),
+                    )
+                    _email_pre_fetch = (f"[Matches for the filter '{_pf_q}' - ONLY this filtered result]\n{_email_pre_fetch}\n\n"
+                                        f"[Everything received in the last 24 hours, any sender]\n{_overview}")
+                # "Show me the full email ..." with no earlier list to point at: identify the email from this search (its subject named in
+                # the message, or the only match) and fetch its whole body. Ambiguous -> never guess, show the list.
+                if is_detail_request and not resolved_email:
+                    _cands = _re.findall(r"ID:([0-9a-fA-F]+) \| From:[^\n]*\n\s+Subject: ([^\n]*)", _email_pre_fetch)
+                    _hits = [(i, s.strip()) for i, s in _cands if s.strip() and s.strip().lower() in req.message.lower()]
+                    if len(_hits) > 1:  # "Re: X" contains "X": the longest subject named is the one meant
+                        _top = max(len(s) for _, s in _hits)
+                        _hits = [(i, s) for i, s in _hits if len(s) == _top]
+                    _named = [i for i, _ in _hits]
+                    _pick = _named[0] if len(_named) == 1 else (_cands[0][0] if len(_cands) == 1 else None)
+                    if _pick:
+                        _full = await loop.run_in_executor(_executor, lambda: fetch_full_email_context(_pick))
+                        _email_pre_fetch += "\n\n[FULL TEXT OF THE REQUESTED EMAIL - show it to the user in full]\n" + _full
                 # Pre-fetch succeeded — no tools needed, data is in context
             except Exception:
                 # Fallback: add Gmail tools and let the ReAct loop handle it
@@ -1616,6 +1661,17 @@ async def chat_stream(req: ChatRequest):
                                  f"   Subject:{e.get('subject','(no subject)')}\n"
                                  f"   Preview:{e.get('snippet','')[:200]}\n"
                                  f"   Date:{e.get('date','')}\n")
+                # "Show me the full email ..." -> when exactly one email is identifiable (its subject is named - the longest named
+                # subject wins, since "Re: X" contains "X" - or it is the only match) include its whole body, not just the preview.
+                _msg_l = req.message.lower()
+                if any(kw in _msg_l for kw in _DETAIL_KW):
+                    _named = [m for m in emails if (m.get("subject") or "").strip() and m["subject"].strip().lower() in _msg_l]
+                    if len(_named) > 1:
+                        _top = max(len(m["subject"].strip()) for m in _named)
+                        _named = [m for m in _named if len(m["subject"].strip()) == _top]
+                    _pick = _named[0] if len(_named) == 1 else (emails[0] if len(emails) == 1 else None)
+                    if _pick:
+                        lines.append("[FULL TEXT OF THE REQUESTED EMAIL - show it to the user in full]\n" + fetch_full_email_context(_pick.get("id", "")))
                 return "\n".join(lines)
             try:
                 return status, await loop.run_in_executor(_executor, _fetch)
