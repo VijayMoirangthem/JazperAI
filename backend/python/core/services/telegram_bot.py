@@ -1,8 +1,8 @@
 """Two-way Telegram access to Jazper, running on this PC.
 
 How it works: the backend long-polls Telegram's Bot API (getUpdates). Nothing is exposed to the internet: no webhook, no tunnel, no
-open port; it only needs outbound HTTPS. Each message from the approved chat is sent through the same /api/chat/stream pipeline the
-app uses (so email, Drive, search, agents, memory and the Hinglish/Hindi/English reply rules all work), and the answer is sent back.
+open port; it only needs outbound HTTPS. Each message from the approved chat is sent through the same /api/chat2/stream pipeline the
+app and the phone use (so email, Drive, search, agents, memory and the Hinglish/Hindi/English reply rules all work), and the answer is sent back.
 
 Security: only ONE chat id is answered (the approved one, stored in telegram_config.chat_id). Anyone else who messages the bot gets a
 one-line "private bot" reply and shows up as a pending request in the app, where you can approve them with one click. Updates are
@@ -43,6 +43,31 @@ def split_message(text: str, limit: int = MAX_MSG) -> list[str]:
         text = text[cut:].lstrip()
     out.append(text)
     return out
+
+
+def parse_ndjson(raw: str) -> str:
+    """Answer text from /api/chat2/stream (one JSON event per line): joins the deltas, turns a reconnect card into a plain link and
+    surfaces an error event as text."""
+    text, extras, error = [], [], ""
+    for line in raw.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        t = ev.get("t")
+        if t == "delta":
+            text.append(ev.get("text", ""))
+        elif t == "ui" and ev.get("kind") == "oauth" and ev.get("url"):
+            extras.append("Reconnect Google: " + ev["url"])
+        elif t == "error":
+            error = ev.get("message", "error")
+    out = "".join(text).strip()
+    if extras:
+        out += ("\n\n" if out else "") + "\n".join(extras)
+    return out or (f"Jazper reported an error: {error}" if error else "(no reply)")
 
 
 def parse_stream(raw: str) -> str:
@@ -187,9 +212,8 @@ class TelegramBot:
             hist = self._history.setdefault(cid, [])
             base = os.getenv("JAZPER_API_URL", "http://127.0.0.1:8000")
             async with httpx.AsyncClient(timeout=180) as api:
-                r = await api.post(f"{base}/api/chat/stream", json={"message": text, "history": hist[-HISTORY_TURNS:], "sessionId": f"telegram-{cid}",
-                                                                      "sessionMode": "permanent"})
-                reply = parse_stream(r.text) if r.status_code == 200 else f"Jazper hit an error ({r.status_code}). Try again in a moment."
+                r = await api.post(f"{base}/api/chat2/stream", json={"text": text, "slug": "jasper", "history": hist[-HISTORY_TURNS:]})
+                reply = parse_ndjson(r.text) if r.status_code == 200 else f"Jazper hit an error ({r.status_code}). Try again in a moment."
             hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
             del hist[:-HISTORY_TURNS * 2]
         except Exception as e:

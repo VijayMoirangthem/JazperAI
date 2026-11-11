@@ -105,11 +105,12 @@ export const CardRow = React.memo(function CardRow({ message }: { message: Messa
   const payload = getUiPayload(message);
   if (!payload) return null;
   const suggestions = payload.kind === 'suggestions';
+  const googleSignIn = payload.kind === 'oauth';  // Google login expired: Jasper opens the sign-in page on the PC
   return (
     <View style={styles.cardWrap}>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{suggestions ? 'Suggestions' : 'Finish this on your computer'}</Text>
-        <Text style={styles.cardSub}>{payload.connector}</Text>
+        <Text style={styles.cardTitle}>{suggestions ? 'Suggestions' : googleSignIn ? 'Google sign-in needed' : 'Finish this on your computer'}</Text>
+        <Text style={styles.cardSub}>{googleSignIn ? 'Jasper opened the sign-in page on your computer. Click Continue there once, then ask again.' : payload.connector}</Text>
         {payload.items.map((item) => (
           <View key={item.name} style={styles.suggestion}>
             <View style={{ flex: 1 }}>

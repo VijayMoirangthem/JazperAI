@@ -1,4 +1,6 @@
 """Two-way Telegram: only the approved chat is answered; strangers go to a pending list; long replies are split."""
+import json
+
 import pytest
 
 from core.services import telegram_bot as tb
@@ -82,7 +84,7 @@ async def test_ask_sends_history_session_and_returns_parsed_reply(monkeypatch):
 
     class FakeResp:
         status_code = 200
-        text = 'data: Namaste\n\ndata: [DONE]\n'
+        text = json.dumps({'t': 'delta', 'slug': 'jasper', 'text': 'Namaste'}) + chr(10) + json.dumps({'t': 'done'}) + chr(10)
 
     class FakeApi:
         def __init__(self, *a, **k): pass
@@ -101,7 +103,7 @@ async def test_ask_sends_history_session_and_returns_parsed_reply(monkeypatch):
     await b._ask(None, "tok", "7", "kya haal hai")
     await b._ask(None, "tok", "7", "second")
     assert out == ["Namaste", "Namaste"]
-    assert calls[0][1]["sessionId"] == "telegram-7" and calls[0][1]["history"] == []
+    assert calls[0][0].endswith("/api/chat2/stream") and calls[0][1]["slug"] == "jasper" and calls[0][1]["text"] == "kya haal hai" and calls[0][1]["history"] == []
     assert [h["content"] for h in calls[1][1]["history"]] == ["kya haal hai", "Namaste"]      # rolling history is passed on
 
 
@@ -162,3 +164,14 @@ async def test_polling_loop_end_to_end_against_a_fake_telegram(monkeypatch):
     assert not any(c == "222" and t.startswith("reply:") for c, t in sent)
     assert offsets[0] == 0 and offsets[1] == 12                       # updates acknowledged: next poll starts after the last one
     assert "222" in b.pending and not b.running
+
+
+def test_ndjson_parsing_deltas_cards_and_errors():
+    nl = chr(10)
+    raw = nl.join([json.dumps(x) for x in (
+        {"t": "speaker", "slug": "jasper"}, {"t": "delta", "slug": "jasper", "text": "Hello "}, {"t": "delta", "slug": "jasper", "text": "world"},
+        {"t": "ui", "kind": "oauth", "url": "http://localhost:8000/api/google/oauth/authorize"}, {"t": "done"})]) + nl + "not json" + nl
+    out = tb.parse_ndjson(raw)
+    assert out.startswith("Hello world") and "Reconnect Google: http://localhost:8000/api/google/oauth/authorize" in out
+    assert tb.parse_ndjson(json.dumps({"t": "error", "message": "cap reached"})) == "Jazper reported an error: cap reached"
+    assert tb.parse_ndjson("") == "(no reply)"

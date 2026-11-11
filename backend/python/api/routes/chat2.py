@@ -117,6 +117,11 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     except Exception:
         pass  # includes TimeoutError: memory must never break a conversation
 
+    from core.language import directive_for
+    _lang_line = directive_for(text)  # reply in the script the user wrote: English / Hindi (Devanagari) / Hinglish (Roman letters)
+    if _lang_line:
+        system = system + "\n\n" + _lang_line
+
     msgs = [{"role": t.role, "content": t.content} for t in history[-MAX_HISTORY:]] + [{"role": "user", "content": _user_content(text, atts)}]
     yield _line({"t": "speaker", "slug": slug})
     if await orgchart.over_cap(slug):

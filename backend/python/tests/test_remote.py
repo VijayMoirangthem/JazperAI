@@ -55,3 +55,15 @@ async def test_pairing_auth_and_revocation(client):
     await client.delete(f"/api/remote/devices/{paired['device_id']}")
     assert (await client.get("/remote/v1/me", headers=h)).status_code == 401                      # revoked: the old token stops working at once
     assert (await client.post("/remote/v1/auth/refresh", json={"device_id": paired["device_id"], "device_secret": paired["device_secret"]})).status_code == 401
+
+
+async def test_notifications_endpoint_reports_the_unread_count_instead_of_crashing(client):
+    """Regression: the handler awaited a synchronous function (TypeError -> HTTP 500), so the phone's unread badge never worked."""
+    start = (await client.post("/api/remote/pair/start")).json()
+    paired = (await client.post("/remote/v1/pair/complete", json={"code": start["code"], "name": "notif-test", "platform": "test"})).json()
+    h = {"Authorization": "Bearer " + paired["access_token"]}
+    try:
+        r = await client.get("/remote/v1/notifications", headers=h)
+        assert r.status_code == 200 and isinstance(r.json()["unread"], int)
+    finally:
+        await client.delete(f"/api/remote/devices/{paired['device_id']}")

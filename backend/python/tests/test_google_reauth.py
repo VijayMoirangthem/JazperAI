@@ -20,7 +20,7 @@ def test_email_requests_never_become_drive_file_searches():
     for msg in ("first display me the email here", "Sure first display me the email here and let me know", "show me the latest email from Kunal",
                 "open my newest gmail message"):
         assert fastpaths.latest_request(msg, history) is None, msg
-        assert fastpaths.match("jasper", msg, history) is None, msg          # goes to the normal tool loop, not Drive
+        assert fastpaths.match("jasper", msg, history) is not None, msg      # answered from the real mailbox (email_fast), never Drive
     # genuine Drive requests still use the fast path
     assert fastpaths.latest_request("open my latest document", []) is not None
     assert fastpaths.match("jasper", "open my latest document", []) is not None

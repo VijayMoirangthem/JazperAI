@@ -213,7 +213,11 @@ async def respond(request_id: UUID, body: RespondIn, d: dict = Depends(device)):
 @router.get("/notifications")
 async def notifications(d: dict = Depends(device)):
     from api.routes import notifications as n
-    return {"unread": (await n.unread_count()) if hasattr(n, "unread_count") else None}
+    import asyncio
+    # unread_count() is a plain (blocking) function returning {"count": n}: run it off the event loop. It was awaited directly, which
+    # raised TypeError (HTTP 500) on every call, so the phone's unread badge never worked.
+    res = await asyncio.to_thread(n.unread_count)
+    return {"unread": res.get("count", 0) if isinstance(res, dict) else res}
 
 
 @router.get("/status")
