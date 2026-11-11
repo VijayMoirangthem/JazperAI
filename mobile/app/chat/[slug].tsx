@@ -440,7 +440,7 @@ export default function ChatScreen() {
   const muted = meta[botSlug]?.muted;
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.root} behavior="padding">
       <FlashList
         ref={listRef}
         data={data}
@@ -453,7 +453,7 @@ export default function ChatScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingTop: 12, paddingBottom: insets.top + HEADER_HEIGHT + (searchOpen ? 56 : 0) }}
         ListEmptyComponent={
-          <View style={{ transform: [{ scaleY: -1 }], paddingTop: 80 }}>
+          <View style={{ paddingTop: 80 }}>
             <EmptyState title="No messages yet" subtitle={`Say hello to ${botName}.`} />
           </View>
         }

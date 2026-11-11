@@ -39,7 +39,8 @@
       "expo-image-picker",
       "expo-document-picker",
       "expo-audio",
-      "expo-notifications"
+      "expo-notifications",
+      "./plugins/withLocalhostCleartext"
     ],
     "experiments": {
       "typedRoutes": true

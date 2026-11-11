@@ -30,6 +30,7 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [reason, setReason] = useState<'off' | 'unreachable'>('unreachable');
   const [still, setStill] = useState(false);
 
   useEffect(() => {
@@ -45,7 +46,9 @@ export default function WelcomeScreen() {
     try {
       await getAuthProvider().signIn();
       router.replace('/(tabs)/chats' as Href);
-    } catch {
+    } catch (e) {
+      // 403 means the computer answered but one-tap sign-in is switched off there: say so instead of 'can't reach'
+      setReason((e as { status?: number })?.status === 403 ? 'off' : 'unreachable');
       setFailed(true);
     } finally {
       setBusy(false);
@@ -66,7 +69,11 @@ export default function WelcomeScreen() {
         </Animated.Text>
         {failed ? (
           <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="polite">
-            <Text style={styles.errorText}>Can't reach Jasper right now. If you are away from your computer, connect with the QR code.</Text>
+            <Text style={styles.errorText}>
+              {reason === 'off'
+                ? 'Your computer is reachable, but one-tap sign-in is turned off there. Connect with the QR code, or enable one-tap sign-in on the computer.'
+                : "Can't reach Jasper right now. If you are away from your computer, connect with the QR code."}
+            </Text>
             <Pressable onPress={signIn} accessibilityRole="button" accessibilityLabel="Try again" hitSlop={10}>
               <Text style={styles.link}>Try again</Text>
             </Pressable>
