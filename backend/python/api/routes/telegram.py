@@ -19,8 +19,12 @@ def _conn():
 
 class ConfigBody(BaseModel):
     bot_token: str
-    chat_id: str
+    chat_id: str = ""   # optional: leave empty, message the bot, then approve yourself in the app
     enabled: bool = True
+
+
+class ApproveBody(BaseModel):
+    chat_id: str
 
 
 class SendBody(BaseModel):
@@ -43,6 +47,8 @@ def telegram_status():
             "has_token": bool(token),
             "has_chat_id": bool(chat_id),
             "updated_at": updated_at.isoformat() if updated_at else None,
+            "approved_chat_id": chat_id or "",
+            "bot": __import__("core.services.telegram_bot", fromlist=["bot"]).bot.status(),
         }
     finally:
         cur.close(); conn.close()
@@ -59,9 +65,35 @@ def configure_telegram(body: ConfigBody):
         """, (body.bot_token, body.chat_id, body.enabled))
         conn.commit()
         log.info("telegram: config updated", enabled=body.enabled)
-        return {"ok": True}
     finally:
         cur.close(); conn.close()
+    from core.services.telegram_bot import bot
+    bot.start()  # picks up the new token/chat id on its next poll; no restart needed
+    return {"ok": True}
+
+
+@router.get("/pending")
+def pending():
+    """People who messaged the bot but are not approved yet (waiting for your click)."""
+    from core.services.telegram_bot import bot
+    return bot.status()
+
+
+@router.post("/approve")
+def approve(body: ApproveBody):
+    """Approve one chat: the ONLY chat Jazper will answer. Only callable from this PC (the app), never from Telegram itself."""
+    from core.services.telegram_bot import bot
+    if body.chat_id not in bot.pending:
+        raise HTTPException(404, "that chat has not messaged the bot (or the request expired)")
+    conn = _conn(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE telegram_config SET chat_id = %s, enabled = TRUE, updated_at = NOW() WHERE id = 1", (body.chat_id,))
+        conn.commit()
+    finally:
+        cur.close(); conn.close()
+    who = bot.pending.pop(body.chat_id)
+    log.info("telegram: chat approved", name=who.get("name"))
+    return {"ok": True, "approved": who}
 
 
 @router.post("/send")

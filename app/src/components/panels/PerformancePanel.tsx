@@ -49,6 +49,7 @@ const FIELDS: { title: string; fields: Field[] }[] = [
   ] },
   { title: "Monitoring", fields: [
     { key: "memory_budget_mb", label: "Memory budget (MB)", hint: "A warning shows when the app exceeds this.", kind: "int", min: 256, max: 262144, step: 128 },
+    { key: "embedder_idle_min", label: "Free AI memory models after idle (min)", hint: "Frees 1-2 GB of RAM when you are not chatting; the next message after that is slower once.", kind: "int", min: 1, max: 1440, step: 1 },
   ] },
 ];
 
@@ -149,6 +150,11 @@ export function PerformancePanel() {
             <Stat label="Async tasks" value={String(s.tasks.asyncio_tasks)} sub="inside the backend" />
             <Stat label="Processes" value={String(s.processes.length)} sub="backend + helpers" />
             <Stat label="System RAM free" value={pct(s.host.ram_available_pct)} sub={`${mb(s.host.ram_total_mb)} total`} warn={s.host.ram_available_pct < 15} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={async () => { const r = await call("POST", "/memory/release"); setMsg(r.ok ? `Freed ${r.data.freed_mb} MB (${r.data.rss_mb_before} -> ${r.data.rss_mb_after} MB). The next chat message reloads the models once.` : errText(r.data)); await refreshAll(); }}
+              className="rounded bg-indigo-600 px-3 py-1 text-xs">Free memory now</button>
+            <span className="text-xs opacity-60">Unloads the AI memory models (they come back on the next message).</span>
           </div>
           {s.warnings.length > 0
             ? <div className="space-y-1 rounded border border-amber-500/60 bg-amber-500/10 p-3 text-xs">{s.warnings.map((w) => <div key={w}>⚠ {w}</div>)}</div>

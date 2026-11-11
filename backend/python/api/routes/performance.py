@@ -28,6 +28,18 @@ async def status():
     return await monitor.status()
 
 
+@router.post("/memory/release")
+async def release_memory():
+    """"Free memory" button: unload the embedding models now and report the real RAM change (they reload on next use)."""
+    import asyncio
+    from core.services import embedding_service
+    before = (await monitor.status())["rss_mb"]
+    res = await asyncio.to_thread(embedding_service.unload, True)
+    await asyncio.sleep(0.5)
+    after = (await monitor.status())["rss_mb"]
+    return {**res, "rss_mb_before": before, "rss_mb_after": after, "freed_mb": round(before - after, 1)}
+
+
 @router.get("/settings")
 async def get_settings():
     return {"settings": perf_settings.current().model_dump(),

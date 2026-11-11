@@ -1,5 +1,6 @@
 "use client";
 
+import { TelegramConnect } from "@/components/settings/TelegramConnect";
 import { useEffect, useRef, useState } from "react";
 import {
   Settings, RotateCcw, Save, RefreshCw,
@@ -785,6 +786,7 @@ export function SettingsPanel() {
           }
           return (
             <div style={{ padding:"var(--sp-4) 0", display:"flex", flexDirection:"column", gap:"var(--sp-4)" }}>
+              <TelegramConnect />
               <div style={{ display:"flex", alignItems:"center", gap:"var(--sp-2)", marginBottom:"var(--sp-2)" }}>
                 <Send size={14} style={{ color:"#60a5fa" }}/>
                 <span style={{ fontSize:14, fontWeight:600, color:"var(--color-text-primary)" }}>Telegram Push Notifications</span>
@@ -816,7 +818,7 @@ export function SettingsPanel() {
 
               <div>
                 <label style={{ fontSize:11, color:"var(--color-text-muted)", display:"block", marginBottom:4 }}>
-                  Chat ID <span style={{ color:"#64748b" }}>(from @userinfobot — your personal chat ID)</span>
+                  Chat ID <span style={{ color:"#64748b" }}>(optional: leave empty and use Approve above)</span>
                 </label>
                 <input value={tgChatId} onChange={e => setTgChatId(e.target.value)}
                   placeholder="123456789"
@@ -842,10 +844,10 @@ export function SettingsPanel() {
               )}
 
               <div style={{ display:"flex", gap:"var(--sp-2)" }}>
-                <button onClick={saveTg} disabled={tgSaving || !tgToken || !tgChatId}
+                <button onClick={saveTg} disabled={tgSaving || !tgToken}
                   style={{ background:"var(--color-accent)", border:"none", borderRadius:"var(--r-sm)",
                     padding:"var(--sp-2) var(--sp-4)", cursor:"pointer", fontSize:12, color:"#fff",
-                    display:"flex", alignItems:"center", gap:4, opacity: (!tgToken||!tgChatId) ? 0.5 : 1 }}>
+                    display:"flex", alignItems:"center", gap:4, opacity: (!tgToken) ? 0.5 : 1 }}>
                   <Save size={11}/> {tgSaving ? "Saving…" : "Save"}
                 </button>
                 <button onClick={testTg} disabled={tgTesting || !tgStatus?.configured}

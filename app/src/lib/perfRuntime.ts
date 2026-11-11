@@ -22,6 +22,7 @@ export interface PerfSettings {
   auto_repair_loop: boolean;
   pii_engine: "presidio" | "regex";
   memory_budget_mb: number;
+  embedder_idle_min: number;
 }
 
 /** Today's behaviour (no throttling) until the backend answers. */
@@ -29,7 +30,7 @@ export const DEFAULTS: PerfSettings = {
   preset: "default", max_active_agents: 0, max_concurrent_tasks: 6, max_background_jobs: 4, background_jobs_enabled: true,
   poll_scale: 1, ui_update_ms: 100, animations: "full", max_fps: 60, show_inactive_agents: false, log_level: "INFO",
   log_retention_entries: 2000, mcp_autoconnect: true, file_watcher: true, auto_repair_loop: true, pii_engine: "presidio",
-  memory_budget_mb: 2048,
+  memory_budget_mb: 2048, embedder_idle_min: 30,
 };
 
 const CACHE_KEY = "jazper.perf.settings.v1";

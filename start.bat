@@ -52,6 +52,10 @@ echo  [1/6] Stopping existing services...
 
 wmic process where "name='python.exe' and commandline like '%%uvicorn%%'" delete >nul 2>&1
 wmic process where "name='python3.exe' and commandline like '%%uvicorn%%'" delete >nul 2>&1
+wmic process where "name='python.exe' and commandline like '%%run_server.py%%'" delete >nul 2>&1
+wmic process where "name='python.exe' and commandline like '%%watchdog.py%%'" delete >nul 2>&1
+:: stop the old supervisor windows first, or they would restart the backend we are about to kill
+taskkill /fi "WindowTitle eq COOS - FastAPI*" /F >nul 2>&1
 
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":5173 " ^| findstr "LISTENING"') do (
     taskkill /PID %%a /F >nul 2>&1

@@ -160,3 +160,20 @@ async def test_independent_tasks_still_queue_behind_the_limit():
 
     await asyncio.gather(*(work() for _ in range(5)))                  # siblings are not nested: they queue
     assert peak == 1 and L.completed == 5
+
+
+def test_embedder_unloads_only_when_idle_or_forced(monkeypatch):
+    from core.services import embedding_service as es
+    monkeypatch.setattr(es, "_model", object())
+    monkeypatch.setattr(es, "_mem_model", object())
+    monkeypatch.setattr(es, "_last_used", es._time.monotonic())            # just used
+    assert es.unload(False, 10) == {"unloaded": 0, "reason": "recently used"} and es.loaded_models() == 2
+    monkeypatch.setattr(es, "_last_used", es._time.monotonic() - 11 * 60)  # idle 11 min
+    assert es.unload(False, 10)["unloaded"] == 2 and es.loaded_models() == 0
+    monkeypatch.setattr(es, "_mem_model", object())
+    assert es.unload(True)["unloaded"] == 1                                # forced ignores recent use
+    assert es.unload(True)["unloaded"] == 0                                # nothing loaded: harmless
+
+
+def test_presets_free_models_sooner_in_eco():
+    assert ps.preset("eco").embedder_idle_min < ps.preset("balanced").embedder_idle_min < ps.preset("performance").embedder_idle_min

@@ -44,6 +44,7 @@ class PerfSettings(BaseModel):
     pii_engine: Literal["presidio", "regex"] = "presidio"  # regex covers the same entity types; presidio adds a second opinion
     # monitoring
     memory_budget_mb: int = Field(1500, ge=256, le=262144, description="Warn when the app's total RAM exceeds this.")
+    embedder_idle_min: int = Field(30, ge=1, le=1440, description="Free the memory/embedding models (1-2 GB) after this many idle minutes; they reload on next use.")
 
 
 def _hw() -> tuple[int, int]:
@@ -57,18 +58,18 @@ def preset_values(name: str) -> dict:
         return dict(preset="eco", max_active_agents=8, max_concurrent_tasks=1, max_background_jobs=1, background_jobs_enabled=True,
                     poll_scale=3.0, ui_update_ms=1000, animations="off", max_fps=20, show_inactive_agents=False,
                     log_level="WARNING", log_retention_entries=200, mcp_autoconnect=False, file_watcher=False,
-                    auto_repair_loop=False, pii_engine="regex", memory_budget_mb=max(512, int(ram_mb * 0.10)))
+                    auto_repair_loop=False, pii_engine="regex", memory_budget_mb=max(512, int(ram_mb * 0.10)), embedder_idle_min=3)
     if name == "balanced":
         return dict(preset="balanced", max_active_agents=max(16, cores * 2), max_concurrent_tasks=3, max_background_jobs=2, background_jobs_enabled=True,
                     poll_scale=1.5, ui_update_ms=400, animations="reduced", max_fps=30, show_inactive_agents=False,
                     log_level="INFO", log_retention_entries=500, mcp_autoconnect=True, file_watcher=True,
-                    auto_repair_loop=True, pii_engine="presidio", memory_budget_mb=max(1024, int(ram_mb * 0.20)))
+                    auto_repair_loop=True, pii_engine="presidio", memory_budget_mb=max(1024, int(ram_mb * 0.20)), embedder_idle_min=10)
     if name == "performance":
         return dict(preset="performance", max_active_agents=0, max_concurrent_tasks=max(2, min(12, cores // 2)),
                     max_background_jobs=max(2, min(8, cores // 3)), background_jobs_enabled=True, poll_scale=1.0, ui_update_ms=100,
                     animations="full", max_fps=60, show_inactive_agents=False, log_level="INFO", log_retention_entries=2000,
                     mcp_autoconnect=True, file_watcher=True, auto_repair_loop=True, pii_engine="presidio",
-                    memory_budget_mb=max(2048, int(ram_mb * 0.50)))
+                    memory_budget_mb=max(2048, int(ram_mb * 0.50)), embedder_idle_min=60)
     raise KeyError(name)
 
 

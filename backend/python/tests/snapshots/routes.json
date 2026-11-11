@@ -1529,6 +1529,10 @@
  ],
  [
   "GET",
+  "/api/telegram/pending"
+ ],
+ [
+  "GET",
   "/api/telegram/status"
  ],
  [
@@ -2562,6 +2566,10 @@
  [
   "GET",
   "/api/v1/tasks/stats"
+ ],
+ [
+  "GET",
+  "/api/v1/telegram/pending"
  ],
  [
   "GET",
@@ -3641,6 +3649,10 @@
  ],
  [
   "POST",
+  "/api/performance/memory/release"
+ ],
+ [
+  "POST",
   "/api/performance/preset/{name}"
  ],
  [
@@ -3774,6 +3786,10 @@
  [
   "POST",
   "/api/tasks/"
+ ],
+ [
+  "POST",
+  "/api/telegram/approve"
  ],
  [
   "POST",
@@ -4493,6 +4509,10 @@
  ],
  [
   "POST",
+  "/api/v1/performance/memory/release"
+ ],
+ [
+  "POST",
   "/api/v1/performance/preset/{name}"
  ],
  [
@@ -4626,6 +4646,10 @@
  [
   "POST",
   "/api/v1/tasks/"
+ ],
+ [
+  "POST",
+  "/api/v1/telegram/approve"
  ],
  [
   "POST",

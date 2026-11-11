@@ -29,8 +29,24 @@ def apply(cfg: perf_settings.PerfSettings | None = None) -> perf_settings.PerfSe
     from agents import activation
     activation.apply_scheduler_gating()
     _apply_housekeeping(cfg)
+    _apply_embedder_job(cfg)
     _apply_file_watcher(cfg)
     return cfg
+
+
+def _embedder_tick() -> None:
+    from core.services import embedding_service
+    embedding_service.unload(False, perf_settings.current().embedder_idle_min)
+
+
+def _apply_embedder_job(cfg: perf_settings.PerfSettings) -> None:
+    """Every 2 minutes free the embedding models if they have been idle longer than embedder_idle_min."""
+    try:
+        from apscheduler.triggers.interval import IntervalTrigger
+        from core.scheduler.scheduler import scheduler
+        scheduler.add_job(_embedder_tick, IntervalTrigger(minutes=2), id="__embedder_idle__", replace_existing=True, misfire_grace_time=120)
+    except Exception as e:
+        log.debug("embedder idle job skipped", error=str(e)[:100])
 
 
 def _apply_housekeeping(cfg: perf_settings.PerfSettings) -> None:

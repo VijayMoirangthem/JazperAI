@@ -241,6 +241,8 @@ async def lifespan(app: FastAPI):
         _sched.add_job(alerts_mod.weekly_chaos, IntervalTrigger(days=7), id="__chaos__", name="Weekly sandbox chaos", replace_existing=True, misfire_grace_time=3600)
         asyncio.create_task(autoconnect())  # reconnect already-authorised connectors in the background
         from core.services import google_keepalive
+        from core.services.telegram_bot import bot as _telegram_bot
+        _telegram_bot.start()  # two-way Telegram (idle until a bot token is configured)
         from datetime import datetime as _dt, timedelta as _td
         _sched.add_job(google_keepalive.run, IntervalTrigger(minutes=30), id="__google_keepalive__", name="Google login keep-alive", replace_existing=True,
                        misfire_grace_time=600, next_run_time=_dt.now().astimezone() + _td(seconds=45))
@@ -270,6 +272,11 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    try:
+        from core.services.telegram_bot import bot as _tb
+        await _tb.stop()
+    except Exception:
+        pass
     stop_scheduler()
     log.info("Sir Jazper OS shutting down")
 

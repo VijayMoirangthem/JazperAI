@@ -1527,6 +1527,11 @@ async def chat_stream(req: ChatRequest):
 
     # Build extra context injected into the last user message
     extra_context = _profile_load_note
+    # Reply in the language AND script the user wrote (English / Hindi in Devanagari / Hinglish in Roman letters).
+    from core.language import directive_for as _lang_directive
+    _lang_line = _lang_directive(req.message)
+    if _lang_line:
+        extra_context += "\n\n[" + _lang_line + "]"
     if resolved_email:
         extra_context += (
             f"\n\n[Email the user is referring to]\n"

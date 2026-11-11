@@ -33,7 +33,8 @@ from pathlib import Path
 PYTHON       = r"C:\Users\vijay\AppData\Local\Programs\Python\Python311\python.exe"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 BACKEND_DIR  = PROJECT_ROOT / "backend" / "python"
-FRONTEND_DIR = PROJECT_ROOT / "frontend"
+FRONTEND_DIR = PROJECT_ROOT / "app"   # the Vite app (the old Next.js frontend/ folder no longer exists)
+BACKEND_LOOP = PROJECT_ROOT / "scripts" / "run_backend.bat"
 SIGNAL_FILE  = Path(os.environ.get("TEMP", "C:/Users/vijay/AppData/Local/Temp")) / "coos_restart_signal.json"
 LOG_FILE     = PROJECT_ROOT / "storage" / "logs" / "watchdog.log"
 CHECK_INTERVAL = 3   # seconds between polls
@@ -89,21 +90,32 @@ def _spawn(args: list[str], cwd: str, title: str) -> None:
 
 # ── Restart actions ───────────────────────────────────────────────────────────
 
+def _listening(port: int) -> bool:
+    try:
+        out = subprocess.run(["netstat", "-aon"], capture_output=True, text=True, timeout=6).stdout
+        return any(f":{port}" in l and "LISTENING" in l for l in out.splitlines())
+    except Exception:
+        return False
+
+
 def restart_backend() -> None:
-    _log("Restarting backend (uvicorn) ...")
+    """Kill the backend. start.bat runs it inside run_backend.bat, which restarts it by itself within seconds; only when nothing
+    brought it back (started some other way) is a supervised copy spawned. Never starts a second server next to a live one, and never
+    uses uvicorn --reload (it hung repeatedly)."""
+    _log("Restarting backend ...")
     _kill_port(8000)
-    time.sleep(DRAIN_WAIT)
-    _spawn(
-        [PYTHON, "-m", "uvicorn", "main:app", "--reload", "--port", "8000"],
-        cwd=str(BACKEND_DIR),
-        title="COOS - FastAPI",
-    )
-    _log("Backend restart complete.")
+    for _ in range(15):
+        time.sleep(1)
+        if _listening(8000):
+            _log("Backend came back (restart loop).")
+            return
+    _spawn([str(BACKEND_LOOP)], cwd=str(PROJECT_ROOT), title="COOS - FastAPI")
+    _log("Backend restart complete (spawned run_backend.bat).")
 
 
 def restart_frontend() -> None:
     _log("Restarting frontend (npm run dev) ...")
-    _kill_port(3001)
+    _kill_port(5173)
     time.sleep(DRAIN_WAIT)
     _spawn(
         ["npm", "run", "dev"],
