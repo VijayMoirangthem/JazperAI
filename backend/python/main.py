@@ -240,6 +240,10 @@ async def lifespan(app: FastAPI):
         _sched.add_job(lifecycle_mod.weekly_review, IntervalTrigger(days=7), id="__bot_review__", name="Weekly bot review / PIP", replace_existing=True, misfire_grace_time=3600)
         _sched.add_job(alerts_mod.weekly_chaos, IntervalTrigger(days=7), id="__chaos__", name="Weekly sandbox chaos", replace_existing=True, misfire_grace_time=3600)
         asyncio.create_task(autoconnect())  # reconnect already-authorised connectors in the background
+        from core.services import google_keepalive
+        from datetime import datetime as _dt, timedelta as _td
+        _sched.add_job(google_keepalive.run, IntervalTrigger(minutes=30), id="__google_keepalive__", name="Google login keep-alive", replace_existing=True,
+                       misfire_grace_time=600, next_run_time=_dt.now().astimezone() + _td(seconds=45))
         from core.durable import get_checkpointer
         await get_checkpointer()
     except Exception as exc:

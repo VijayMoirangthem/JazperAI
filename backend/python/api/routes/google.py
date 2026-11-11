@@ -61,12 +61,12 @@ def _done_page(ok: bool, detail: str):
     title = "Signed in to Google" if ok else "Sign-in failed"
     msg = f"Connected as {html.escape(detail)}. You can close this tab and go back to Jazper." if ok else html.escape(detail)
     color = "#22c55e" if ok else "#ef4444"
-    return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>{title}</title><body style=" + chr(34) + f"background:#0b0b0b;color:#eee;font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0" + chr(34) + f"><div style=" + chr(34) + "text-align:center;max-width:420px" + chr(34) + f"><h2 style=" + chr(34) + f"color:{color}" + chr(34) + f">{title}</h2><p>{msg}</p></div>")
+    return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>{title}</title><body style=" + chr(34) + f"background:#0b0b0b;color:#eee;font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0" + chr(34) + f"><div style=" + chr(34) + "text-align:center;max-width:420px" + chr(34) + f"><h2 style=" + chr(34) + f"color:{color}" + chr(34) + f">{title}</h2><p>{msg}</p></div>" + ("<script>setTimeout(function(){window.close()},1500)</script>" if ok else ""))
 
 
 @router.get("/oauth/authorize")
-async def authorize():
-    """Redirect the user to Google's OAuth consent screen."""
+async def authorize(email: str | None = Query(None)):
+    """Redirect the user to Google's OAuth consent screen (pre-filled with `email` when given, so it is one click)."""
     import os, requests as req_lib
     from google_auth_oauthlib.flow import Flow
 
@@ -79,10 +79,12 @@ async def authorize():
         _client_config(), scopes=_OAUTH_SCOPES,
         redirect_uri=settings.GOOGLE_REDIRECT_URI,
     )
+    extra = {"login_hint": email} if email else {}
     auth_url, state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
+        **extra,
     )
 
     # Persist the code_verifier (if PKCE was used) and state in Redis

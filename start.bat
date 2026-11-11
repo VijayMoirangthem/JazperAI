@@ -23,7 +23,7 @@ set EDGE64=C:\Program Files\Microsoft\Edge\Application\msedge.exe
 set SJ_PROFILE=%ROOT%storage\browser-profiles\coos
 
 :: Service URLs
-set FRONTEND_URL=http://localhost:3001
+set FRONTEND_URL=http://localhost:5173
 set BACKEND_URL=http://localhost:8000
 set MINIO_URL=http://localhost:9001
 set HEALTH_URL=http://localhost:8000/health
@@ -39,7 +39,7 @@ echo.
 echo  After startup you do NOT need to run this again.
 echo  Changes auto-reflect:
 echo    Frontend (.tsx/.ts/.css)  --  HMR, browser updates instantly
-echo    Backend  (.py files)      --  uvicorn --reload, restarts in 1s
+echo    Backend  (.py files)      --  re-run start.bat to pick up backend edits
 echo.
 echo  Only re-run this if:  services crash / packages added / env files changed
 echo  =====================================================
@@ -53,7 +53,7 @@ echo  [1/6] Stopping existing services...
 wmic process where "name='python.exe' and commandline like '%%uvicorn%%'" delete >nul 2>&1
 wmic process where "name='python3.exe' and commandline like '%%uvicorn%%'" delete >nul 2>&1
 
-for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":3001 " ^| findstr "LISTENING"') do (
+for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":5173 " ^| findstr "LISTENING"') do (
     taskkill /PID %%a /F >nul 2>&1
 )
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8000 " ^| findstr "LISTENING"') do (
@@ -68,35 +68,17 @@ echo  [OK]  All services stopped.
 echo.
 
 :: ══════════════════════════════════════════════════════════════════════════════
-::  STEP 2 -- Clear Next.js build cache (safe now -- processes are dead)
+::  STEP 2 -- Clear The app build cache (safe now -- processes are dead)
 ::           This deletes the compiled JS/CSS so Turbopack starts completely
 ::           fresh. Prevents old cached bundles causing hydration errors.
 :: ══════════════════════════════════════════════════════════════════════════════
-echo  [2/6] Clearing build cache...
-
-if exist "%ROOT%frontend\.next" (
-    rmdir /s /q "%ROOT%frontend\.next" >nul 2>&1
-    if exist "%ROOT%frontend\.next" (
-        echo  [WARN] Could not fully delete .next -- a file may still be locked.
-    ) else (
-        echo  [OK]  .next cache cleared.
-    )
-) else (
-    echo  [OK]  Cache already clean.
-)
+echo  [2/6] (no build cache to clear: the app runs on Vite)
 echo.
 
 :: ══════════════════════════════════════════════════════════════════════════════
 ::  STEP 3 -- Dependency checks (auto-install if missing)
 :: ══════════════════════════════════════════════════════════════════════════════
 echo  [3/6] Checking dependencies...
-
-:: Check frontend .env
-if not exist "%ROOT%frontend\.env.local" (
-    echo  [WARN] frontend\.env.local is missing -- API calls may fail.
-) else (
-    echo  [OK]  frontend\.env.local found.
-)
 
 :: Check backend infra .env (Docker)
 if not exist "%ROOT%backend\infra\.env" (
@@ -113,9 +95,9 @@ if not exist "%ROOT%backend\python\.env" (
 )
 
 :: Auto npm install if node_modules is missing
-if not exist "%ROOT%frontend\node_modules" (
-    echo  [INFO] node_modules not found -- running npm install...
-    cd /d "%ROOT%frontend"
+if not exist "%ROOT%app\node_modules" (
+    echo  [INFO] app node_modules not found -- running npm install...
+    cd /d "%ROOT%app"
     call npm install
     if !errorlevel! neq 0 (
         echo  [ERR]  npm install failed. Fix errors above before continuing.
@@ -165,21 +147,25 @@ echo.
 
 :: ══════════════════════════════════════════════════════════════════════════════
 ::  STEP 5 -- FastAPI backend
-::            --reload watches ALL .py files -- any save auto-restarts instantly
+::            run_backend.bat restarts it automatically if it crashes
 :: ══════════════════════════════════════════════════════════════════════════════
-echo  [5/6] Starting FastAPI backend (auto-reload on .py changes)...
-start "COOS - FastAPI" cmd /k "cd /d %ROOT%backend\python && %PYTHON% -m uvicorn main:app --reload --port 8000"
+echo  [5/6] Applying database migrations, then starting the backend (auto-restarts if it crashes)...
+pushd "%ROOT%backend\python"
+"%PYTHON%" -m alembic upgrade head >nul 2>&1
+if %errorlevel% neq 0 ( echo  [WARN] Migrations did not run -- is PostgreSQL up? ) else ( echo  [OK]  Database schema is up to date. )
+popd
+start "COOS - FastAPI" cmd /k "%ROOT%scripts\run_backend.bat"
 echo  [OK]  FastAPI starting...
 echo.
 
 :: ══════════════════════════════════════════════════════════════════════════════
-::  STEP 6 -- Next.js frontend
+::  STEP 6 -- App (Vite)
 ::            HMR watches all .tsx/.ts/.css -- saves reflect in browser instantly
 ::            without any page reload needed.
 :: ══════════════════════════════════════════════════════════════════════════════
-echo  [6/6] Starting Next.js frontend (HMR auto-reload on file changes)...
-start "COOS - Frontend" cmd /k "cd /d %ROOT%frontend && npm run dev"
-echo  [OK]  Frontend starting (Turbopack compiling -- takes ~15s)...
+echo  [6/6] Starting the app (Vite, hot reload on .tsx/.ts/.css)...
+start "COOS - Frontend" cmd /k "cd /d %ROOT%app && npm run dev"
+echo  [OK]  App starting...
 echo.
 
 :: ══════════════════════════════════════════════════════════════════════════════
@@ -203,13 +189,13 @@ if %errorlevel% neq 0 (
 )
 echo  [OK]  FastAPI is ready.
 
-:: --- Next.js health check (up to 60s) ---
+:: --- The app health check (up to 60s) ---
 :WAIT_FRONTEND
 set /a TRIES=0
 :WAIT_FRONTEND_LOOP
 set /a TRIES+=1
 if !TRIES! gtr 30 (
-    echo  [WARN] Next.js did not respond in 60s -- check the Frontend window for errors.
+    echo  [WARN] The app did not respond in 60s -- check the Frontend window for errors.
     goto OPEN_BROWSER
 )
 curl -s --connect-timeout 2 "%FRONTEND_URL%" >nul 2>&1
@@ -217,7 +203,7 @@ if %errorlevel% neq 0 (
     timeout /t 2 /nobreak >nul
     goto WAIT_FRONTEND_LOOP
 )
-echo  [OK]  Next.js is ready.
+echo  [OK]  The app is ready.
 
 :: ══════════════════════════════════════════════════════════════════════════════
 ::  OPEN BROWSER — dedicated profile + no-cache
@@ -256,9 +242,9 @@ echo   Frontend   %FRONTEND_URL%
 echo   FastAPI    %BACKEND_URL%
 echo   MinIO UI   %MINIO_URL%
 echo.
-echo   HOT RELOAD ACTIVE:
+echo   RUNNING:
 echo   - Edit any .tsx/.ts/.css  -> browser updates live
-echo   - Edit any .py file       -> backend restarts in 1s
+echo   - Edit any .py file       -> re-run start.bat (backend auto-restarts if it crashes)
 echo.
 echo   DO NOT run start.bat again unless:
 echo   - A service window crashes
