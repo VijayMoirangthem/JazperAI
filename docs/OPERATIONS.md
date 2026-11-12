@@ -35,17 +35,15 @@ attachments, use the Gmail panel (compose/reply). Replying by chat works through
   an Indian-English voice for Hinglish, the bot's own voice for English).
 * **Approvals:** Tier 2 can be answered with a tap; Tier 3 needs the biometric prompt (the app releases the device secret only after it).
   Rejecting never needs it.
-* **After a PC restart:** Docker Desktop and Tailscale start by themselves, but the **backend does not** unless you run `start.bat`
-  (or enable the optional sign-in task below). Until then the phone shows "Can't reach Jasper".
+* **After a PC restart:** Docker Desktop and Tailscale start by themselves, and the scheduled task **Jasper Backend (autostart)** starts the
+  backend at Windows sign-in (registered 2026-11-13; verified by stopping the backend and starting the task: it was back in about 3 minutes,
+  most of it waiting for Docker). Give it 2-3 minutes after signing in before using the phone.
 
-### Optional: start the backend automatically at Windows sign-in
-`scripts/jasper-autostart.ps1` waits for Docker, makes sure the database is up and runs the self-restarting backend hidden. It is not
-registered by default (it is a persistent system change). To enable, once, in PowerShell:
+### The sign-in task
+`scripts/jasper-autostart.ps1` waits for Docker, makes sure the database is up and runs the self-restarting backend hidden (log:
+`storage/remote/autostart.log`). If a backend already answers on :8000 it does nothing. Remove it with:
 
-    $a = New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "D:\Projects\COOS\scripts\jasper-autostart.ps1"'
-    $t = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
-    $s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
-    Register-ScheduledTask -TaskName "Jasper Backend (autostart)" -Action $a -Trigger $t -Settings $s
+    Unregister-ScheduledTask -TaskName "Jasper Backend (autostart)" -Confirm:$false
 
-Remove it with `Unregister-ScheduledTask -TaskName "Jasper Backend (autostart)" -Confirm:$false`. If you also run `start.bat` afterwards,
-close its FastAPI window first (two backends cannot share port 8000).
+If you also run `start.bat`, close its FastAPI window first (two backends cannot share port 8000). Low free memory (browser + editor) makes the
+backend slow, not broken: a request can take tens of seconds when the PC has under ~500 MB free.
