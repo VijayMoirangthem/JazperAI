@@ -13,7 +13,7 @@
   Usage:  powershell -ExecutionPolicy Bypass -File scripts\jasper-remote.ps1 [-Provider cloudflared|ngrok] [-NgrokDomain my.ngrok-free.app] [-NoBrowser]
 #>
 param(
-  [ValidateSet('cloudflared', 'ngrok')][string]$Provider = 'cloudflared',
+  [ValidateSet('cloudflared', 'ngrok', 'tailscale')][string]$Provider = 'cloudflared',
   [string]$NgrokDomain = '',
   [int]$Port = 8000,
   [switch]$NoBrowser
@@ -75,6 +75,20 @@ Say 'Jasper backend is running.' Green
 
 # 2. Tunnel -------------------------------------------------------------------------------------------------
 function Start-Tunnel {
+  if ($Provider -eq 'tailscale') {
+    # Permanent private address: only YOUR devices on your Tailscale network can reach it, the address never changes, and nothing is
+    # opened to the public internet. Needs Tailscale installed + signed in on this PC and the phone (free, https://tailscale.com),
+    # and "HTTPS Certificates" enabled once in the Tailscale admin console (DNS page).
+    $ts = (Get-Command tailscale -ErrorAction SilentlyContinue).Source
+    if (-not $ts) { $ts = 'C:\Program Files\Tailscale\tailscale.exe' }
+    if (-not (Test-Path $ts)) { Say 'Tailscale is not installed. Install it from https://tailscale.com/download, sign in, then run this again.' Red; exit 1 }
+    $st = & $ts status --json 2>$null | ConvertFrom-Json
+    if (-not $st -or $st.BackendState -ne 'Running') { Say 'Tailscale is installed but not signed in / connected. Open Tailscale, sign in, then run this again.' Red; exit 1 }
+    & $ts serve --bg --https=443 "http://127.0.0.1:$Port" | Out-Null   # persists across restarts: you do not need to keep this window open
+    $dns = ($st.Self.DNSName).TrimEnd('.')
+    if (-not $dns) { Say 'Could not read this PC''s Tailscale name. Is MagicDNS enabled?' Red; exit 1 }
+    return "https://$dns"
+  }
   if ($Provider -eq 'ngrok') {
     $ngrok = (Get-Command ngrok -ErrorAction SilentlyContinue).Source
     if (-not $ngrok) {

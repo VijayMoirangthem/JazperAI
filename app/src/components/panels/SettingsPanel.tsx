@@ -1,6 +1,5 @@
 "use client";
 
-import { TelegramConnect } from "@/components/settings/TelegramConnect";
 import { useEffect, useRef, useState } from "react";
 import {
   Settings, RotateCcw, Save, RefreshCw,
@@ -786,7 +785,7 @@ export function SettingsPanel() {
           }
           return (
             <div style={{ padding:"var(--sp-4) 0", display:"flex", flexDirection:"column", gap:"var(--sp-4)" }}>
-              <TelegramConnect />
+              {/* Two-way Telegram is disabled by default (own-ecosystem decision); enable with JAZPER_TELEGRAM=1 and re-add <TelegramConnect /> */}
               <div style={{ display:"flex", alignItems:"center", gap:"var(--sp-2)", marginBottom:"var(--sp-2)" }}>
                 <Send size={14} style={{ color:"#60a5fa" }}/>
                 <span style={{ fontSize:14, fontWeight:600, color:"var(--color-text-primary)" }}>Telegram Push Notifications</span>

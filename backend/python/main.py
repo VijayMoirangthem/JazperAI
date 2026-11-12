@@ -242,7 +242,9 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(autoconnect())  # reconnect already-authorised connectors in the background
         from core.services import google_keepalive
         from core.services.telegram_bot import bot as _telegram_bot
-        _telegram_bot.start()  # two-way Telegram (idle until a bot token is configured)
+        import os as _os
+        if _os.getenv("JAZPER_TELEGRAM") == "1":  # OFF unless explicitly enabled: Jazper's own app is the channel (no third-party messenger)
+            _telegram_bot.start()
         from datetime import datetime as _dt, timedelta as _td
         _sched.add_job(google_keepalive.run, IntervalTrigger(minutes=30), id="__google_keepalive__", name="Google login keep-alive", replace_existing=True,
                        misfire_grace_time=600, next_run_time=_dt.now().astimezone() + _td(seconds=45))

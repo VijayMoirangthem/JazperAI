@@ -1,5 +1,21 @@
 # Reaching Jazper from your phone: own app vs Telegram (decision + how it works)
 
+> **Decision (2026-11-12): own ecosystem only. Telegram is OFF** (`JAZPER_TELEGRAM=1` would re-enable the bot; the Settings card was removed).
+> Jasper's own app is the phone channel, and the PC is the only brain. The comparison below is kept for history.
+>
+> ## Away from home without a third-party messenger
+> The phone reaches the PC through a private link, in this order of preference:
+> 1. **Tailscale (recommended): a private network between only your PC and phone, with a permanent address.** Install Tailscale on both
+>    (free, one sign-in), enable "HTTPS certificates" once in its admin console, then run
+>    `powershell -ExecutionPolicy Bypass -File scripts\jasper-remote.ps1 -Provider tailscale` and scan the QR once. The address never
+>    changes, nothing is exposed to the public internet, and the `tailscale serve` setting survives restarts. Only `/remote/v1/*` is reachable
+>    that way (`core/remote_guard.py` blocks everything else for any non-local address).
+> 2. Cloudflare quick tunnel (`-Provider cloudflared`, no account): works, but the address is **new at every start**, so the phone must be
+>    re-paired after each restart. Use only if you cannot use Tailscale.
+> 3. At your desk: USB with `adb reverse tcp:8000 tcp:8000`.
+>
+> Staying signed in: the phone keeps a device secret and refreshes its 15-minute access token by itself; you re-pair only if you revoke the device.
+
 Short answer: **use both; they cover different needs.** Neither replaces the other.
 
 | | Own Jasper app | Telegram bot |
