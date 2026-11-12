@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { SentenceSplitter, speakable } from "./audio";
 import { Speaker } from "./speaker";
+import { voiceForText } from "./spokenLanguage";
 
 // Reads text aloud in a chosen Edge neural voice (free, streamed from the local backend). TTS never touches the LLM, so it costs no tokens.
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -11,7 +12,7 @@ speaker.onIdle = () => useTts.setState({ speaking: false, who: "" });
 
 export function speakAs(slug: string, voiceName: string, text: string): void {
   speaker.stop();
-  voice = voiceName;
+  voice = voiceForText(voiceName, text);  // Hindi / Hinglish replies get a matching voice instead of an English one
   const splitter = new SentenceSplitter();
   const parts = [...splitter.push(text), splitter.flush()].map(speakable).filter(Boolean);
   if (!parts.length) return;

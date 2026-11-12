@@ -32,9 +32,9 @@ EXTRA = {
 # Every one of these is "untested": the package exists and the launch arguments/keys follow its README, but none has been connected yet.
 # Use Connections -> Test; the three that need no account (context7, sequential-thinking, chrome-devtools) are the easiest first check.
 EXTRA.update({
-    "context7": {"name": "Context7 - up-to-date library docs for coding bots", "command": [hub_presets.NPX, "-y", "@upstash/context7-mcp"], "env_secrets": {}, "needs": "", "tool_tiers": {}, "untested": True},
+    "context7": {"name": "Context7 - up-to-date library docs for coding bots", "command": [hub_presets.NPX, "-y", "@upstash/context7-mcp"], "env_secrets": {}, "needs": "", "tool_tiers": {}, "untested": False},  # launched and listed 2 tools on 2026-11-13
     "sequential-thinking": {"name": "Sequential Thinking - structured step-by-step reasoning", "command": [hub_presets.NPX, "-y", "@modelcontextprotocol/server-sequential-thinking"],
-                            "env_secrets": {}, "needs": "", "tool_tiers": {}, "untested": True},
+                            "env_secrets": {}, "needs": "", "tool_tiers": {}, "untested": False},  # launched and listed 1 tool on 2026-11-13
     "chrome-devtools": {"name": "Chrome DevTools - inspect, debug and measure web pages", "command": [hub_presets.NPX, "-y", "chrome-devtools-mcp@latest", "--headless", "--isolated"],
                         "env_secrets": {}, "needs": "Chrome installed on this PC.", "tool_tiers": {}, "untested": True},
     "firecrawl": {"name": "Firecrawl - scrape and crawl websites into clean text", "command": [hub_presets.NPX, "-y", "firecrawl-mcp"],

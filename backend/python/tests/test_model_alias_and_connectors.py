@@ -38,7 +38,9 @@ def test_connector_catalogue_is_complete_and_consistent():
     new = ["context7", "sequential-thinking", "chrome-devtools", "firecrawl", "tavily", "apify", "sentry", "supabase", "stripe",
            "hubspot", "airtable", "todoist", "resend", "figma", "linear", "atlassian"]
     assert all(k in cat for k in new)
-    assert all(cat[k].get("untested") for k in new)          # none has been connected yet; the catalogue must not claim otherwise
+    verified = {"context7", "sequential-thinking"}              # launched and listed their tools on 2026-11-13; only these two may claim to be tested
+    assert all(cat[k].get("untested") for k in new if k not in verified)
+    assert not any(cat[k].get("untested") for k in verified)
     assert cat["brave-search"]["command"][2] == "@brave/brave-search-mcp-server"   # the maintained server, not the archived one
     assert cat["supabase"]["command"][-1] == "--read-only"
     assert cat["stripe"]["tool_tiers"]["create_refund"] == "mcp.admin"

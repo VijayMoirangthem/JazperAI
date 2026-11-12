@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { JasperClient } from '@/api/client';
+import { AuthRevokedError, JasperClient } from '@/api/client';
 import { resetSession } from '@/api/session';
 import { StoredCredentials } from '@/api/types';
 import { SERVER_URL } from '@/config';
@@ -49,6 +49,7 @@ export class DevOneTapAuth implements AuthProvider {
   }
 
   async signOut(): Promise<void> {
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     await clearCredentials();
     resetSession();
     useAuth.getState().clear();
@@ -57,14 +58,50 @@ export class DevOneTapAuth implements AuthProvider {
   async restore(): Promise<Session | null> {
     const credentials = await loadCredentials();
     if (!credentials) return null;
-    const client = new JasperClient(credentials.baseUrl);
-    const refreshed = await client.refresh(credentials.deviceId, credentials.deviceSecret);
-    const me = await client.me({ deviceId: credentials.deviceId, deviceSecret: credentials.deviceSecret });
-    const session: Session = { credentials, accessToken: refreshed.access_token, deviceName: me.name };
-    resetSession();
-    apply(session);
-    return session;
+    // The pairing is stored on this phone, so use it straight away. The PC may be asleep, restarting or out of reach when the app
+    // opens: the app then opens normally (offline) and keeps trying in the background. Only a definite "this device was removed"
+    // (HTTP 401 from the PC) signs out; a network error or a slow PC never does.
+    useAuth.getState().setCredentials(credentials);
+    try {
+      return await signInWithStored(credentials);
+    } catch (err) {
+      if (err instanceof AuthRevokedError) throw err;
+      retryTokenRefresh(credentials);
+      return null;
+    }
   }
+}
+
+async function signInWithStored(credentials: StoredCredentials): Promise<Session> {
+  const client = new JasperClient(credentials.baseUrl);
+  const refreshed = await client.refresh(credentials.deviceId, credentials.deviceSecret);
+  const me = await client.me({ deviceId: credentials.deviceId, deviceSecret: credentials.deviceSecret });
+  const session: Session = { credentials, accessToken: refreshed.access_token, deviceName: me.name };
+  resetSession();
+  apply(session);
+  return session;
+}
+
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+export const REFRESH_RETRY_DELAYS_MS = [5_000, 15_000, 30_000, 60_000, 120_000, 300_000];
+
+/** Keeps trying to get an access token after a failed start (PC asleep or restarting). Stops on success, sign-out or revocation. */
+export function retryTokenRefresh(credentials: StoredCredentials, attempt = 0): void {
+  if (retryTimer) clearTimeout(retryTimer);
+  if (attempt >= REFRESH_RETRY_DELAYS_MS.length) return;
+  retryTimer = setTimeout(async () => {
+    retryTimer = null;
+    if (useAuth.getState().credentials?.deviceId !== credentials.deviceId) return; // signed out or re-paired meanwhile
+    try {
+      await signInWithStored(credentials);
+    } catch (err) {
+      if (err instanceof AuthRevokedError) {
+        await getAuthProvider().signOut();
+        return;
+      }
+      retryTokenRefresh(credentials, attempt + 1);
+    }
+  }, REFRESH_RETRY_DELAYS_MS[attempt]);
 }
 
 const provider: AuthProvider = new DevOneTapAuth();

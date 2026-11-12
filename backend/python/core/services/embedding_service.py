@@ -106,21 +106,62 @@ _mem_model = None
 _mem_failed = False
 
 
+_mem_load_lock = _threading.Lock()
+_warming = False
+MIN_FREE_MB_TO_WARM = 2500  # the memory model needs about 2 GB; do not load it on a PC that is already short of RAM
+
+
 def _load_memory_model():
     """Local provider (default). A cloud provider would be selected here via settings.EMBEDDING_PROVIDER (needs C-3)."""
     global _mem_model, _mem_failed, _last_used
     _last_used = _time.monotonic()
     if _mem_model is not None or _mem_failed:
         return _mem_model
-    try:
-        from sentence_transformers import SentenceTransformer
-        from core.config import settings
-        _mem_model = SentenceTransformer(settings.EMBEDDING_MODEL)
-        log.info("Memory embedding model loaded", model=settings.EMBEDDING_MODEL)
-    except Exception as e:
-        _mem_failed = True
-        log.warning("Memory embedding model unavailable", error=str(e))
+    with _mem_load_lock:  # one loader at a time: a second caller waits instead of loading a second 2 GB copy
+        if _mem_model is not None or _mem_failed:
+            return _mem_model
+        try:
+            from sentence_transformers import SentenceTransformer
+            from core.config import settings
+            _mem_model = SentenceTransformer(settings.EMBEDDING_MODEL)
+            log.info("Memory embedding model loaded", model=settings.EMBEDDING_MODEL)
+        except Exception as e:
+            _mem_failed = True
+            log.warning("Memory embedding model unavailable", error=str(e))
     return _mem_model
+
+
+def memory_model_ready() -> bool:
+    return _mem_model is not None
+
+
+def _free_mb() -> int:
+    try:
+        import psutil
+        return int(psutil.virtual_memory().available / 1048576)
+    except Exception:
+        return 1 << 30  # cannot tell: assume there is room
+
+
+def warm_memory_model_async(force: bool = False) -> bool:
+    """Load the memory model in a background thread (about 25 s cold) so a chat never waits for it. Returns True if a load was started.
+    Skipped when the PC is short of RAM (unless force): chat then simply answers without memory instead of slowing everything down."""
+    global _warming
+    if _mem_model is not None or _mem_failed or _warming:
+        return False
+    if not force and _free_mb() < MIN_FREE_MB_TO_WARM:
+        return False
+    _warming = True
+
+    def run():
+        global _warming
+        try:
+            _load_memory_model()
+        finally:
+            _warming = False
+
+    _threading.Thread(target=run, daemon=True, name="memory-embedder-warmup").start()
+    return True
 
 
 def embed_memory(text: str) -> list[float] | None:

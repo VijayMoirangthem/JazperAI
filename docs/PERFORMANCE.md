@@ -110,3 +110,24 @@ Caveats: single runs on one machine; the file-event rate varies with what else i
 
 Remaining bottlenecks: the ~180 MB backend-process floor (imported libraries) and the ~220 MB the PII/NLP stack adds when it loads;
 the MCP server processes when connected (about 195 MB for the GitHub connector); startup of about 18–25 s; and the 3D office render cost, which is only FPS-capped.
+
+## Chat speed (measured 2026-11-13, phone path `/remote/v1/chat/stream`, warm backend, 16 GB PC under memory pressure)
+
+| Message | Before | After | What changed |
+|---|---|---|---|
+| "hi jasper" | 6.3 s | 0.7-1.2 s | memory lookup no longer waited on |
+| "Mera system ka status batao" | 6.3 s | 0.2-0.3 s | deterministic answer, skips memory |
+| "what time is it" | 6.0 s | 1.0-2.6 s | memory skipped when it cannot help; model time varies |
+| "Kunal ka aaj ka email dikhao" | 10.3 s | 2.3-2.8 s | skips memory; Gmail warmed at start (first one after a restart was 15 s) |
+
+**Cause:** every message waited up to 4 s for memory recall. The memory model (BAAI/bge-m3, ~2 GB) is unloaded when idle and takes ~25 s to
+load cold, so the wait almost always ran to its limit and recall returned nothing anyway.
+
+**Now:** recall is skipped for deterministic answers (status, email, Drive) and bare greetings; it is skipped (and the model warms in the
+background) when the model is not loaded or the PC has under 2.5 GB free RAM; when it is loaded the wait is capped at 0.8 s and the
+memory layers are searched in parallel. Gmail is warmed 8 s after start. Regression tests: `tests/test_chat_speed.py`.
+
+**Floor:** the model itself answers in about 0.5 s (Groq, gpt-oss-20b), so a plain reply cannot be faster than ~0.5-1 s with a hosted model.
+Replies that use tools take two model calls. Faster than that needs a smaller/local model for chit-chat or prefetching; not done.
+
+**Tip (Windows):** use `127.0.0.1`, not `localhost`, for local clients: `localhost` adds 0.2-2 s per new connection here (IPv6 fallback).

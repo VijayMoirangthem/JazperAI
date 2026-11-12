@@ -92,9 +92,18 @@ def _line(o: dict) -> str:
 
 async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attachment], tier: str | None = None) -> AsyncIterator[str]:
     system, default_tier = _persona(slug)
-    
+    fast = fastpaths.match(slug, text, history, atts)  # known intents (Drive files, clear chat, usage, health, email) run deterministically: instant and model-independent
+    # Memory is only worth waiting for when the model will actually use it: not for deterministic answers, not for a bare greeting.
+    want_memory = fast is None and len(text.split()) > 2
+
     # Memory layers, embedded once: founder facts (shared by all bots), this bot's own lessons, its group's memory, company-wide memory. Never blocks the chat.
     try:
+        from core.services import embedding_service
+        if not want_memory:
+            raise LookupError
+        if not embedding_service.memory_model_ready():
+            embedding_service.warm_memory_model_async()  # load it in the background; THIS reply does not wait for a cold load (~25 s)
+            raise LookupError
         grp = workspaces.GROUP_OF.get(slug)
         if orgchart.SETTINGS.get(slug, {}).get("memory") is False:
             raise LookupError  # this bot has memory switched off
@@ -110,7 +119,7 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
             spec[f"group.{grp}"] = 3
         if not spec:
             raise LookupError  # every layer is switched off
-        got = await asyncio.wait_for(consolidate.recall_multi(text, spec), timeout=4.0)
+        got = await asyncio.wait_for(consolidate.recall_multi(text, spec), timeout=0.8)  # a warm lookup takes ~0.4 s; never make the founder wait longer than this for memory
         for ns, title in (("fact", "What you know about the founder"), (f"bot.{slug}", "Lessons from your own past work"), (f"group.{grp}", "Your group's shared memory"), ("org", "Company-wide memory")):
             if got.get(ns):
                 system = f"{system}\n\n{title}:\n" + "\n".join(f"- {f}" for f in got[ns])
@@ -133,7 +142,6 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
     try:
         b = registry.routable(slug)
         with finops.attribute(slug, b.crew if b else None):
-            fast = fastpaths.match(slug, text, history, atts)  # known intents (Drive files, clear chat, usage, health) run deterministically: instant and model-independent
             if jasper_tools.has_tools(slug):  # bots with a tool allowlist (Jasper, Connector, ...) use the tool loop
                 events = fast() if fast else jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier, agent=slug)
                 async for ev in events:

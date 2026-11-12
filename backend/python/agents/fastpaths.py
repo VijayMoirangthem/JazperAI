@@ -257,15 +257,32 @@ async def _usage(_: str) -> AsyncIterator[Event]:
                      f"Serving order: {chain}.\nTop: {top}." + (f"\nCooling down: {down}" if down else ""))}
 
 
-async def _health(_: str) -> AsyncIterator[Event]:
+async def _health(text: str) -> AsyncIterator[Event]:
     from agents import jasper_tools
+    from core.language import detect
     yield _tool("system_status", "Checking the system", "running")
     raw = await jasper_tools.run_tool("system_status", {}, "jasper")
     d = json.loads(raw) if isinstance(raw, str) else raw
     yield _tool("system_status", "Checking the system", "ok")
     bad = [f"{k}: {v}" for k, v in d["checks"].items() if v.startswith("FAIL")]
-    conn = ", ".join(c["id"] for c in d["connectors"] if c["connected"]) or "none"
-    yield {"delta": ("All good. " if not bad else "Problems: " + "; ".join(bad) + ". ") + f"Connected: {conn}."}
+    names = [c["id"] for c in d["connectors"] if c["connected"]]
+    try:  # Google connects on demand, so judge it by the real saved login, not by whether a tool process happens to be running
+        if "google-workspace" not in names and await connector._google_accounts():
+            names.append("google-workspace")
+    except Exception:
+        pass
+    conn = ", ".join(names)
+    lang = detect(text)
+    if lang == "hindi":
+        head = "सब ठीक है। " if not bad else "समस्याएँ: " + "; ".join(bad) + "। "
+        tail = f"जुड़े हुए: {conn}।" if conn else "अभी कोई कनेक्टर जुड़ा नहीं है।"
+    elif lang == "hinglish":
+        head = "Sab theek hai. " if not bad else "Problems: " + "; ".join(bad) + ". "
+        tail = f"Connected: {conn}." if conn else "Abhi koi connector connected nahi hai."
+    else:
+        head = "All good. " if not bad else "Problems: " + "; ".join(bad) + ". "
+        tail = f"Connected: {conn}." if conn else "No connectors are connected right now."
+    yield {"delta": head + tail}
 
 
 async def _smarter(_: str) -> AsyncIterator[Event]:

@@ -248,6 +248,8 @@ async def lifespan(app: FastAPI):
         from datetime import datetime as _dt, timedelta as _td
         _sched.add_job(google_keepalive.run, IntervalTrigger(minutes=30), id="__google_keepalive__", name="Google login keep-alive", replace_existing=True,
                        misfire_grace_time=600, next_run_time=_dt.now().astimezone() + _td(seconds=45))
+        from core.services import warmup as _warmup
+        _sched.add_job(_warmup.warm_all, "date", run_date=_dt.now().astimezone() + _td(seconds=8), id="__warmup__", name="Start-up warm-up", replace_existing=True)
         from core.durable import get_checkpointer
         await get_checkpointer()
     except Exception as exc:

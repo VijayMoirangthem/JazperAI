@@ -152,8 +152,10 @@ async def recall_multi(query: str, spec: dict[str, int], min_sim: float = 0.5) -
     if vec is None:
         return out
     ids: list[str] = []
-    for n, k in spec.items():
-        hits = [h for h in await similar(vec, k, n) if h["sim"] >= min_sim]
+    names = list(spec)
+    found = await asyncio.gather(*(similar(vec, spec[n], n) for n in names))  # the layers are searched at the same time, not one by one
+    for n, rows in zip(names, found):
+        hits = [h for h in rows if h["sim"] >= min_sim]
         out[n] = [h["content"] for h in hits]
         ids += [h["id"] for h in hits]
     if ids:

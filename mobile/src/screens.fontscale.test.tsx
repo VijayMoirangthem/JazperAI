@@ -11,6 +11,10 @@ import { useThread } from '@/store/thread';
 import { useAuth } from '@/auth/useAuth';
 import { SLO, CommsThread, ApprovalRequest, StatusResponse } from '@/api/types';
 
+jest.mock('react-native-reanimated', () => require('./test-utils/reanimatedMock'));
+jest.mock('lucide-react-native', () => require('./test-utils/lucideMock'));
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useFocusEffect: (cb: () => void) => {},
@@ -146,7 +150,7 @@ describe('main screens render at 150% font scale', () => {
 
   it('renders SettingsScreen without crashing', async () => {
     const { getByText } = await act(async () => render(<SettingsScreen />));
-    expect(getByText('Paired Device')).toBeTruthy();
+    expect(getByText('Voice conversation')).toBeTruthy(); // a current Settings row (the old 'Paired Device' heading no longer exists)
   });
 
   it('renders ThreadScreen without crashing', async () => {
