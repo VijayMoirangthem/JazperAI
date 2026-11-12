@@ -44,3 +44,43 @@ async def speak(text: str, voice: str = DEFAULT_VOICE):
                 yield chunk["data"]
 
     return StreamingResponse(gen(), media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
+
+
+async def synth_complete(text: str, voice: str, attempts: int = 3, per_attempt_s: float = 6.0) -> bytes:
+    """The whole audio, or an error: retries when Microsoft's speech service drops the connection (it does, occasionally).
+    A streamed reply cannot be retried once the first byte is sent: the client would get a broken file with HTTP 200."""
+    import asyncio
+
+    import edge_tts
+    last: Exception | None = None
+    for i in range(attempts):
+        async def attempt() -> bytes:
+            buf = bytearray()
+            async for chunk in edge_tts.Communicate(text, voice).stream():
+                if chunk["type"] == "audio":
+                    buf += chunk["data"]
+            return bytes(buf)
+
+        try:
+            data = await asyncio.wait_for(attempt(), timeout=per_attempt_s)  # a stalled connection once held a reply for 66 s
+            if data:
+                return data
+            last = RuntimeError("no audio received")
+        except Exception as e:  # noqa: BLE001 - any failure or timeout of the remote service is retried
+            last = e
+        await asyncio.sleep(0.3 * (i + 1))
+    raise HTTPException(502, f"speech service unavailable: {str(last)[:100]}")
+
+
+@router.get("/speak-complete")
+async def speak_complete(text: str, voice: str = DEFAULT_VOICE):
+    """Same as /speak but returns the finished file (for the phone, which downloads it before playing) with retries."""
+    from fastapi.responses import Response
+    text = text.strip()
+    if not text:
+        raise HTTPException(400, "empty text")
+    if len(text) > MAX_CHARS:
+        raise HTTPException(413, f"text longer than {MAX_CHARS} characters; speak sentence by sentence")
+    if not VOICE_RX.match(voice):
+        raise HTTPException(422, "invalid voice name")
+    return Response(await synth_complete(text, voice), media_type="audio/mpeg", headers={"Cache-Control": "no-store"})

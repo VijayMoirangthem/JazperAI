@@ -300,22 +300,11 @@ export class JasperClient {
     const formData = new FormData();
     formData.append('audio', audio);
 
-    const headers: Record<string, string> = {
-      ...this.extraHeaders,
-    };
-    if (this.accessToken) {
-      headers['Authorization'] = `Bearer ${this.accessToken}`;
-    }
-
-    const response = await fetch(`${this.baseUrl}/remote/v1/voice/transcribe`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw await this.errorFromResponse(response);
-    }
+    const response = await this.fetchWithRenewal(
+      `${this.baseUrl}/remote/v1/voice/transcribe`,
+      () => ({ method: 'POST', body: formData }),
+      deviceCredentials
+    );
     return response.json() as Promise<VoiceTranscribeResponse>;
   }
 
@@ -342,6 +331,45 @@ export class JasperClient {
       throw await this.errorFromResponse(response);
     }
     return response.blob();
+  }
+
+  /**
+   * The audio for one piece of text as raw bytes. Uses `response.arrayBuffer()`: React Native's Blob has no `arrayBuffer()`
+   * (calling it threw, so no reply was ever played), while Response.arrayBuffer() is supported.
+   */
+  async speakVoiceBytes(
+    text: string,
+    voice: string,
+    deviceCredentials: { deviceId: string; deviceSecret: string }
+  ): Promise<Uint8Array> {
+    const url = `${this.baseUrl}/remote/v1/voice/speak?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}`;
+    const response = await this.fetchWithRenewal(url, () => ({}), deviceCredentials);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
+  /** A plain fetch that renews the 15-minute access token once on a 401 (calls that bypass `request()` did not, and failed after 15 minutes). */
+  private async fetchWithRenewal(
+    url: string,
+    init: () => RequestInit,
+    deviceCredentials: { deviceId: string; deviceSecret: string }
+  ): Promise<Response> {
+    const attempt = () => {
+      const base = init();
+      const headers: Record<string, string> = { ...this.extraHeaders, ...((base.headers as Record<string, string>) ?? {}) };
+      if (this.accessToken) headers['Authorization'] = `Bearer ${this.accessToken}`;
+      return fetch(url, { ...base, headers });
+    };
+    let response = await attempt();
+    if (response.status === 401) {
+      try {
+        await this.refreshToken(deviceCredentials.deviceId, deviceCredentials.deviceSecret);
+      } catch {
+        throw new AuthRevokedError();
+      }
+      response = await attempt();
+    }
+    if (!response.ok) throw await this.errorFromResponse(response);
+    return response;
   }
 
   async devSignin(body: { name: string; platform: string; push_token?: string }): Promise<PairResponse> {

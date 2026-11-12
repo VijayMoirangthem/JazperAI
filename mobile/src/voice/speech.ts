@@ -88,3 +88,22 @@ export function splitForSpeech(text: string, max = MAX_SPEAK_CHARS): string[] {
   push(current);
   return chunks;
 }
+
+/**
+ * Chunks for speaking with the lowest delay: a short FIRST chunk (one or two sentences) so sound starts as soon as that audio is
+ * ready, then the rest in larger chunks that are fetched while the first one plays.
+ */
+export function splitForSpeechPipelined(text: string, firstMin = 60, firstMax = 260, max = 700): string[] {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+  const sentences = normalized.match(/[^.!?।]+[.!?।]*/g) ?? [normalized];
+  let first = '';
+  let used = 0;
+  while (used < sentences.length && first.length < firstMin) {
+    first = `${first} ${sentences[used].trim()}`.trim();
+    used += 1;
+  }
+  if (first.length > firstMax) return splitForSpeech(normalized, firstMax);
+  const rest = sentences.slice(used).join(' ').trim();
+  return rest ? [first, ...splitForSpeech(rest, max)] : [first];
+}

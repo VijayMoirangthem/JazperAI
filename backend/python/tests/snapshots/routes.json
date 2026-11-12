@@ -2609,6 +2609,10 @@
  ],
  [
   "GET",
+  "/api/v1/voice2/speak-complete"
+ ],
+ [
+  "GET",
   "/api/v1/voice2/voices"
  ],
  [
@@ -2654,6 +2658,10 @@
  [
   "GET",
   "/api/voice2/speak"
+ ],
+ [
+  "GET",
+  "/api/voice2/speak-complete"
  ],
  [
   "GET",

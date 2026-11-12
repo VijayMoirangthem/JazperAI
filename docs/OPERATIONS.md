@@ -47,3 +47,13 @@ attachments, use the Gmail panel (compose/reply). Replying by chat works through
 
 If you also run `start.bat`, close its FastAPI window first (two backends cannot share port 8000). Low free memory (browser + editor) makes the
 backend slow, not broken: a request can take tens of seconds when the PC has under ~500 MB free.
+
+### Why spoken replies were silent, and what fixed it (2026-11-13)
+The PC delivered the audio fine; the phone threw an error right after downloading it: React Native's `Blob` has no `arrayBuffer()`
+(the code called it), so nothing was ever played. Fixed by reading `response.arrayBuffer()`. Also fixed in the same pass:
+* the phone's speech and voice-note calls did not renew the 15-minute access token (they failed after 15 minutes);
+* speech is now sent as a finished file with retries and a 6-second limit per attempt (Microsoft's speech service sometimes drops
+  a stream or stalls; a stream cannot be retried after its first byte, which gave the phone a broken file with HTTP 200);
+* the first sentence is fetched and played on its own, and the next chunk downloads while it plays.
+Verified on the phone: Android reports an active media player for the app and the PC saw the chunked requests (first sentence, then the rest).
+I cannot hear audio from here, so how it sounds is for you to judge.

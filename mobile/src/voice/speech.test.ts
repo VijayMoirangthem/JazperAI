@@ -1,4 +1,4 @@
-import { detectSpokenLanguage, voiceForText, HINDI_VOICE_MALE, HINGLISH_VOICE_MALE, HINGLISH_VOICE_FEMALE, DEFAULT_VOICE, JASPER_VOICE, MAX_SPEAK_CHARS, splitForSpeech, voiceForBot } from './speech';
+import { splitForSpeechPipelined, detectSpokenLanguage, voiceForText, HINDI_VOICE_MALE, HINGLISH_VOICE_MALE, HINGLISH_VOICE_FEMALE, DEFAULT_VOICE, JASPER_VOICE, MAX_SPEAK_CHARS, splitForSpeech, voiceForBot } from './speech';
 
 describe('speech helpers', () => {
   it('uses the Jasper voice by default and Aria for other bots', () => {
@@ -54,5 +54,32 @@ describe('spoken language voices', () => {
 
   it('splits Hindi sentences on the danda', () => {
     expect(splitForSpeech('पहला वाक्य। दूसरा वाक्य।', 12).length).toBe(2);
+  });
+});
+
+describe('pipelined chunking (lowest delay to first sound)', () => {
+  it('makes a short first chunk and larger later ones', () => {
+    const text = 'Sure. Here is the first thing you asked for, in a full sentence. Then a second sentence follows it. And a third one after that.';
+    const chunks = splitForSpeechPipelined(text);
+    expect(chunks[0].length).toBeLessThan(120);
+    expect(chunks[0].startsWith('Sure.')).toBe(true);
+    expect(chunks.join(' ')).toBe(text);   // nothing is lost or reordered
+  });
+
+  it('speaks a one-sentence reply as a single chunk', () => {
+    expect(splitForSpeechPipelined('Doing great, ready to help.')).toEqual(['Doing great, ready to help.']);
+    expect(splitForSpeechPipelined('   ')).toEqual([]);
+  });
+
+  it('splits an extremely long first sentence by size so the first sound is not delayed', () => {
+    const chunks = splitForSpeechPipelined('word '.repeat(200).trim());
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((c) => c.length <= 260)).toBe(true);
+  });
+
+  it('handles Hindi sentence endings', () => {
+    const chunks = splitForSpeechPipelined('आज का दिन बहुत अच्छा चल रहा है। सब कुछ ठीक से मैनेज हो रहा है। कोई समस्या नहीं है।', 20);
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+    expect(chunks.join(' ')).toContain('कोई समस्या नहीं है।');
   });
 });

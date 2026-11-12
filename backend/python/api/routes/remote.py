@@ -306,8 +306,8 @@ async def voice_transcribe(request: Request, d: dict = Depends(device)):
 
 @router.get("/voice/speak")
 async def voice_speak(text: str, voice: str = "en-US-AriaNeural", d: dict = Depends(device)):
-    from api.routes.voice2 import speak
-    return await speak(text, voice)
+    from api.routes.voice2 import speak_complete
+    return await speak_complete(text, voice)  # whole file with retries: the phone downloads it before playing
 
 
 class PushIn(BaseModel):
