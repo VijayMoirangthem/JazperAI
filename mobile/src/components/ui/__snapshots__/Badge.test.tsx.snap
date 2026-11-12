@@ -3,11 +3,11 @@
 exports[`Badge applies amber for score >= 60 1`] = `
 <View
   accessibilityLabel="Score: 70"
-  accessibilityRole="status"
+  role="status"
   style={
     {
       "alignItems": "center",
-      "backgroundColor": "#f59e0b",
+      "backgroundColor": "#d97706",
       "borderRadius": 999,
       "minWidth": 36,
       "paddingHorizontal": 8,
@@ -35,11 +35,11 @@ exports[`Badge applies amber for score >= 60 1`] = `
 exports[`Badge applies green for score >= 80 1`] = `
 <View
   accessibilityLabel="Score: 90"
-  accessibilityRole="status"
+  role="status"
   style={
     {
       "alignItems": "center",
-      "backgroundColor": "#22c55e",
+      "backgroundColor": "#1f9d55",
       "borderRadius": 999,
       "minWidth": 36,
       "paddingHorizontal": 8,
@@ -67,11 +67,11 @@ exports[`Badge applies green for score >= 80 1`] = `
 exports[`Badge applies grey for null score 1`] = `
 <View
   accessibilityLabel="Score: new"
-  accessibilityRole="status"
+  role="status"
   style={
     {
       "alignItems": "center",
-      "backgroundColor": "rgba(255,255,255,0.10)",
+      "backgroundColor": "rgba(0,0,0,0.09)",
       "borderRadius": 999,
       "minWidth": 36,
       "paddingHorizontal": 8,
@@ -83,7 +83,7 @@ exports[`Badge applies grey for null score 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "rgba(255,255,255,0.55)",
+        "color": "rgba(0,0,0,0.52)",
         "fontSize": 11,
         "fontWeight": "600",
         "letterSpacing": 0.5,
@@ -99,11 +99,11 @@ exports[`Badge applies grey for null score 1`] = `
 exports[`Badge applies red for score < 60 1`] = `
 <View
   accessibilityLabel="Score: 50"
-  accessibilityRole="status"
+  role="status"
   style={
     {
       "alignItems": "center",
-      "backgroundColor": "#ef4444",
+      "backgroundColor": "#e5484d",
       "borderRadius": 999,
       "minWidth": 36,
       "paddingHorizontal": 8,
@@ -131,11 +131,11 @@ exports[`Badge applies red for score < 60 1`] = `
 exports[`Badge renders "new" for null score 1`] = `
 <View
   accessibilityLabel="Score: new"
-  accessibilityRole="status"
+  role="status"
   style={
     {
       "alignItems": "center",
-      "backgroundColor": "rgba(255,255,255,0.10)",
+      "backgroundColor": "rgba(0,0,0,0.09)",
       "borderRadius": 999,
       "minWidth": 36,
       "paddingHorizontal": 8,
@@ -147,7 +147,7 @@ exports[`Badge renders "new" for null score 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "rgba(255,255,255,0.55)",
+        "color": "rgba(0,0,0,0.52)",
         "fontSize": 11,
         "fontWeight": "600",
         "letterSpacing": 0.5,
@@ -163,11 +163,11 @@ exports[`Badge renders "new" for null score 1`] = `
 exports[`Badge renders score number 1`] = `
 <View
   accessibilityLabel="Score: 85"
-  accessibilityRole="status"
+  role="status"
   style={
     {
       "alignItems": "center",
-      "backgroundColor": "#22c55e",
+      "backgroundColor": "#1f9d55",
       "borderRadius": 999,
       "minWidth": 36,
       "paddingHorizontal": 8,

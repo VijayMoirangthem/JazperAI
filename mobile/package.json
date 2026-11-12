@@ -1,5 +1,11 @@
 {
-  "expo": { "autolinking": { "exclude": ["expo-av"] } },
+  "expo": {
+    "autolinking": {
+      "exclude": [
+        "expo-av"
+      ]
+    }
+  },
   "name": "mobile",
   "version": "1.0.0",
   "main": "index.ts",
@@ -30,6 +36,7 @@
     "lucide-react-native": "^1.60.0",
     "react": "19.3.0",
     "react-native": "0.88.0",
+    "react-native-background-actions": "^4.1.0",
     "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.0",

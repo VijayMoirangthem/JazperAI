@@ -137,6 +137,7 @@ export default function SettingsScreen() {
         </Group>
 
         <Group title="Chat">
+          <ToggleRow label="Voice conversation" description="Talk to Jasper and hear the answer, in English, Hindi or Hinglish" value={s.readAloud && s.voiceAutoSend} onChange={(on: boolean) => { s.setReadAloud(on); s.setVoiceAutoSend(on); }} />
           <ToggleRow label="Read replies aloud" description="Speak each new reply in the bot's voice" value={s.readAloud} onChange={s.setReadAloud} />
           <ToggleRow label="Send voice notes as text" description="Send the transcript right away" value={s.voiceAutoSend} onChange={s.setVoiceAutoSend} />
           <ToggleRow label="Show tool details" description="Keep the list of steps open" value={s.showToolDetails} onChange={s.setShowToolDetails} />

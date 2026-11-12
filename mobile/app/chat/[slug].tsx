@@ -556,7 +556,7 @@ export default function ChatScreen() {
         recordingSeconds={recorder.seconds}
         recordingLevel={recorder.level}
         transcribing={recorder.transcribing}
-        onStartRecording={() => void recorder.start()}
+        onStartRecording={() => { void stopSpeaking(); void recorder.start(); }}
         onStopRecording={() => void recorder.stop()}
         onCancelRecording={() => void recorder.cancel()}
         voiceError={recorder.error}
@@ -598,6 +598,7 @@ export default function ChatScreen() {
           <View style={[styles.menuCard, theme.shadows.composer, { minWidth: 230, marginRight: 14 }]}>
             <SheetRow label="Search in chat" icon={<Search size={19} color={theme.colors.text} />} onPress={() => { setChatMenu(false); setSearchOpen(true); }} />
             <SheetRow label={muted ? 'Unmute' : 'Mute'} onPress={() => { setChatMenu(false); useHome.getState().toggleMute(botSlug); }} />
+            <SheetRow label={readAloud && voiceAutoSend ? 'Stop voice conversation' : 'Start voice conversation'} onPress={() => { setChatMenu(false); const on = !(readAloud && voiceAutoSend); useSettings.getState().setReadAloud(on); useSettings.getState().setVoiceAutoSend(on); if (!on) void stopSpeaking(); }} />
             <SheetRow label={readAloud ? 'Stop reading replies aloud' : 'Read replies aloud'} onPress={() => { setChatMenu(false); useSettings.getState().setReadAloud(!readAloud); }} />
             <SheetRow label="View profile" onPress={() => { setChatMenu(false); router.push(`/bot/${botSlug}` as Href); }} />
             <SheetRow label="Clear chat" danger onPress={() => { setChatMenu(false); clearMessages(botSlug); loadMessages(botSlug, 80); useHome.getState().refresh(); }} />

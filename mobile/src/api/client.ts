@@ -15,6 +15,7 @@ import {
   CommsThreadsResponse,
   CommsThreadMessagesResponse,
   NotificationsResponse,
+  EventsResponse,
   ChatStreamRequest,
   VoiceTranscribeResponse,
   PushRegisterRequest,
@@ -258,6 +259,17 @@ export class JasperClient {
 
   async getNotifications(deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<NotificationsResponse> {
     return this.request<NotificationsResponse>('/remote/v1/notifications', {}, true, deviceCredentials);
+  }
+
+  /** Long-poll: resolves as soon as the PC has something new, or after `wait` seconds with no events. Omit `since` for a first cursor. */
+  async getEvents(
+    since: string | null,
+    deviceCredentials: { deviceId: string; deviceSecret: string },
+    wait = 25,
+    signal?: AbortSignal
+  ): Promise<EventsResponse> {
+    const q = since ? `?since=${encodeURIComponent(since)}&wait=${wait}` : '';
+    return this.request<EventsResponse>(`/remote/v1/events${q}`, { signal }, true, deviceCredentials);
   }
 
   async streamChat(

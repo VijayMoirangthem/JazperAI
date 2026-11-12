@@ -2,10 +2,10 @@
 
 exports[`Screen applies custom style 1`] = `
 <SafeAreaView
-  accessibilityRole="region"
+  role="region"
   style={
     {
-      "backgroundColor": "#0b0b0b",
+      "backgroundColor": "#ffffff",
       "flex": 1,
       "padding": 20,
     }
@@ -15,7 +15,7 @@ exports[`Screen applies custom style 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 15,
       }
     }
@@ -27,10 +27,10 @@ exports[`Screen applies custom style 1`] = `
 
 exports[`Screen renders children 1`] = `
 <SafeAreaView
-  accessibilityRole="region"
+  role="region"
   style={
     {
-      "backgroundColor": "#0b0b0b",
+      "backgroundColor": "#ffffff",
       "flex": 1,
     }
   }
@@ -39,7 +39,7 @@ exports[`Screen renders children 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 15,
       }
     }

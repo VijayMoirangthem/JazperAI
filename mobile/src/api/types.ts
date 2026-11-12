@@ -146,6 +146,20 @@ export interface NotificationsResponse {
   unread: number | null;
 }
 
+export interface JasperEvent {
+  id: string;
+  kind: 'notification' | 'approval';
+  type: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
+export interface EventsResponse {
+  events: JasperEvent[];
+  cursor: string;
+}
+
 export interface ChatStreamRequest {
   text: string;
   slug: string;

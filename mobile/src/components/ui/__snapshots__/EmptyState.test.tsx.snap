@@ -2,7 +2,7 @@
 
 exports[`EmptyState applies custom styles 1`] = `
 <View
-  accessibilityRole="region"
+  role="region"
   style={
     {
       "alignItems": "center",
@@ -31,7 +31,7 @@ exports[`EmptyState applies custom styles 1`] = `
 
 exports[`EmptyState renders action button 1`] = `
 <View
-  accessibilityRole="region"
+  role="region"
   style={
     {
       "alignItems": "center",
@@ -45,7 +45,7 @@ exports[`EmptyState renders action button 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 24,
         "fontWeight": "600",
         "marginBottom": 8,
@@ -88,9 +88,9 @@ exports[`EmptyState renders action button 1`] = `
     style={
       {
         "alignItems": "center",
-        "backgroundColor": "#2563eb",
+        "backgroundColor": "#111111",
         "borderColor": undefined,
-        "borderRadius": 12,
+        "borderRadius": 999,
         "borderWidth": 1,
         "justifyContent": "center",
         "marginTop": 12,
@@ -119,7 +119,7 @@ exports[`EmptyState renders action button 1`] = `
 
 exports[`EmptyState renders subtitle 1`] = `
 <View
-  accessibilityRole="region"
+  role="region"
   style={
     {
       "alignItems": "center",
@@ -133,7 +133,7 @@ exports[`EmptyState renders subtitle 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 24,
         "fontWeight": "600",
         "marginBottom": 8,
@@ -147,7 +147,7 @@ exports[`EmptyState renders subtitle 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "rgba(255,255,255,0.55)",
+        "color": "rgba(0,0,0,0.52)",
         "fontSize": 15,
         "lineHeight": 22,
         "marginBottom": 24,
@@ -162,7 +162,7 @@ exports[`EmptyState renders subtitle 1`] = `
 
 exports[`EmptyState renders title 1`] = `
 <View
-  accessibilityRole="region"
+  role="region"
   style={
     {
       "alignItems": "center",
@@ -176,7 +176,7 @@ exports[`EmptyState renders title 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 24,
         "fontWeight": "600",
         "marginBottom": 8,

@@ -13,14 +13,14 @@ exports[`Switch applies custom thumb color 1`] = `
   onChange={[Function]}
   onResponderTerminationRequest={[Function]}
   onStartShouldSetResponder={[Function]}
-  onTintColor="#2563eb"
+  onTintColor="#1a82ff"
   style={
     {
       "alignSelf": "flex-start",
     }
   }
   thumbTintColor="blue"
-  tintColor="rgba(255,255,255,0.10)"
+  tintColor="rgba(0,0,0,0.09)"
   value={true}
 />
 `;
@@ -44,7 +44,7 @@ exports[`Switch applies custom track colors 1`] = `
       "alignSelf": "flex-start",
     }
   }
-  thumbTintColor="#f2f2f2"
+  thumbTintColor="#111111"
   tintColor="red"
   value={true}
 />
@@ -63,14 +63,14 @@ exports[`Switch renders with correct initial value 1`] = `
   onChange={[Function]}
   onResponderTerminationRequest={[Function]}
   onStartShouldSetResponder={[Function]}
-  onTintColor="#2563eb"
+  onTintColor="#1a82ff"
   style={
     {
       "alignSelf": "flex-start",
     }
   }
-  thumbTintColor="rgba(255,255,255,0.10)"
-  tintColor="rgba(255,255,255,0.10)"
+  thumbTintColor="rgba(0,0,0,0.09)"
+  tintColor="rgba(0,0,0,0.09)"
   value={false}
 />
 `;
@@ -88,14 +88,14 @@ exports[`Switch respects disabled prop 1`] = `
   onChange={[Function]}
   onResponderTerminationRequest={[Function]}
   onStartShouldSetResponder={[Function]}
-  onTintColor="#2563eb"
+  onTintColor="#1a82ff"
   style={
     {
       "alignSelf": "flex-start",
     }
   }
-  thumbTintColor="rgba(255,255,255,0.10)"
-  tintColor="rgba(255,255,255,0.10)"
+  thumbTintColor="rgba(0,0,0,0.09)"
+  tintColor="rgba(0,0,0,0.09)"
   value={false}
 />
 `;

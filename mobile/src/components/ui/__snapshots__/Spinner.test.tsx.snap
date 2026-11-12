@@ -23,7 +23,7 @@ exports[`Spinner applies size prop 1`] = `
       "busy": true,
     }
   }
-  color="#2563eb"
+  color="#1a82ff"
   size="small"
 />
 `;
@@ -37,7 +37,7 @@ exports[`Spinner renders without crashing 1`] = `
       "busy": true,
     }
   }
-  color="#2563eb"
+  color="#1a82ff"
   size="large"
 />
 `;

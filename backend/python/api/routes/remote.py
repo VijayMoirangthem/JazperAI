@@ -220,6 +220,49 @@ async def notifications(d: dict = Depends(device)):
     return {"unread": res.get("count", 0) if isinstance(res, dict) else res}
 
 
+async def _events_since(ts) -> list[dict]:
+    """New notifications and new pending approvals created after `ts`, oldest first."""
+    out: list[dict] = []
+    try:
+        for r in await aio.fetch("SELECT id::text AS id, type, title, body, created_at FROM notifications WHERE created_at > $1 ORDER BY created_at LIMIT 20", ts):
+            out.append({"id": r["id"], "kind": "notification", "type": r["type"] or "info", "title": r["title"], "body": r["body"] or "", "created_at": r["created_at"]})
+    except Exception:
+        pass  # the notifications table is optional
+    for r in await aio.fetch("SELECT request_id::text AS id, tier, action, summary, created_at FROM shared.hitl_requests WHERE status='pending' AND created_at > $1 ORDER BY created_at LIMIT 20", ts):
+        out.append({"id": r["id"], "kind": "approval", "type": "approval", "title": f"Approval needed (Tier {r['tier']})", "body": r["summary"] or r["action"] or "", "created_at": r["created_at"]})
+    out.sort(key=lambda e: e["created_at"])
+    return out
+
+
+@router.get("/events")
+async def events(since: str | None = None, wait: int = 25, d: dict = Depends(device)):
+    """Own-ecosystem push: the phone keeps one request open here (long-poll, no third-party service).
+
+    First call (no `since`) just returns a cursor. Later calls pass the last cursor and get back as soon as something new is
+    created (a notification or a pending approval), or after `wait` seconds with an empty list. The cursor is the newest event time.
+    """
+    import asyncio
+    from datetime import datetime, timezone
+    if since is None:
+        return {"events": [], "cursor": datetime.now(timezone.utc).isoformat()}
+    try:
+        ts = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise HTTPException(400, "bad cursor")
+    deadline = time.monotonic() + max(0, min(wait, 30))
+    while True:
+        found = await _events_since(ts)
+        if found or time.monotonic() >= deadline:
+            break
+        await asyncio.sleep(2)
+    cursor = found[-1]["created_at"].isoformat() if found else ts.isoformat()
+    for e in found:
+        e["created_at"] = e["created_at"].isoformat()
+    return {"events": found, "cursor": cursor}
+
+
 @router.get("/status")
 async def status(d: dict = Depends(device)):
     from core import metrics

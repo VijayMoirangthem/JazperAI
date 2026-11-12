@@ -2,10 +2,10 @@
 
 exports[`Divider applies custom style 1`] = `
 <View
-  accessibilityRole="separator"
+  importantForAccessibility="no-hide-descendants"
   style={
     {
-      "backgroundColor": "rgba(255,255,255,0.10)",
+      "backgroundColor": "rgba(0,0,0,0.09)",
       "height": 1,
       "marginVertical": 20,
     }
@@ -15,10 +15,10 @@ exports[`Divider applies custom style 1`] = `
 
 exports[`Divider renders without crashing 1`] = `
 <View
-  accessibilityRole="separator"
+  importantForAccessibility="no-hide-descendants"
   style={
     {
-      "backgroundColor": "rgba(255,255,255,0.10)",
+      "backgroundColor": "rgba(0,0,0,0.09)",
       "height": 1,
       "marginVertical": 12,
     }

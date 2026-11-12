@@ -2733,6 +2733,10 @@
  ],
  [
   "GET",
+  "/remote/v1/events"
+ ],
+ [
+  "GET",
   "/remote/v1/me"
  ],
  [

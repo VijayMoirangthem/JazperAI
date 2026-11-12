@@ -50,8 +50,8 @@ App, phone and Telegram all go through `chat2` -> Jasper's tool loop. Email ques
 * Install: `adb install -r mobile\android\app\build\outputs\apk\release\app-release.apk`, then `adb reverse tcp:8000 tcp:8000` so the
   phone's `localhost:8000` is your PC while it is on USB. Away from the PC, pair through the tunnel QR instead.
 
-## Known gaps
+## Known gaps (updated 2026-11-13)
 
-* Mobile unit tests: 209 pass, 40 fail (35 stale snapshots from the theme/React Native rename, 5 React-in-test-environment errors). Not caused by recent changes; not fixed.
+* Mobile unit tests: 257 pass; one suite (`screens.fontscale.test.tsx`) cannot load because react-native-reanimated 4 has no working jest mock here. The 39 stale snapshots were refreshed on 2026-11-13 (they predated the light-theme redesign).
 * Telegram voice notes and photos are not transcribed/understood yet. Tier-3 approvals cannot be answered from Telegram yet.
 * WhatsApp is not built (needs a Meta Business account + public webhook; see `docs/ROADMAP_NEXT_LEVEL.md`).

@@ -34,13 +34,13 @@ exports[`SheetModal renders children when visible 1`] = `
       }
     >
       <View
-        accessibilityRole="dialog"
         collapsable={false}
+        role="dialog"
         style={
           {
-            "backgroundColor": "#161616",
-            "borderTopLeftRadius": 16,
-            "borderTopRightRadius": 16,
+            "backgroundColor": "#ffffff",
+            "borderTopLeftRadius": 28,
+            "borderTopRightRadius": 28,
             "maxHeight": "85%",
             "overflow": "hidden",
             "transform": [
@@ -63,7 +63,7 @@ exports[`SheetModal renders children when visible 1`] = `
             maxFontSizeMultiplier={1.5}
             style={
               {
-                "color": "#f2f2f2",
+                "color": "#111111",
                 "fontSize": 15,
               }
             }
@@ -111,13 +111,13 @@ exports[`SheetModal renders title 1`] = `
       }
     >
       <View
-        accessibilityRole="dialog"
         collapsable={false}
+        role="dialog"
         style={
           {
-            "backgroundColor": "#161616",
-            "borderTopLeftRadius": 16,
-            "borderTopRightRadius": 16,
+            "backgroundColor": "#ffffff",
+            "borderTopLeftRadius": 28,
+            "borderTopRightRadius": 28,
             "maxHeight": "85%",
             "overflow": "hidden",
             "transform": [
@@ -131,7 +131,7 @@ exports[`SheetModal renders title 1`] = `
         <View
           style={
             {
-              "borderBottomColor": "rgba(255,255,255,0.10)",
+              "borderBottomColor": "rgba(0,0,0,0.09)",
               "borderBottomWidth": 1,
               "paddingHorizontal": 16,
               "paddingVertical": 12,
@@ -142,7 +142,7 @@ exports[`SheetModal renders title 1`] = `
             maxFontSizeMultiplier={1.5}
             style={
               {
-                "color": "#f2f2f2",
+                "color": "#111111",
                 "fontSize": 24,
                 "fontWeight": "600",
               }
@@ -163,7 +163,7 @@ exports[`SheetModal renders title 1`] = `
             maxFontSizeMultiplier={1.5}
             style={
               {
-                "color": "#f2f2f2",
+                "color": "#111111",
                 "fontSize": 15,
               }
             }

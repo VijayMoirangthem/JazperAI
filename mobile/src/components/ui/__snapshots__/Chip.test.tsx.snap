@@ -10,8 +10,8 @@ exports[`Chip applies selected styles 1`] = `
   }
   style={
     {
-      "backgroundColor": "#2563eb",
-      "borderColor": "#2563eb",
+      "backgroundColor": "#1a82ff",
+      "borderColor": "#1a82ff",
       "borderRadius": 999,
       "borderWidth": 1,
       "paddingHorizontal": 12,
@@ -45,8 +45,8 @@ exports[`Chip renders children 1`] = `
   }
   style={
     {
-      "backgroundColor": "#1f1f1f",
-      "borderColor": "rgba(255,255,255,0.10)",
+      "backgroundColor": "#f0f0f1",
+      "borderColor": "rgba(0,0,0,0.09)",
       "borderRadius": 999,
       "borderWidth": 1,
       "paddingHorizontal": 12,
@@ -58,7 +58,7 @@ exports[`Chip renders children 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 11,
         "letterSpacing": 0.5,
         "textTransform": "uppercase",

@@ -22,16 +22,41 @@ _whisper_model = None
 _whisper_lock  = asyncio.Lock()  # prevent concurrent model downloads
 
 
-async def _transcribe_groq(audio_bytes: bytes, filename: str, mime: str) -> str | None:
+# Whisper auto-detects the language (English, Hindi, Hinglish). The prompt is only the product name: longer example sentences made Whisper
+# echo them back and drop words (measured). Pass language="en"/"hi" only to force one.
+_STT_PROMPT = "Jasper"
+
+
+def sniff_audio(data: bytes, content_type: str = "") -> tuple[str, str]:
+    """(file extension, mime) from the audio bytes themselves: the phone uploads m4a/mp4 with no file name, the browser sends webm."""
+    head = data[:12]
+    if head[4:8] == b"ftyp":
+        return ".m4a", "audio/mp4"
+    if head[:4] == b"RIFF":
+        return ".wav", "audio/wav"
+    if head[:4] == b"OggS":
+        return ".ogg", "audio/ogg"
+    if head[:4] == bytes.fromhex("1a45dfa3"):
+        return ".webm", "audio/webm"
+    if head[:3] == b"ID3" or head[:2] in (bytes.fromhex("fffb"), bytes.fromhex("fff3"), bytes.fromhex("fff2")):
+        return ".mp3", "audio/mpeg"
+    if head[:4] == b"fLaC":
+        return ".flac", "audio/flac"
+    return (".wav", "audio/wav") if (content_type or "").endswith("wav") else (".webm", "audio/webm")
+
+
+async def _transcribe_groq(audio_bytes: bytes, filename: str, mime: str, language: str | None = None) -> str | None:
     """Call Groq's Whisper API. Returns text or None on failure."""
     try:
         from core.providers.ai_provider import get_ai_provider
         provider = get_ai_provider()
+        kw = {"language": language} if language else {}
         result = await provider.client.audio.transcriptions.create(
             model="whisper-large-v3-turbo",
             file=(filename, audio_bytes, mime),
             response_format="json",
-            language="en",
+            prompt=_STT_PROMPT,
+            **kw,
         )
         return (result.text or "").strip()
     except Exception as exc:
@@ -39,14 +64,14 @@ async def _transcribe_groq(audio_bytes: bytes, filename: str, mime: str) -> str 
         return None
 
 
-async def _transcribe_local(audio_bytes: bytes, suffix: str) -> str:
-    """Fallback: faster-whisper tiny.en on CPU."""
+async def _transcribe_local(audio_bytes: bytes, suffix: str, language: str | None = None) -> str:
+    """Fallback: faster-whisper (multilingual "base") on CPU, so Hindi still works when Groq is unreachable."""
     global _whisper_model
     async with _whisper_lock:
         if _whisper_model is None:
             from faster_whisper import WhisperModel
-            log.info("Loading Whisper tiny.en model (fallback)...")
-            _whisper_model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+            log.info("Loading Whisper base model (fallback)...")
+            _whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
             log.info("Whisper ready")
 
     loop = asyncio.get_event_loop()
@@ -57,7 +82,7 @@ async def _transcribe_local(audio_bytes: bytes, suffix: str) -> str:
             tmp = f.name
         try:
             segs, _ = _whisper_model.transcribe(
-                tmp, language="en", beam_size=1,
+                tmp, language=language, initial_prompt=_STT_PROMPT, beam_size=1,
                 vad_filter=True,
                 vad_parameters={"min_silence_duration_ms": 300},
             )
@@ -74,7 +99,7 @@ class SpeakRequest(BaseModel):
 
 
 @router.post("/transcribe")
-async def transcribe(audio: UploadFile = File(...)):
+async def transcribe(audio: UploadFile = File(...), language: str | None = None):
     """
     Transcribe audio using Groq whisper-large-v3-turbo (~150 ms).
     Falls back to local faster-whisper tiny.en if Groq is unavailable.
@@ -84,15 +109,14 @@ async def transcribe(audio: UploadFile = File(...)):
         if not audio_bytes:
             raise HTTPException(status_code=400, detail="Empty audio")
 
-        is_wav   = (audio.content_type or "").endswith("wav")
-        filename = "audio.wav" if is_wav else "audio.webm"
-        mime     = "audio/wav"  if is_wav else "audio/webm"
-        suffix   = ".wav"       if is_wav else ".webm"
+        suffix, mime = sniff_audio(audio_bytes, audio.content_type or "")
+        filename = "audio" + suffix
+        language = language if language in ("en", "hi") else None
 
         # Try Groq first (fast), then local fallback
-        text = await _transcribe_groq(audio_bytes, filename, mime)
+        text = await _transcribe_groq(audio_bytes, filename, mime, language)
         if text is None:
-            text = await _transcribe_local(audio_bytes, suffix)
+            text = await _transcribe_local(audio_bytes, suffix, language)
 
         log.info("Transcribed", text=text[:60])
 

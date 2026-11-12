@@ -15,6 +15,7 @@ import { useSettings } from '@/store/settings';
 import { useChat } from '@/store/chat';
 import { useSystem } from '@/store/system';
 import { configureNotifications, registerForPushNotifications } from '@/notifications/setup';
+import { startListener, stopListener } from '@/notifications/listener';
 import {
   isNotificationEnabled,
   notificationType,
@@ -69,6 +70,7 @@ export default function RootLayout() {
     if (!credentials) return;
 
     void registerForPushNotifications();
+    void startListener(); // Jasper's own push: the PC tells the phone directly, no third-party service
 
     const received = Notifications.addNotificationReceivedListener((notification) => {
       if (notificationType(notification.request.content.data) === 'approval') {
@@ -83,6 +85,10 @@ export default function RootLayout() {
       received.remove();
       tokenChanged.remove();
     };
+  }, [credentials]);
+
+  useEffect(() => {
+    if (!credentials) void stopListener();
   }, [credentials]);
 
   useEffect(() => {

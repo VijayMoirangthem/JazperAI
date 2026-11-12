@@ -2,11 +2,11 @@
 
 exports[`Card applies custom padding 1`] = `
 <View
-  accessibilityRole="group"
+  role="group"
   style={
     {
-      "backgroundColor": "#161616",
-      "borderColor": "rgba(255,255,255,0.10)",
+      "backgroundColor": "#f7f7f8",
+      "borderColor": "rgba(0,0,0,0.09)",
       "borderRadius": 16,
       "borderWidth": 1,
       "padding": 8,
@@ -17,7 +17,7 @@ exports[`Card applies custom padding 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 15,
       }
     }
@@ -29,11 +29,11 @@ exports[`Card applies custom padding 1`] = `
 
 exports[`Card applies custom style 1`] = `
 <View
-  accessibilityRole="group"
+  role="group"
   style={
     {
-      "backgroundColor": "#161616",
-      "borderColor": "rgba(255,255,255,0.10)",
+      "backgroundColor": "#f7f7f8",
+      "borderColor": "rgba(0,0,0,0.09)",
       "borderRadius": 16,
       "borderWidth": 1,
       "marginTop": 10,
@@ -45,7 +45,7 @@ exports[`Card applies custom style 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 15,
       }
     }
@@ -57,11 +57,11 @@ exports[`Card applies custom style 1`] = `
 
 exports[`Card renders children 1`] = `
 <View
-  accessibilityRole="group"
+  role="group"
   style={
     {
-      "backgroundColor": "#161616",
-      "borderColor": "rgba(255,255,255,0.10)",
+      "backgroundColor": "#f7f7f8",
+      "borderColor": "rgba(0,0,0,0.09)",
       "borderRadius": 16,
       "borderWidth": 1,
       "padding": 16,
@@ -72,7 +72,7 @@ exports[`Card renders children 1`] = `
     maxFontSizeMultiplier={1.5}
     style={
       {
-        "color": "#f2f2f2",
+        "color": "#111111",
         "fontSize": 15,
       }
     }
