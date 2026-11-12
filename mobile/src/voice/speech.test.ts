@@ -1,4 +1,4 @@
-import { DEFAULT_VOICE, JASPER_VOICE, MAX_SPEAK_CHARS, splitForSpeech, voiceForBot } from './speech';
+import { detectSpokenLanguage, voiceForText, HINDI_VOICE_MALE, HINGLISH_VOICE_MALE, HINGLISH_VOICE_FEMALE, DEFAULT_VOICE, JASPER_VOICE, MAX_SPEAK_CHARS, splitForSpeech, voiceForBot } from './speech';
 
 describe('speech helpers', () => {
   it('uses the Jasper voice by default and Aria for other bots', () => {
@@ -34,5 +34,25 @@ describe('speech helpers', () => {
     const chunks = splitForSpeech(`${'x'.repeat(4000)} tail`, MAX_SPEAK_CHARS);
     expect(chunks.every((chunk) => chunk.length <= MAX_SPEAK_CHARS)).toBe(true);
     expect(chunks.join(' ').includes('tail')).toBe(true);
+  });
+});
+
+describe('spoken language voices', () => {
+  it('detects English, Hindi and Hinglish', () => {
+    expect(detectSpokenLanguage('All good. Connected: google-workspace.')).toBe('english');
+    expect(detectSpokenLanguage('आज का दिन अच्छा चल रहा है।')).toBe('hindi');
+    expect(detectSpokenLanguage('Aaj ka din smooth chal raha hai, sab theek se manage ho raha hai.')).toBe('hinglish');
+    expect(detectSpokenLanguage('12:30 ???')).toBe('english');
+  });
+
+  it('picks a matching voice per language and bot', () => {
+    expect(voiceForText('jasper', 'आज का दिन अच्छा है')).toBe(HINDI_VOICE_MALE);
+    expect(voiceForText('jasper', 'Aaj ka din bahut accha hai')).toBe(HINGLISH_VOICE_MALE);
+    expect(voiceForText('nova', 'Aaj ka din bahut accha hai')).toBe(HINGLISH_VOICE_FEMALE);
+    expect(voiceForText('nova', 'Everything is fine')).toBe(DEFAULT_VOICE);
+  });
+
+  it('splits Hindi sentences on the danda', () => {
+    expect(splitForSpeech('पहला वाक्य। दूसरा वाक्य।', 12).length).toBe(2);
   });
 });

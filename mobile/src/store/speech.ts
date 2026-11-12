@@ -4,7 +4,7 @@ import { File, Paths } from 'expo-file-system';
 import { JasperClient } from '@/api/client';
 import { useAuth } from '@/auth/useAuth';
 import { Message } from '@/db/chat';
-import { splitForSpeech, voiceForBot } from '@/voice/speech';
+import { splitForSpeech, voiceForText } from '@/voice/speech';
 
 let runId = 0;
 let currentSound: AudioPlayer | null = null;
@@ -102,7 +102,7 @@ export const useSpeech = create<SpeechState>()((set, get) => ({
       extraHeaders['CF-Access-Client-Secret'] = credentials.cfAccessClientSecret;
     }
     const client = new JasperClient(credentials.baseUrl, accessToken ?? undefined, extraHeaders);
-    const voice = voiceForBot(message.from_slug || message.bot_slug);
+    const voice = voiceForText(message.from_slug || message.bot_slug, message.text);
 
     set({ messageId: message.id, loading: true, error: null });
     try {
