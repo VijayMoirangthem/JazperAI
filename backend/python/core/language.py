@@ -18,7 +18,7 @@ karo kar karna karke kare karein karta karti kiya kiye kijiye batao bata bataiye
 jao ja aao aa raha rahi rahe rahega rahegi hoga hogi honge hua hui hue sakta sakti sakte chahiye chahie chahta chahti lagta lagti
 aaj kal abhi pehle phir fir bahut bohot thoda zyada jyada kam sab sabhi kuch koi kabhi toh bhi se ko ka ki ke par pe mein
 andar bahar saath liye lekin magar aur ya agar kyunki isliye matlab samajh samjhao samjha accha achha theek thik sahi galat
-kaam din raat subah shaam paisa paise ghar log kaisa kuchh mil milega milegi diya diye dena lena
+kaam din raat subah shaam paisa paise ghar log kaisa kuchh mil milega milegi diya diye dena lena saaf saf mita mitao hatao hata kharcha bache bacha baki baaki naya nayi sunao bhejo bhej khojo dhundo padho likho banao kholo halat haalat thik
 """.split())
 _STOP_EN = frozenset("the and is are was were this that with for from have has you your what when where how why can will would please".split())
 

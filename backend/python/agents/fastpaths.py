@@ -82,6 +82,18 @@ async def _drive_list(text: str) -> AsyncIterator[Event]:
 
 
 LATEST = re.compile(r"\b(latest|newest|most recent(?:ly)?|last (?:updated|modified|edited|changed)|recently (?:updated|modified|edited|changed)|(?:updated|modified|edited) (?:last|most recently)|by date modified)\b", re.I)
+
+# ── Hindi / Hinglish (Roman letters and Devanagari): the same intents, so "chat saaf karo" or "system ki halat" take the fast path too ──
+# Added to the English patterns above, never replacing them. Roman words use \b; Devanagari has no word boundaries.
+DRIVE_LIST = re.compile(DRIVE_LIST.pattern + r"|\b(dikha(?:o|na)?|naya|nayi|nayee|haal\s+hi|fail|batao|bata)\b|दिखा|नई|नवीनतम|सूची|फाइल|फ़ाइल", re.I)
+CLEAR = re.compile(CLEAR.pattern + r"|\b(saaf|saf|mita(?:o|do)?|hata(?:o|do)?)\b.*\b(chat|baat(?:ein|cheet)?|history|messages?)\b|\b(chat|history)\b.*\b(saaf|saf|mita(?:o|do)?|hata(?:o|do)?)\b|चैट.*(साफ|मिटा|हटा)|(साफ|मिटा|हटा).*चैट", re.I)
+USAGE = re.compile(USAGE.pattern + r"|\b(kitne?|kitna|kitni)\b.*\b(tokens?|credits?|quota|kharcha|bache|bacha|baki|baaki|use|usage)\b|\b(tokens?|credits?|quota)\b.*\b(kitne?|kitna|bache|bacha|baki|baaki)\b|\b(kaun|kaunsa|konsa)\b.*\b(model|provider)\b|\bkharcha\b|कितने.*(टोकन|क्रेडिट)|कौन.*(मॉडल|प्रोवाइडर)", re.I)
+HEALTH = re.compile(HEALTH.pattern + r"|\bsystem\b.*\b(theek|thik|sahi|chal|status|halat|haalat|kaisa|kaise)\b|\b(status|halat|haalat)\b.*\bsystem\b|सिस्टम.*(ठीक|स्टेटस|हालत|चल)|(स्टेटस|हालत).*सिस्टम", re.I)
+SMARTER = re.compile(SMARTER.pattern + r"|\b(aur|zyada|zyadah)\s+(smart|powerful|capable)\b|\bkaise\s+(smart|improve)\b|\bkya\s+connect\b|और\s+(स्मार्ट|पावरफुल)", re.I)
+LATEST = re.compile(LATEST.pattern + r"|\b(sabse\s+(?:naya|nayi|latest|recent)|nayi|haal\s+hi\s+(?:mein|me)|aakhri|akhri)\b|सबसे\s+नया|नवीनतम|आखिरी|हाल\s+ही", re.I)
+OPEN = re.compile(OPEN.pattern + r"|\b(kholo|khol|dikhao|dikha|dekhna|dekho|dekhni)\b|खोलो|दिखाओ|दिखा|देखना|देखो", re.I)
+READ = re.compile(READ.pattern + r"|\b(padho|padh|saar|kya\s+likha|kya\s+hai\s+(?:isme|usme|andar))\b|पढ़ो|सारांश|क्या\s+लिखा", re.I)
+
 G_ = "application/vnd.google-apps."
 KINDS: list[tuple[re.Pattern, str, list[str]]] = [
     (re.compile(r"\b(word|docx?|google doc|document)\b", re.I), "document", [G_ + "document", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"]),
@@ -233,9 +245,19 @@ async def _clear(text: str) -> AsyncIterator[Event]:
     low = text.lower()
     m = re.search(r"older than (\d+) days?", low)
     scope = f"older_than_days:{m.group(1)}" if m else "all" if (re.search(r"\b(all|whole|entire|everything)\b", low) and not re.search(r"\b(above|before|up to)\b", low)) else "before_now"
-    label = {"before_now": "Delete everything above this line?", "all": "Delete this whole chat?"}.get(scope) or f"Delete messages older than {scope.split(':')[1]} days?"
+    from core.language import detect
+    lang = detect(text)
+    days = scope.split(":")[1] if ":" in scope else ""
+    labels = {
+        "english": {"before_now": "Delete everything above this line?", "all": "Delete this whole chat?", "days": f"Delete messages older than {days} days?"},
+        "hinglish": {"before_now": "Is line ke upar sab kuch delete kar du?", "all": "Poori chat delete kar du?", "days": f"{days} din se purane messages delete kar du?"},
+        "hindi": {"before_now": "इस लाइन के ऊपर सब कुछ हटा दूँ?", "all": "पूरी चैट हटा दूँ?", "days": f"{days} दिन से पुराने संदेश हटा दूँ?"},
+    }[lang]
+    confirm = {"english": "Tap delete to confirm (you can undo).", "hinglish": "Confirm karne ke liye delete dabao (undo ho sakta hai).",
+               "hindi": "पुष्टि के लिए डिलीट दबाएँ (वापस लाया जा सकता है)।"}[lang]
+    label = labels.get(scope) or labels["days"]
     yield {"ui": {"kind": "confirm", "connector": "chat", "action": "clear_chat", "scope": scope, "label": label}}
-    yield {"delta": "Tap delete to confirm (you can undo)."}
+    yield {"delta": confirm}
 
 
 async def _usage(_: str) -> AsyncIterator[Event]:
