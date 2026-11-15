@@ -153,11 +153,21 @@ export interface JasperEvent {
   title: string;
   body: string;
   created_at: string;
+  tier?: number; // approvals only
 }
 
 export interface EventsResponse {
   events: JasperEvent[];
   cursor: string;
+}
+
+export interface PairedDevice {
+  id: string;
+  name: string;
+  platform: string;
+  created_at: string;
+  last_seen: string | null;
+  current: boolean;
 }
 
 export interface HealthCheck {

@@ -52,3 +52,28 @@ describe('notification routing', () => {
     expect(isNotificationEnabled(null, allOn)).toBe(true);
   });
 });
+
+import { actionForResponse } from './routing';
+
+describe('notification button actions', () => {
+  const data = (tier: number) => ({ type: 'approval', id: 'req-9', tier });
+
+  it('Reject answers the request at any tier', () => {
+    expect(actionForResponse('reject', data(2))).toEqual({ kind: 'respond', id: 'req-9', tier: 2, approve: false });
+    expect(actionForResponse('reject', data(3))).toEqual({ kind: 'respond', id: 'req-9', tier: 3, approve: false });
+  });
+
+  it('Approve answers only Tier 2; Tier 3 must go through the fingerprint prompt in the app', () => {
+    expect(actionForResponse('approve', data(2))).toEqual({ kind: 'respond', id: 'req-9', tier: 2, approve: true });
+    expect(actionForResponse('approve', data(3))).toEqual({ kind: 'open' });
+    expect(actionForResponse('approve', { type: 'approval', id: 'req-9' })).toEqual({ kind: 'open' });   // unknown tier counts as Tier 3
+  });
+
+  it('a plain tap, Review, other types or a missing id just open the app', () => {
+    expect(actionForResponse('expo.modules.notifications.actions.DEFAULT', data(2))).toEqual({ kind: 'open' });
+    expect(actionForResponse('review', data(3))).toEqual({ kind: 'open' });
+    expect(actionForResponse('reject', { type: 'mail', id: 'x' })).toEqual({ kind: 'open' });
+    expect(actionForResponse('reject', { type: 'approval' })).toEqual({ kind: 'open' });
+    expect(actionForResponse('reject', null)).toEqual({ kind: 'open' });
+  });
+});

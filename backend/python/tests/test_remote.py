@@ -107,7 +107,7 @@ async def test_phone_approval_end_to_end_tier3_needs_device_confirmation(client)
         task = asyncio.create_task(hitl.gate("git.merge_main", "test-approval merge to main", "test-phone-approval"))
         got = (await client.get("/remote/v1/events", params={"since": cursor, "wait": 10}, headers=h)).json()
         ev = [e for e in got["events"] if e["kind"] == "approval" and "test-approval" in e["body"]]
-        assert ev and ev[0]["title"].startswith("Approval needed (Tier 3)")
+        assert ev and ev[0]["title"].startswith("Approval needed (Tier 3)") and ev[0]["tier"] == 3   # the phone picks its buttons from the tier
         rid = ev[0]["id"]
         listed = (await client.get("/remote/v1/approvals", headers=h)).json()["requests"]
         assert any(r["request_id"] == rid and r["tier"] == 3 for r in listed)
@@ -164,3 +164,26 @@ async def test_phone_diagnostics_lists_checks_and_problems(client):
         assert (await client.get("/api/system/selfcheck")).json()["checks"] is not None
     finally:
         await client.delete(f"/api/remote/devices/{paired['device_id']}")
+
+
+async def test_phone_can_list_and_remove_paired_devices(client):
+    async def pair(name):
+        start = (await client.post("/api/remote/pair/start")).json()
+        paired = (await client.post("/remote/v1/pair/complete", json={"code": start["code"], "name": name, "platform": "test"})).json()
+        return paired, {"Authorization": "Bearer " + paired["access_token"]}
+
+    a, ha = await pair("devices-test-a")
+    b, hb = await pair("devices-test-b")
+    try:
+        listed = (await client.get("/remote/v1/devices", headers=ha)).json()["devices"]
+        mine = {x["name"]: x for x in listed}
+        assert mine["devices-test-a"]["current"] is True and mine["devices-test-b"]["current"] is False
+        assert (await client.get("/remote/v1/devices")).status_code == 401
+        gone = await client.delete(f"/remote/v1/devices/{b['device_id']}", headers=ha)
+        assert gone.json() == {"revoked": True, "self": False}
+        assert (await client.get("/remote/v1/me", headers=hb)).status_code == 401              # the removed device stops working at once
+        assert "devices-test-b" not in [x["name"] for x in (await client.get("/remote/v1/devices", headers=ha)).json()["devices"]]
+        assert (await client.delete(f"/remote/v1/devices/{b['device_id']}", headers=ha)).status_code == 404   # already removed
+    finally:
+        await client.delete(f"/api/remote/devices/{a['device_id']}")
+        await client.delete(f"/api/remote/devices/{b['device_id']}")

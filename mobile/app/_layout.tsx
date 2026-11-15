@@ -16,10 +16,12 @@ import { useChat } from '@/store/chat';
 import { useSystem } from '@/store/system';
 import { configureNotifications, registerForPushNotifications } from '@/notifications/setup';
 import { startListener, stopListener } from '@/notifications/listener';
+import { registerBackgroundPoll, unregisterBackgroundPoll } from '@/notifications/backgroundTask';
 import {
   isNotificationEnabled,
   notificationType,
   routeForNotification,
+  actionForResponse,
 } from '@/notifications/routing';
 import { NotificationBanner } from '@/notifications/NotificationBanner';
 import { SystemBanner } from '@/components/SystemBanner';
@@ -36,6 +38,7 @@ export default function RootLayout() {
   const [initializing, setInitializing] = useState(true);
   const router = useRouter();
   const toggles = useSettings((state) => state.notificationToggles);
+  const backgroundAlerts = useSettings((state) => state.backgroundAlerts);
   const bannerKind = useSystem((state) => state.banner?.kind ?? null);
   const lastResponse = Notifications.useLastNotificationResponse();
   const handledResponse = useRef<string | null>(null);
@@ -70,7 +73,14 @@ export default function RootLayout() {
     if (!credentials) return;
 
     void registerForPushNotifications();
-    void startListener(); // Jasper's own push: the PC tells the phone directly, no third-party service
+    // Jasper's own push: the PC tells the phone directly, no third-party service. Live listener (seconds) + 15-minute safety net (survives a phone reboot).
+    if (backgroundAlerts) {
+      void startListener();
+      void registerBackgroundPoll();
+    } else {
+      void stopListener();
+      void registerBackgroundPoll(); // still checks every ~15 minutes, without the persistent notification
+    }
 
     const received = Notifications.addNotificationReceivedListener((notification) => {
       if (notificationType(notification.request.content.data) === 'approval') {
@@ -85,10 +95,13 @@ export default function RootLayout() {
       received.remove();
       tokenChanged.remove();
     };
-  }, [credentials]);
+  }, [credentials, backgroundAlerts]);
 
   useEffect(() => {
-    if (!credentials) void stopListener();
+    if (!credentials) {
+      void stopListener();
+      void unregisterBackgroundPoll();
+    }
   }, [credentials]);
 
   useEffect(() => {
@@ -102,6 +115,13 @@ export default function RootLayout() {
     const data = lastResponse.notification.request.content.data;
     if (!isNotificationEnabled(notificationType(data), toggles)) return;
 
+    // Buttons on an approval notification: Reject always works; Approve only for Tier 2 (Tier 3 opens the approvals screen for the fingerprint).
+    const action = actionForResponse(lastResponse.actionIdentifier, data);
+    if (action.kind === 'respond') {
+      void useApprovals
+        .getState()
+        .respond({ request_id: action.id, tier: action.tier, action: '', summary: '', requester: '', created_at: '' }, action.approve);
+    }
     router.push(routeForNotification(data) as Href);
   }, [lastResponse, initializing, credentials, toggles, router]);
 
@@ -152,6 +172,7 @@ export default function RootLayout() {
         <Stack.Screen name="thread/[id]" />
         <Stack.Screen name="search" options={{ animation: 'fade' }} />
         <Stack.Screen name="health" />
+        <Stack.Screen name="devices" />
         <Stack.Screen name="create-bot" options={{ presentation: 'transparentModal', animation: 'none' }} />
         <Stack.Screen name="plugins" options={{ presentation: 'transparentModal', animation: 'none' }} />
         <Stack.Screen name="profile" options={{ presentation: 'transparentModal', animation: 'none' }} />

@@ -229,7 +229,7 @@ async def _events_since(ts) -> list[dict]:
     except Exception:
         pass  # the notifications table is optional
     for r in await aio.fetch("SELECT request_id::text AS id, tier, action, summary, created_at FROM shared.hitl_requests WHERE status='pending' AND created_at > $1 ORDER BY created_at LIMIT 20", ts):
-        out.append({"id": r["id"], "kind": "approval", "type": "approval", "title": f"Approval needed (Tier {r['tier']})", "body": r["summary"] or r["action"] or "", "created_at": r["created_at"]})
+        out.append({"id": r["id"], "kind": "approval", "type": "approval", "title": f"Approval needed (Tier {r['tier']})", "body": r["summary"] or r["action"] or "", "tier": r["tier"], "created_at": r["created_at"]})
     out.sort(key=lambda e: e["created_at"])
     return out
 
@@ -261,6 +261,25 @@ async def events(since: str | None = None, wait: int = 25, d: dict = Depends(dev
     for e in found:
         e["created_at"] = e["created_at"].isoformat()
     return {"events": found, "cursor": cursor}
+
+
+@router.get("/devices")
+async def my_devices(d: dict = Depends(device)):
+    """Every phone/computer paired with this PC (not removed), newest activity first. `current` marks the device asking."""
+    rows = await aio.fetch("SELECT id::text AS id, name, platform, created_at, last_seen FROM shared.devices WHERE NOT revoked "
+                           "ORDER BY last_seen DESC NULLS LAST, created_at DESC LIMIT 50")
+    return {"devices": [{**dict(r), "current": r["id"] == d["id"]} for r in rows]}
+
+
+@router.delete("/devices/{device_id}")
+async def remove_device(device_id: UUID, d: dict = Depends(device)):
+    """Stop another paired device (or this one) from using Jasper: its tokens stop working at the next call. Recorded in the audit log."""
+    rows = await aio.fetch("SELECT id::text AS id, name FROM shared.devices WHERE id=$1 AND NOT revoked", device_id)
+    if not rows:
+        raise HTTPException(404, "no such paired device")
+    await aio.execute("UPDATE shared.devices SET revoked=true WHERE id=$1", device_id)
+    await audit.write("create_origins", "remote-device-revoked", {"by": d["id"], "device": rows[0]["id"], "name": rows[0]["name"]})
+    return {"revoked": True, "self": rows[0]["id"] == d["id"]}
 
 
 @router.get("/diagnostics")

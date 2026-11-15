@@ -24,6 +24,23 @@ export function configureNotifications(): void {
   });
 }
 
+/** Buttons on approval notifications. Defined every time (cheap) because a background run may start without the app's screens loaded. */
+export async function ensureNotificationCategories(): Promise<void> {
+  try {
+    const reject = { identifier: 'reject', buttonTitle: 'Reject', options: { opensAppToForeground: true, isDestructive: true } };
+    await Notifications.setNotificationCategoryAsync('approval-t2', [
+      reject,
+      { identifier: 'approve', buttonTitle: 'Approve', options: { opensAppToForeground: true } },
+    ]);
+    await Notifications.setNotificationCategoryAsync('approval-t3', [
+      reject,
+      { identifier: 'review', buttonTitle: 'Review', options: { opensAppToForeground: true } },
+    ]);
+  } catch {
+    // Buttons are a convenience: the notification still works without them.
+  }
+}
+
 export async function ensureChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('approvals', {

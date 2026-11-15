@@ -1,39 +1,22 @@
 import { Platform } from 'react-native';
 import BackgroundService from 'react-native-background-actions';
 import * as Notifications from 'expo-notifications';
-import * as SecureStore from 'expo-secure-store';
 import { AuthRevokedError, JasperClient } from '@/api/client';
 import { useAuth } from '@/auth/useAuth';
 import { useSettings } from '@/store/settings';
 import { useApprovals } from '@/store/approvals';
-import { ensureChannels } from './setup';
+import { ensureChannels, ensureNotificationCategories } from './setup';
 import { SeenIds, nextBackoff, notificationForEvent } from './events';
+import { loadCursor, saveCursor } from './cursor';
 
 // Jasper's own push channel. A foreground service keeps ONE request open to the PC (long-poll over the private Tailscale link) and turns
 // each new event into a normal Android notification. No Google/Expo/Telegram push service. The service shows one quiet persistent
 // notification ("Jasper is listening"); Android requires that for anything that runs while the app is closed.
 
-const CURSOR_KEY = 'jasper.events.cursor';
 const WAIT_SECONDS = 25;
 const REQUEST_TIMEOUT_MS = 45_000;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-async function loadCursor(): Promise<string | null> {
-  try {
-    return await SecureStore.getItemAsync(CURSOR_KEY);
-  } catch {
-    return null;
-  }
-}
-
-async function saveCursor(value: string): Promise<void> {
-  try {
-    await SecureStore.setItemAsync(CURSOR_KEY, value);
-  } catch {
-    // The next start simply begins from "now".
-  }
-}
 
 function clientFor(baseUrl: string, token: string | null, creds: { cfAccessClientId?: string; cfAccessClientSecret?: string }) {
   const extra: Record<string, string> = {};
@@ -78,7 +61,7 @@ async function listen(): Promise<void> {
         const n = notificationForEvent(ev, toggles);
         if (!n) continue;
         await Notifications.scheduleNotificationAsync({
-          content: { title: n.title, body: n.body, data: n.data },
+          content: { title: n.title, body: n.body, data: n.data, ...(n.categoryId ? { categoryIdentifier: n.categoryId } : {}) },
           trigger: { channelId: n.channelId },
         });
       }
@@ -106,6 +89,7 @@ export async function startListener(): Promise<boolean> {
       if (asked.status !== 'granted') return false;
     }
     await ensureChannels();
+    await ensureNotificationCategories();
     await BackgroundService.start(listen, {
       taskName: 'JasperListener',
       taskTitle: 'Jasper is listening',

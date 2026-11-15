@@ -21,9 +21,9 @@ Branch: `claude/resource-aware-agents`. Nothing here is merged or deployed.
 |---|---|---|---|---|---|
 | 2.1 | Rotating backend log file storage/logs/jasper.log (timestamps, secrets redacted, stdlib warnings too) + GET /api/logs/problems (merged repeats). Screen for it comes with 2.2 | built | e7764de | test_logfile (9) | file appears after a restart |
 | 2.2 | Self-check every minute (database, Redis, Google login, AI provider, speech, disk) with phone alert after 2 failures in a row, reminder every 6 h, recovery notice; model/speech health judged from real calls (no extra cost); alerts wait in memory while the DB is down; phone "System health" screen (Settings > System) | built | 8cc93b0 | test_selfcheck (13), health.test (4); DB-backed diagnostics test in test_remote skipped here (Postgres not running) | alert actually arrives; the DB-backed remote test |
-| 2.3 | Alert service after phone reboot + Settings switch | todo | | | reboot test |
-| 2.4 | Approve/reject from the notification | todo | | | tap on phone |
-| 2.5 | Device list on the phone (see / remove paired devices) | todo | | | |
+| 2.3 | Alerts after a phone reboot: 15-minute background poll (Android WorkManager via expo-background-task, survives reboot) next to the live listener; Settings switch "Alerts when the app is closed" (off = no persistent notification, 15-min checks only). **Needs an app rebuild** (2 new native packages) | built | PENDING | poll.test (5) | reboot the phone, wait <= 15 min |
+| 2.4 | Approve/reject from the notification: Tier 2 gets Reject + Approve, Tier 3 gets Reject + Review (fingerprint stays in the app); backend adds tier to approval events | built | PENDING | events.test, routing.test (8 new); remote e2e asserts tier (DB, skipped here) | tap the buttons on a real approval |
+| 2.5 | Paired devices screen (Settings > Connection): list with last seen + "looks unused" hint, remove other devices (audited); GET/DELETE /remote/v1/devices | built | PENDING | devices.test (3); backend test in test_remote (DB, skipped here) | remove a test device |
 
 ## Phase 3: Product features
 | # | Item | Status | Commit | Tests | Live check still needed |

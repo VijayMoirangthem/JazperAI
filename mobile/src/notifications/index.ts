@@ -1,6 +1,7 @@
-export { configureNotifications, ensureChannels, registerForPushNotifications } from './setup';
+export { configureNotifications, ensureChannels, ensureNotificationCategories, registerForPushNotifications } from './setup';
 export type { KnownNotificationType, NotificationToggles } from './routing';
 export {
+  actionForResponse,
   isKnownNotificationType,
   isNotificationEnabled,
   notificationType,

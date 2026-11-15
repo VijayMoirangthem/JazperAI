@@ -26,6 +26,19 @@ export function isNotificationEnabled(type: string | null, toggles: Notification
   return toggles[type];
 }
 
+/** What tapping a notification button means. Reject always works from the notification; Approve only for Tier 2 (Tier 3 needs the fingerprint prompt in the app). */
+export type NotificationAction = { kind: 'respond'; id: string; tier: number; approve: boolean } | { kind: 'open' };
+
+export function actionForResponse(actionIdentifier: string, data: unknown): NotificationAction {
+  const rec = asRecord(data);
+  const id = rec?.id;
+  if (notificationType(data) !== 'approval' || typeof id !== 'string' || !id) return { kind: 'open' };
+  const tier = typeof rec?.tier === 'number' ? rec.tier : 3;
+  if (actionIdentifier === 'reject') return { kind: 'respond', id, tier, approve: false };
+  if (actionIdentifier === 'approve' && tier < 3) return { kind: 'respond', id, tier, approve: true };
+  return { kind: 'open' };
+}
+
 export function routeForNotification(data: unknown): string {
   const type = notificationType(data);
   if (type === 'approval') return '/approvals';

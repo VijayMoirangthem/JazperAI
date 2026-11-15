@@ -9,6 +9,7 @@ interface SettingsState {
   notificationToggles: NotificationToggles;
   themeMode: ThemeMode;
   readAloud: boolean;
+  backgroundAlerts: boolean;
   voiceAutoSend: boolean;
   showToolDetails: boolean;
   profileName: string;
@@ -17,6 +18,7 @@ interface SettingsState {
   setNotificationToggle: (type: keyof NotificationToggles, enabled: boolean) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setReadAloud: (enabled: boolean) => void;
+  setBackgroundAlerts: (enabled: boolean) => void;
   setVoiceAutoSend: (enabled: boolean) => void;
   setShowToolDetails: (enabled: boolean) => void;
 }
@@ -28,6 +30,7 @@ export const useSettings = create<SettingsState>()(
       notificationToggles: { approvals: true, mail: true, feature: true, alert: true },
       themeMode: THEME_MODE,
       readAloud: false,
+      backgroundAlerts: true,
       voiceAutoSend: false,
       showToolDetails: false,
       profileName: '',
@@ -42,6 +45,7 @@ export const useSettings = create<SettingsState>()(
         set({ themeMode: mode });
       },
       setReadAloud: (enabled: boolean) => set({ readAloud: enabled }),
+      setBackgroundAlerts: (enabled: boolean) => set({ backgroundAlerts: enabled }),
       setVoiceAutoSend: (enabled: boolean) => set({ voiceAutoSend: enabled }),
       setShowToolDetails: (enabled: boolean) => set({ showToolDetails: enabled }),
     }),

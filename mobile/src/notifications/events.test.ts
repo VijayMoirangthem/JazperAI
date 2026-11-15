@@ -16,7 +16,7 @@ describe('event notifications', () => {
 
   it('builds a notification with routing data', () => {
     const n = notificationForEvent(ev({ kind: 'approval', type: 'approval', title: 'Approval needed (Tier 3)', id: 'x' }), toggles);
-    expect(n).toEqual({ title: 'Approval needed (Tier 3)', body: 'B', channelId: 'approvals', data: { type: 'approval', id: 'x' } });
+    expect(n).toEqual({ title: 'Approval needed (Tier 3)', body: 'B', channelId: 'approvals', categoryId: 'approval-t3', data: { type: 'approval', id: 'x' } });
   });
 
   it('respects the per-kind switches', () => {
@@ -37,5 +37,23 @@ describe('event notifications', () => {
     expect(s.add('a')).toBe(false);
     s.add('b'); s.add('c');
     expect(s.add('a')).toBe(true); // forgotten after the window
+  });
+});
+
+describe('approval notifications carry the right buttons', () => {
+  const approval = (tier?: number) => ev({ kind: 'approval', type: 'approval', id: 'req-1', title: 'Approval needed', ...(tier !== undefined ? { tier } : {}) });
+
+  it('Tier 2 offers approve/reject, Tier 3 (or unknown) only reject/review', () => {
+    expect(notificationForEvent(approval(2), toggles)?.categoryId).toBe('approval-t2');
+    expect(notificationForEvent(approval(3), toggles)?.categoryId).toBe('approval-t3');
+    expect(notificationForEvent(approval(), toggles)?.categoryId).toBe('approval-t3');   // unknown tier: the safe side
+  });
+
+  it('passes the id and tier along so a tap can answer the right request', () => {
+    expect(notificationForEvent(approval(2), toggles)?.data).toEqual({ type: 'approval', id: 'req-1', tier: 2 });
+  });
+
+  it('ordinary notifications have no buttons', () => {
+    expect(notificationForEvent(ev({ type: 'mail' }), toggles)?.categoryId).toBeUndefined();
   });
 });

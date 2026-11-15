@@ -147,6 +147,7 @@ export default function SettingsScreen() {
           <ToggleRow label="Approvals" description="New approval requests" value={s.notificationToggles.approvals} onChange={(v) => s.setNotificationToggle('approvals', v)} />
           <ToggleRow label="Important mail" description="From Messenger" value={s.notificationToggles.mail} onChange={(v) => s.setNotificationToggle('mail', v)} />
           <ToggleRow label="Feature runs" description="When a run finishes" value={s.notificationToggles.feature} onChange={(v) => s.setNotificationToggle('feature', v)} />
+          <ToggleRow label="Alerts when the app is closed" description="Keeps a small 'Jasper is listening' notification so alerts arrive within seconds. Off: alerts are checked about every 15 minutes." value={s.backgroundAlerts} onChange={s.setBackgroundAlerts} />
           <ToggleRow label="Alerts" description="System alerts" value={s.notificationToggles.alert} onChange={(v) => s.setNotificationToggle('alert', v)} />
         </Group>
 
@@ -164,6 +165,10 @@ export default function SettingsScreen() {
         <Group title="Connection">
           <InfoRow label="Device" value={deviceName ?? 'This phone'} />
           <InfoRow label="Server" value={credentials?.baseUrl ?? '-'} />
+          <Pressable onPress={() => router.push('/devices' as Href)} style={styles.row} accessibilityRole="button" accessibilityLabel="Paired devices">
+            <Text style={styles.rowLabel}>Paired devices</Text>
+            <Text style={styles.rowDesc}>See and remove</Text>
+          </Pressable>
           <Pressable onPress={() => router.push('/(auth)/pair' as Href)} style={styles.row} accessibilityRole="button" accessibilityLabel="Pair with a code">
             <Text style={styles.rowLabel}>Pair with a code</Text>
             <Text style={styles.rowDesc}>Advanced</Text>

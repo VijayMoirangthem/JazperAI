@@ -17,6 +17,7 @@ import {
   NotificationsResponse,
   EventsResponse,
   DiagnosticsResponse,
+  PairedDevice,
   ChatStreamRequest,
   VoiceTranscribeResponse,
   PushRegisterRequest,
@@ -260,6 +261,24 @@ export class JasperClient {
 
   async getNotifications(deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<NotificationsResponse> {
     return this.request<NotificationsResponse>('/remote/v1/notifications', {}, true, deviceCredentials);
+  }
+
+  /** Every device paired with the PC (this phone is marked current). */
+  async getDevices(deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<{ devices: PairedDevice[] }> {
+    return this.request<{ devices: PairedDevice[] }>('/remote/v1/devices', {}, true, deviceCredentials);
+  }
+
+  /** Stops a paired device from using Jasper (its tokens stop working at once). */
+  async removeDevice(
+    id: string,
+    deviceCredentials: { deviceId: string; deviceSecret: string }
+  ): Promise<{ revoked: boolean; self: boolean }> {
+    return this.request<{ revoked: boolean; self: boolean }>(
+      `/remote/v1/devices/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+      true,
+      deviceCredentials
+    );
   }
 
   /** The PC's self-checks and newest log problems, for the System health screen. */

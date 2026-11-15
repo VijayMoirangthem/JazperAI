@@ -2,6 +2,12 @@ import type { JasperEvent } from '@/api/types';
 import { isNotificationEnabled, type NotificationToggles } from './routing';
 
 export type AndroidChannel = 'approvals' | 'mail' | 'runs' | 'messages' | 'general';
+export type ApprovalCategory = 'approval-t2' | 'approval-t3';
+
+/** Tier 2 can be approved with one tap; Tier 3 needs your fingerprint inside the app, so it only offers Reject and Review. */
+export function categoryForApproval(tier: number | undefined): ApprovalCategory {
+  return (tier ?? 3) >= 3 ? 'approval-t3' : 'approval-t2';
+}
 
 export function channelForEvent(ev: Pick<JasperEvent, 'kind' | 'type'>): AndroidChannel {
   if (ev.kind === 'approval' || ev.type === 'approval') return 'approvals';
@@ -15,11 +21,18 @@ export function channelForEvent(ev: Pick<JasperEvent, 'kind' | 'type'>): Android
 export function notificationForEvent(
   ev: JasperEvent,
   toggles: NotificationToggles
-): { title: string; body: string; channelId: AndroidChannel; data: { type: string; id: string } } | null {
+): { title: string; body: string; channelId: AndroidChannel; categoryId?: ApprovalCategory; data: { type: string; id: string; tier?: number } } | null {
   if (!isNotificationEnabled(ev.kind === 'approval' ? 'approval' : ev.type, toggles)) return null;
   const title = (ev.title || 'Jasper').slice(0, 120);
   const body = (ev.body || '').slice(0, 300);
-  return { title, body, channelId: channelForEvent(ev), data: { type: ev.kind === 'approval' ? 'approval' : ev.type, id: ev.id } };
+  const approval = ev.kind === 'approval';
+  return {
+    title,
+    body,
+    channelId: channelForEvent(ev),
+    ...(approval ? { categoryId: categoryForApproval(ev.tier) } : {}),
+    data: { type: approval ? 'approval' : ev.type, id: ev.id, ...(approval && ev.tier !== undefined ? { tier: ev.tier } : {}) },
+  };
 }
 
 /** Wait time after a failed poll: 2 s, doubling, never more than 60 s. */
