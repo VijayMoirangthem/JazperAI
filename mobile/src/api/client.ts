@@ -16,6 +16,7 @@ import {
   CommsThreadMessagesResponse,
   NotificationsResponse,
   EventsResponse,
+  DiagnosticsResponse,
   ChatStreamRequest,
   VoiceTranscribeResponse,
   PushRegisterRequest,
@@ -259,6 +260,11 @@ export class JasperClient {
 
   async getNotifications(deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<NotificationsResponse> {
     return this.request<NotificationsResponse>('/remote/v1/notifications', {}, true, deviceCredentials);
+  }
+
+  /** The PC's self-checks and newest log problems, for the System health screen. */
+  async getDiagnostics(deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<DiagnosticsResponse> {
+    return this.request<DiagnosticsResponse>('/remote/v1/diagnostics', {}, true, deviceCredentials);
   }
 
   /** Long-poll: resolves as soon as the PC has something new, or after `wait` seconds with no events. Omit `since` for a first cursor. */

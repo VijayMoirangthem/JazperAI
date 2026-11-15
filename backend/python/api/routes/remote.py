@@ -263,6 +263,16 @@ async def events(since: str | None = None, wait: int = 25, d: dict = Depends(dev
     return {"events": found, "cursor": cursor}
 
 
+@router.get("/diagnostics")
+async def diagnostics(d: dict = Depends(device)):
+    """For the phone's System health screen: every self-check plus the newest problems from the log (secrets redacted)."""
+    import asyncio
+    from core import logfile
+    from core.services import selfcheck
+    problems = await asyncio.to_thread(logfile.recent_problems, 20, "warning")
+    return {"checks": selfcheck.checker().snapshot(), "problems": problems}
+
+
 @router.get("/status")
 async def status(d: dict = Depends(device)):
     from core import metrics

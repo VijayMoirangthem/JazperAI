@@ -4,7 +4,7 @@ import json
 
 import structlog
 
-from core import finops, vault
+from core import finops, health_stats, vault
 from core.telemetry import span
 from core.config import settings
 from core.llm.providers import AnthropicProvider, OpenAICompatProvider, Provider, StubProvider
@@ -68,7 +68,12 @@ class TieredRouter:
         tier = await finops.check(req.tier)  # raises BudgetExceeded at a hard cap; steps the tier down at a soft cap
         req = req.model_copy(update={"tier": tier})
         with span("llm.complete", tier=tier) as sp:
-            res = await (await self._route(req)).complete(req)
+            try:
+                res = await (await self._route(req)).complete(req)
+            except Exception as e:
+                health_stats.record("llm", False, str(e))
+                raise
+            health_stats.record("llm", True)
             sp.set_attribute("llm.provider", res.usage.provider)
             sp.set_attribute("llm.model", res.usage.model)
             sp.set_attribute("llm.tokens.input", res.usage.input_tokens)
@@ -79,10 +84,15 @@ class TieredRouter:
     async def stream(self, req: LLMRequest):
         tier = await finops.check(req.tier)
         req = req.model_copy(update={"tier": tier})
-        async for item in (await self._route(req)).stream(req):
-            if isinstance(item, Usage):
-                await finops.record(item, tier)
-            yield item
+        try:
+            async for item in (await self._route(req)).stream(req):
+                if isinstance(item, Usage):
+                    await finops.record(item, tier)
+                yield item
+        except Exception as e:
+            health_stats.record("llm", False, str(e))
+            raise
+        health_stats.record("llm", True)
 
     async def count_tokens(self, req: LLMRequest) -> int:
         return await self._for(req).count_tokens(req)

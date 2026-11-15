@@ -160,6 +160,28 @@ export interface EventsResponse {
   cursor: string;
 }
 
+export interface HealthCheck {
+  name: string;
+  label: string;
+  ok: boolean | null;
+  detail: string;
+  fails: number;
+  since: number;
+  announced: boolean;
+}
+
+export interface HealthProblem {
+  time: string;
+  level: 'warning' | 'error';
+  message: string;
+  count: number;
+}
+
+export interface DiagnosticsResponse {
+  checks: HealthCheck[];
+  problems: HealthProblem[];
+}
+
 export interface ChatStreamRequest {
   text: string;
   slug: string;

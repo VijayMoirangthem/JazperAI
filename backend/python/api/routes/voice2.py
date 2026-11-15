@@ -52,6 +52,8 @@ async def synth_complete(text: str, voice: str, attempts: int = 3, per_attempt_s
     import asyncio
 
     import edge_tts
+
+    from core import health_stats
     last: Exception | None = None
     for i in range(attempts):
         async def attempt() -> bytes:
@@ -64,11 +66,13 @@ async def synth_complete(text: str, voice: str, attempts: int = 3, per_attempt_s
         try:
             data = await asyncio.wait_for(attempt(), timeout=per_attempt_s)  # a stalled connection once held a reply for 66 s
             if data:
+                health_stats.record("tts", True)
                 return data
             last = RuntimeError("no audio received")
         except Exception as e:  # noqa: BLE001 - any failure or timeout of the remote service is retried
             last = e
         await asyncio.sleep(0.3 * (i + 1))
+    health_stats.record("tts", False, str(last))
     raise HTTPException(502, f"speech service unavailable: {str(last)[:100]}")
 
 

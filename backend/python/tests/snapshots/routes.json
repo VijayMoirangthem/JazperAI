@@ -1521,6 +1521,10 @@
  ],
  [
   "GET",
+  "/api/system/selfcheck"
+ ],
+ [
+  "GET",
   "/api/task-priority"
  ],
  [
@@ -2565,6 +2569,10 @@
  ],
  [
   "GET",
+  "/api/v1/system/selfcheck"
+ ],
+ [
+  "GET",
   "/api/v1/task-priority"
  ],
  [
@@ -2746,6 +2754,10 @@
  [
   "GET",
   "/remote/v1/connectors"
+ ],
+ [
+  "GET",
+  "/remote/v1/diagnostics"
  ],
  [
   "GET",

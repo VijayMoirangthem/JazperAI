@@ -170,6 +170,15 @@ export default function SettingsScreen() {
           </Pressable>
         </Group>
 
+        <Group title="System">
+          <Pressable onPress={() => router.push('/health' as Href)} style={styles.row} accessibilityRole="button" accessibilityLabel="System health">
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>System health</Text>
+              <Text style={styles.rowDesc}>Database, Google login, AI and voice services, recent problems</Text>
+            </View>
+          </Pressable>
+        </Group>
+
         <Group title="About">
           <InfoRow label="Version" value={version} />
         </Group>

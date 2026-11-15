@@ -121,6 +121,13 @@ async def backup():
     return {"ok": True, "output": p.stdout.strip()[-200:]}
 
 
+@router.get("/selfcheck")
+async def selfcheck_state():
+    """What the once-a-minute self-check currently knows (database, cache, Google login, model provider, speech, disk)."""
+    from core.services import selfcheck
+    return {"checks": selfcheck.checker().snapshot()}
+
+
 LOG_FILES = {"jasper": "jasper.log", "backend": "backend.err.log", "backend-out": "backend.out.log", "renderer": "renderer.err.log", "launcher": "launcher.log", "watchdog": "watchdog.log"}
 
 

@@ -149,3 +149,18 @@ async def test_phone_can_reject_a_tier3_approval_without_confirmation(client):
     finally:
         await aio.execute("DELETE FROM shared.hitl_requests WHERE requester='test-phone-approval'")
         await client.delete(f"/api/remote/devices/{paired['device_id']}")
+
+
+async def test_phone_diagnostics_lists_checks_and_problems(client):
+    start = (await client.post("/api/remote/pair/start")).json()
+    paired = (await client.post("/remote/v1/pair/complete", json={"code": start["code"], "name": "diag-test", "platform": "test"})).json()
+    h = {"Authorization": "Bearer " + paired["access_token"]}
+    try:
+        assert (await client.get("/remote/v1/diagnostics")).status_code == 401              # needs a paired device
+        r = await client.get("/remote/v1/diagnostics", headers=h)
+        assert r.status_code == 200
+        body = r.json()
+        assert isinstance(body["checks"], list) and isinstance(body["problems"], list)
+        assert (await client.get("/api/system/selfcheck")).json()["checks"] is not None
+    finally:
+        await client.delete(f"/api/remote/devices/{paired['device_id']}")
