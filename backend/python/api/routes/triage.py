@@ -19,8 +19,9 @@ log = structlog.get_logger()
 _PRIORITY_ORDER = {"critical": 0, "action": 1, "fyi": 2, "noise": 3}
 
 
-def _ensure_triage_columns():
-    """Add triage columns to notifications if not present."""
+def _ensure_triage_columns() -> bool:
+    """Add triage columns to notifications if not present. True when both statements ran (False: database not reachable yet)."""
+    ok = True
     for sql in [
         "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS triage_priority TEXT DEFAULT NULL",
         "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS triage_action TEXT DEFAULT NULL",
@@ -31,14 +32,21 @@ def _ensure_triage_columns():
                     cur.execute(sql)
                 conn.commit()
         except Exception:
-            pass
+            ok = False
+    return ok
 
 
-# Ensure columns exist at import time
-try:
-    _ensure_triage_columns()
-except Exception:
-    pass
+_columns_ready = False
+
+
+def _db():
+    """A database connection, after making sure the triage columns exist. This used to run at IMPORT time, which blocked the whole
+    backend start-up on a database connection (seconds when the database is slow or down); now it runs once, on first use, and is
+    retried on the next use if the database was not reachable."""
+    global _columns_ready
+    if not _columns_ready:
+        _columns_ready = _ensure_triage_columns()
+    return _pg()
 
 
 # ── Pydantic models ────────────────────────────────────────────────────────────
@@ -57,7 +65,7 @@ class TriagePatch(BaseModel):
 @router.post("/analyze")
 async def analyze_triage(body: AnalyzeRequest):
     try:
-        with _pg() as conn:
+        with _db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     """
@@ -109,7 +117,7 @@ async def analyze_triage(body: AnalyzeRequest):
         classifications = json.loads(content[start:end])
 
         breakdown = {"critical": 0, "action": 0, "fyi": 0, "noise": 0}
-        with _pg() as conn:
+        with _db() as conn:
             with conn.cursor() as cur:
                 for item in classifications:
                     priority = item.get("priority", "noise")
@@ -137,7 +145,7 @@ async def analyze_triage(body: AnalyzeRequest):
 @router.get("/inbox")
 def triage_inbox():
     try:
-        with _pg() as conn:
+        with _db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     """
@@ -175,7 +183,7 @@ def patch_triage(notification_id: str, body: TriagePatch):
     if not fields:
         raise HTTPException(400, "No fields to update")
     try:
-        with _pg() as conn:
+        with _db() as conn:
             with conn.cursor() as cur:
                 set_clause = ", ".join(f"{k} = %s" for k in fields)
                 values = list(fields.values()) + [notification_id]

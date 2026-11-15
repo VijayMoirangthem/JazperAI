@@ -9,7 +9,6 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated, TypedDict
 from uuid import uuid4
 
-from langgraph.graph import END, START, StateGraph
 
 from core.eventbus import announce
 from core.telemetry import traced
@@ -77,6 +76,7 @@ def build_graph(checkpointer=None, delegate: Delegate = default_delegate, interr
         announce("jasper", "idle")
         return {"status": s.get("status") or "complete", "log": ["report"]}
 
+    from langgraph.graph import END, START, StateGraph  # lazy: importing langgraph costs several seconds at start-up and only graph building needs it
     g = StateGraph(SupervisorState)
     for name, fn in [("classify", classify), ("plan", plan), ("delegate", delegate_node), ("await", await_results),
                      ("synthesize", synthesize), ("report", report)]:

@@ -4,7 +4,6 @@ import asyncio
 from typing import TypedDict
 from uuid import uuid4
 
-from langgraph.graph import END, START, StateGraph
 
 from agents import org
 from agents.registry import registry
@@ -72,6 +71,7 @@ def build_exec_graph(ask=default_ask, max_members: int = 3):
             "trace": {"trace_id": s["trace_id"], "parent_span": s["parent_span"], "exec_span": s["exec_span"], "member_spans": s.get("spans", [])},
         }}
 
+    from langgraph.graph import END, START, StateGraph  # lazy: importing langgraph costs several seconds at start-up and only graph building needs it
     g = StateGraph(ExecState)
     for n, f in [("pick_members", pick_members), ("crew_work", crew_work), ("report", report)]:
         g.add_node(n, f)

@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import TypedDict
 from uuid import uuid4
 
-from langgraph.graph import END, START, StateGraph
 
 from core import audit, gitops
 from core.eventbus import announce, bus
@@ -93,6 +92,7 @@ def build_devloop(implement: Implement, agent: str = "forge", model: str = "unkn
             return "done"
         return "repair" if s["attempt"] < MAX_ATTEMPTS else "rollback"
 
+    from langgraph.graph import END, START, StateGraph  # lazy: importing langgraph costs several seconds at start-up and only graph building needs it
     g = StateGraph(DevState)
     for n, f in [("plan", plan), ("implement", do_implement), ("verify", verify), ("rollback", rollback), ("escalate", escalate)]:
         g.add_node(n, f)

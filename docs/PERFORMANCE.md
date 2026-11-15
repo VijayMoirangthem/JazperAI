@@ -131,3 +131,14 @@ memory layers are searched in parallel. Gmail is warmed 8 s after start. Regress
 Replies that use tools take two model calls. Faster than that needs a smaller/local model for chit-chat or prefetching; not done.
 
 **Tip (Windows):** use `127.0.0.1`, not `localhost`, for local clients: `localhost` adds 0.2-2 s per new connection here (IPv6 fallback).
+
+## Backend start-up (measured 2026-11-15, `python -X importtime -c "import main"`, warm file cache, PC under load)
+
+| Change | Import time |
+|---|---|
+| Before | 18-22 s |
+| `langgraph.graph` imported only when a graph is built (supervisor, devloop, exec_graph) | 15-17 s (about 3 s saved) |
+| `api/routes/triage.py` ran two `ALTER TABLE` statements against the database AT IMPORT (blocked start-up on a database connection; with the database down it cost 4 s) - now on first use, retried if the database was not reachable | 9.5-10.4 s measured with the database DOWN; with the database up the saving is smaller (the statements are fast) |
+
+Not done: `openai` (about 1-2 s warm) is needed by the model router at start-up; `main.py` itself takes 2.7 s (registering ~700 routes). Most of what is left is
+third-party libraries. Guards against regressions: `tests/test_startup_cost.py`. Numbers vary a lot with disk cache and load; compare like with like.
