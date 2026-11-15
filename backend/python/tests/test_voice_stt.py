@@ -90,3 +90,72 @@ async def test_phone_transcribe_passes_the_chosen_language_through(monkeypatch):
     for lang in ("hi", "en", "fr", None):
         await remote.voice_transcribe(FakeRequest(), language=lang, d={"id": "x"})
     assert seen == ["hi", "en", None, None]
+
+
+# ── cloud only: no local Whisper anywhere ────────────────────────────────────────────────────────────────────────────────────────
+
+class _FakeUpload:
+    def __init__(self, data: bytes, content_type: str = "audio/mp4"):
+        self._d, self.content_type = data, content_type
+
+    async def read(self):
+        return self._d
+
+
+def _fake_provider(monkeypatch, script):
+    """A cloud provider whose transcription calls follow `script` (a list of text or Exception)."""
+    from core.providers import ai_provider
+
+    calls = {"n": 0}
+
+    class T:
+        async def create(self, **kw):
+            calls["n"] += 1
+            step = script.pop(0)
+            if isinstance(step, Exception):
+                raise step
+            return type("R", (), {"text": step})()
+
+    class P:
+        client = type("C", (), {"audio": type("A", (), {"transcriptions": T()})()})()
+
+    monkeypatch.setattr(ai_provider, "get_ai_provider", lambda: P)
+    return calls
+
+
+async def test_transcription_retries_once_then_succeeds(monkeypatch):
+    from api.routes import voice
+    calls = _fake_provider(monkeypatch, [RuntimeError("429"), "mera email dikhao"])
+    assert await voice._transcribe_groq(b"x", "a.m4a", "audio/mp4") == "mera email dikhao" and calls["n"] == 2
+
+
+async def test_cloud_outage_is_a_clear_503_and_nothing_runs_locally(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    from api.routes import voice
+    calls = _fake_provider(monkeypatch, [RuntimeError("down"), RuntimeError("still down")])
+    with pytest.raises(HTTPException) as e:
+        await voice.transcribe(_FakeUpload(b"\x00\x00\x00\x20ftypM4A \x00\x00 audio"))
+    assert e.value.status_code == 503 and "unavailable" in e.value.detail and calls["n"] == 2
+    assert not hasattr(voice, "_transcribe_local") and not hasattr(voice, "_whisper_model")      # the local model path is gone
+
+
+async def test_empty_audio_is_a_400_not_a_500():
+    import pytest
+    from fastapi import HTTPException
+
+    from api.routes import voice
+    with pytest.raises(HTTPException) as e:
+        await voice.transcribe(_FakeUpload(b""))
+    assert e.value.status_code == 400
+
+
+async def test_transcribe_stream_sends_one_event_in_the_old_shape(monkeypatch):
+    import json
+
+    from api.routes import voice
+    _fake_provider(monkeypatch, ["aaj ka status batao"])
+    resp = await voice.transcribe_stream(_FakeUpload(b"\x00\x00\x00\x20ftypM4A \x00\x00 audio"))
+    chunks = [c async for c in resp.body_iterator]
+    assert json.loads(chunks[0].removeprefix("data: ")) == {"word": "aaj ka status batao", "full": "aaj ka status batao"} and chunks[-1] == "data: [DONE]\n\n"

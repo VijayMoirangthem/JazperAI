@@ -1,35 +1,48 @@
-# Lighter memory model (plan item 1.4)
+# Memory embeddings: cloud only (replaces the "lighter local model" plan)
 
-**Status: evaluation tooling is built; NO migration has been applied.** The decision to switch needs data from your own memories, which needs a
-database and about 3 GB of free RAM (not available during the implementation-only phase).
+**Decision (2026-11-15): no AI model runs on this PC.** Memory embeddings now come from a cloud API. The code is done; it is **switched off until you
+choose a provider and the memories are re-embedded**, because vectors from different models cannot be compared (mixing them would silently return wrong memories).
 
-## Why
-`BAAI/bge-m3` (about 2 GB in RAM, ~25 s to load cold) is excellent and multilingual, but it is the reason memory recall is skipped whenever the PC is
-short of RAM (chat no longer waits for it: see `docs/PERFORMANCE.md`). A model of about 0.5 GB would let recall work on this PC all the time.
+## What changed
+| Was local | Now |
+|---|---|
+| bge-m3 (about 2 GB) for memory | cloud embeddings API (`core/services/embedding_service.py`) |
+| MiniLM for the code index | same API, 384-dimensional |
+| faster-whisper fallback for voice notes | removed: cloud Whisper (Groq) with one retry, else a clear "unavailable" message |
+| LM Studio fallback when providers are rate-limited | removed (`LOCAL_FALLBACK_ENABLED=False`); fallback is another cloud model |
+| presidio/spaCy PII model | removed: regex redaction only (email, phone, IP, IBAN, UPI) |
+| `faster-whisper`, `sentence-transformers` (torch) in requirements | removed |
+Guard test: `tests/test_cloud_only.py` fails if any module imports a local-model library or a requirement brings one back.
+Left alone on purpose: the LM Studio *management* route/panel (`api/routes/models.py`): it only talks to LM Studio if you start it yourself.
+You can also delete the cached models on disk (about 8 GB: `%USERPROFILE%\.cache\huggingface\hub`); I did not delete anything.
 
-## Step 1: measure (read-only, safe)
-    cd backend\python
-    ..\.venv\Scripts\python.exe ..\..\scripts\memory_model_eval.py --yes
+## What you need to choose (needs YOUR key; a paid tier needs your approval)
+Any provider with an **OpenAI-compatible `/embeddings` endpoint** that accepts a `dimensions` parameter and handles **Hindi**. Candidates (check current free-tier
+limits and prices yourself; I cannot verify them from here):
+| Provider | Endpoint (base URL) | Note |
+|---|---|---|
+| Jina AI (`jina-embeddings-v3`) | `https://api.jina.ai/v1` | multilingual, free allowance on signup |
+| Google Gemini (`gemini-embedding-001`) | `https://generativelanguage.googleapis.com/v1beta/openai` | free tier, you already use Google |
+| OpenAI (`text-embedding-3-small`) | `https://api.openai.com/v1` | paid, very cheap per million tokens |
+| Voyage (`voyage-3`) | `https://api.voyageai.com/v1` | multilingual, free allowance |
+Privacy: the (PII-sanitised) text of your memories is sent to that provider. Groq does not offer embeddings.
 
-Compares `intfloat/multilingual-e5-small` and `paraphrase-multilingual-MiniLM-L12-v2` (both 384-dimensional, both handle Hindi) with bge-m3 on your real
-memories: neighbour overlap, "finds a memory from its own first words", load time, RAM, speed, and the similarity thresholds that suit each candidate.
-It writes only a report in `storage/eval/`. Logic is unit-tested in `tests/test_memory_eval.py`.
+## Switch on (in this order)
+1. Put the key in the vault: Settings > Secrets, name **`EMBEDDING_API_KEY`** (or env `EMBEDDING_API_KEY`).
+2. In `backend/python/.env`: `EMBEDDING_BASE_URL=...` and `EMBEDDING_MODEL=...` (from the table), restart the backend.
+3. **Check quality first (read-only, a few thousand tokens):**
+       cd backend\python
+       ..\.venv\Scripts\python.exe ..\..\scripts\memory_model_eval.py --yes
+   It compares the cloud model with your stored memories: neighbour overlap, finds-a-memory-from-its-own-words, and the similarity thresholds that suit that model.
+4. If it says GOOD ENOUGH: **back up** (`scripts\backup.ps1`), then
+       ..\.venv\Scripts\python.exe ..\..\scripts\memory_reembed.py                 (dry run: counts + cost)
+       ..\.venv\Scripts\python.exe ..\..\scripts\memory_reembed.py --apply --yes   (resumable; fills a new column)
+       ..\.venv\Scripts\python.exe ..\..\scripts\memory_reembed.py --swap --yes    (one transaction; turns memory recall ON)
+5. Recalibrate the thresholds from step 3 in `memory/consolidate.py` (`RELATED_SIM`, `DUPLICATE_SIM`) and the recall floor (0.5 in `recall`/`recall_multi`): they were tuned
+   for bge-m3's score scale and are wrong for other models.
+6. Run the quality test set (`docs/EVALUATION.md`) before and after.
+Changing the provider or model later invalidates the memories again (recall switches itself off until you re-run step 4).
 
-## Step 2: decide
-The script's verdict says "good enough" only if overlap with bge-m3 is at least 60% and the candidate finds a memory from its own words at least 90% of the
-time (and not noticeably worse than bge-m3). Also try the Hindi/Hinglish examples you care about by hand.
-
-## Step 3: migrate (NOT done; do it only after Step 2, with a backup)
-The vectors are `vector(1024)` in `shared.memory_chunks.embedding`; a 384-dimensional model needs a new column. The safe sequence:
-1. `ALTER TABLE shared.memory_chunks ADD COLUMN embedding_v2 vector(384)` (nullable) and an HNSW/IVFFlat index on it.
-2. Back up the database (`scripts/backup.ps1`).
-3. Backfill `embedding_v2` by re-embedding every chunk's `content` with the new model, in batches, resumable (skip rows that already have it).
-4. Add a setting `MEMORY_EMBED_MODEL` (default: current) read by `embedding_service.embed_memory` and `memory.consolidate.similar/store`, choosing the column and model.
-   Store BOTH columns for new memories until the switch is final.
-5. Replace `RELATED_SIM`, `DUPLICATE_SIM` and the recall floor with the thresholds the script suggested for the new model (the current values are tuned for bge-m3's scale
-   and would be wrong: e5-style models score unrelated text around 0.7-0.8).
-6. Run the quality test set (`docs/EVALUATION.md`) before and after; keep the old column for a week; then drop it.
-Rollback = set `MEMORY_EMBED_MODEL` back (the old column is untouched until the end).
-
-## What is deliberately not automated
-Steps 3-6 change stored data and thresholds that affect what Jasper remembers; they are written down rather than coded until the numbers from Step 1 exist.
+## Until then
+Chat works normally, only without recalled memories (it already skips recall instead of waiting). **System health** shows "Memory (embeddings): not configured: memory recall is off".
+**Not run live yet:** the SQL in `memory_reembed.py` and both scripts (they need the database and a key); the cloud client itself is unit-tested against a fake server.

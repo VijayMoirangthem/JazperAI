@@ -84,10 +84,9 @@ async def test_scheduler_wraps_async_jobs_with_the_background_limiter():
     assert seen == [1] and limiter.background_jobs.running == 0 and s is not None
 
 
-def test_regex_pii_engine_skips_presidio_but_still_redacts(monkeypatch):
+def test_pii_redaction_is_regex_only_and_needs_no_local_model():
     from memory import sanitizer
-    monkeypatch.setattr(ps, "_current", ps.PerfSettings(**{**ps.default().model_dump(), "pii_engine": "regex"}))
-    assert sanitizer._presidio() is None
+    assert not hasattr(sanitizer, "_presidio")                          # cloud models only: no spaCy/presidio model
     text, found = sanitizer.sanitize("write to jane.doe@example.com or call +91 98765 43210, ip 10.1.2.3")
     assert "jane.doe@example.com" not in text and "10.1.2.3" not in text and "98765" not in text
     assert {"EMAIL_ADDRESS", "IP_ADDRESS", "PHONE_NUMBER"} <= set(found)

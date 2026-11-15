@@ -89,7 +89,7 @@ class AIProvider:
 
         # Local LM Studio fallback client (used when ALL primary keys are rate-limited)
         self._local_client: AsyncOpenAI | None = None
-        if settings.LOCAL_FALLBACK_ENABLED and not self._is_local:
+        if settings.LOCAL_FALLBACK_ENABLED and settings.LOCAL_FALLBACK_URL and not self._is_local:  # cloud models only: off unless a URL is set
             try:
                 self._local_client = AsyncOpenAI(
                     base_url=settings.LOCAL_FALLBACK_URL,

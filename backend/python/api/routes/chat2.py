@@ -141,8 +141,7 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
         from core.services import embedding_service
         if not want_memory:
             raise LookupError
-        if not embedding_service.memory_model_ready():
-            embedding_service.warm_memory_model_async()  # load it in the background; THIS reply does not wait for a cold load (~25 s)
+        if not embedding_service.memory_model_ready():  # cloud embeddings configured AND memories re-embedded with them; otherwise recall is simply off
             raise LookupError
         grp = workspaces.GROUP_OF.get(slug)
         if orgchart.SETTINGS.get(slug, {}).get("memory") is False:

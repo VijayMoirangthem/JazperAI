@@ -32,11 +32,12 @@ def slow_recall(monkeypatch):
     return calls
 
 
-async def test_cold_embedder_does_not_delay_the_reply_and_starts_a_background_warmup(monkeypatch, slow_recall):
+async def test_memory_that_is_not_ready_does_not_delay_the_reply(monkeypatch, slow_recall):
+    """No cloud embedding provider configured, or memories not yet re-embedded with it: recall is skipped, the reply is immediate."""
     monkeypatch.setattr(emb, "memory_model_ready", lambda: False)
     line, dt = await _first_line("tell me about my plans for next week")
     assert '"speaker"' in line and dt < 1.0
-    assert slow_recall["recall"] == 0 and slow_recall["warm"] == 1   # no lookup attempted; the model loads in the background
+    assert slow_recall["recall"] == 0 and slow_recall["warm"] == 0   # no lookup attempted, and nothing is loaded locally
 
 
 async def test_slow_warm_lookup_is_capped_at_under_a_second(monkeypatch, slow_recall):
@@ -52,10 +53,3 @@ async def test_greetings_and_fast_path_answers_skip_memory_entirely(monkeypatch,
     assert dt < 0.5 and slow_recall["recall"] == 0
     line, dt = await _first_line("Mera system ka status batao")
     assert dt < 0.5 and slow_recall["recall"] == 0
-
-
-def test_warmup_is_skipped_when_the_pc_is_short_of_ram(monkeypatch):
-    monkeypatch.setattr(emb, "_mem_model", None)
-    monkeypatch.setattr(emb, "_warming", False)
-    monkeypatch.setattr(emb, "_free_mb", lambda: 600)
-    assert emb.warm_memory_model_async() is False                     # no 2 GB load on a PC with 600 MB free

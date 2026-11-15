@@ -57,37 +57,13 @@ _RULES = [
     _Rule("AADHAAR", re.compile(r"(?<!\d)[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}(?!\d)"), lambda t: _verhoeff(_digits(t))),
     _Rule("PAN", re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")),
     _Rule("CARD", re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)"), lambda t: 13 <= len(_digits(t)) <= 19 and _luhn(_digits(t))),
-    # defence in depth: these also run when Presidio (spaCy) is unavailable, so email/phone/IP/IBAN never reach memory in clear text
+    # regex only (no local NLP model: cloud models only), so email/phone/IP/IBAN/UPI never reach memory in clear text
     _Rule("EMAIL_ADDRESS", re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}\b")),
     _Rule("IBAN_CODE", re.compile(r"\b[A-Z]{2}\d{2}[ ]?(?:[A-Z0-9]{4}[ ]?){2,7}[A-Z0-9]{1,4}\b")),
     _Rule("IP_ADDRESS", re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b")),
     _Rule("PHONE_NUMBER", re.compile(r"(?<![\w.])(?:\+\d{1,3}[ -]?\d{4,5}[ -]?\d{4,6}|[6-9]\d{4}[ -]?\d{5}|\(?\d{3}\)?[ -]\d{3}[ -]\d{4})(?![\w.])"), lambda t: 10 <= len(_digits(t)) <= 15),
     _Rule("UPI_ID", re.compile(r"\b[A-Za-z0-9._\-]{2,}@(?!(?:gmail|yahoo|outlook|hotmail)\b)[A-Za-z]{2,}\b(?!\.)")),
 ]
-
-_PRESIDIO = ["EMAIL_ADDRESS", "PHONE_NUMBER", "IBAN_CODE", "IP_ADDRESS"]
-_engine = None
-_engine_failed = False
-
-
-def _presidio():
-    global _engine, _engine_failed
-    from core.perf import settings as perf_settings
-    if perf_settings.current().pii_engine == "regex":  # Performance Settings (Eco): skip the spaCy/Presidio second opinion
-        return None
-    if _engine is not None or _engine_failed:
-        return _engine
-    try:
-        from presidio_analyzer import AnalyzerEngine
-        from presidio_analyzer.nlp_engine import NlpEngineProvider
-        nlp = NlpEngineProvider(nlp_configuration={
-            "nlp_engine_name": "spacy", "models": [{"lang_code": "en", "model_name": "en_core_web_sm"}]}).create_engine()
-        _engine = AnalyzerEngine(nlp_engine=nlp, supported_languages=["en"])
-    except Exception as e:  # presidio/spacy model missing -> regex-only mode
-        _engine_failed = True
-        log.warning("presidio unavailable, regex-only sanitizer", error=str(e))
-    return _engine
-
 
 def sanitize(text: str) -> tuple[str, list[str]]:
     """Return (clean_text, sorted unique entity types found)."""
@@ -99,11 +75,4 @@ def sanitize(text: str) -> tuple[str, list[str]]:
             found.add(r.entity)
             return f"<{r.entity}>"
         text = r.pattern.sub(_sub, text)
-    eng = _presidio()
-    if eng is not None:
-        res = sorted(eng.analyze(text=text, language="en", entities=_PRESIDIO, score_threshold=0.5),
-                     key=lambda x: x.start, reverse=True)
-        for x in res:
-            found.add(x.entity_type)
-            text = text[:x.start] + f"<{x.entity_type}>" + text[x.end:]
     return text, sorted(found)

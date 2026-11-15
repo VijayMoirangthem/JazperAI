@@ -241,3 +241,22 @@ async def test_phone_diagnostics_handler_combines_checks_and_log_problems(tmp_pa
     assert [c["name"] for c in out["checks"]] == ["disk"] and out["checks"][0]["ok"] is True
     assert out["problems"][0]["message"].startswith("Gmail failed")
     chk.states.clear()
+
+
+async def test_embeddings_probe_explains_why_memory_is_off_and_alerts_only_on_real_failures(monkeypatch):
+    from core.services import embedding_service as es
+    health_stats.reset()
+    monkeypatch.setattr(es, "configured", lambda: False)
+    ok, note = await sc.probe_embeddings()
+    assert ok is True and "not configured" in note                                  # neutral, never an alert
+    monkeypatch.setattr(es, "configured", lambda: True)
+    monkeypatch.setattr(es, "memory_space_ok", lambda: False)
+    ok, note = await sc.probe_embeddings()
+    assert ok is True and "not re-embedded" in note
+    monkeypatch.setattr(es, "memory_space_ok", lambda: True)
+    assert await sc.probe_embeddings() == (True, "")
+    for _ in range(3):
+        health_stats.record("embed", False, "HTTP 401: bad key")
+    ok, note = await sc.probe_embeddings()
+    assert ok is False and "bad key" in note
+    health_stats.reset()

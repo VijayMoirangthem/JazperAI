@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from collections import deque
 
-_outcomes: dict[str, deque] = {"llm": deque(maxlen=12), "tts": deque(maxlen=12)}
+_outcomes: dict[str, deque] = {"llm": deque(maxlen=12), "tts": deque(maxlen=12), "embed": deque(maxlen=12)}
 
 
 def record(kind: str, ok: bool, detail: str = "") -> None:

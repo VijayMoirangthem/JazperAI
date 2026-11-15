@@ -41,7 +41,7 @@ class PerfSettings(BaseModel):
     mcp_autoconnect: bool = True
     file_watcher: bool = True
     auto_repair_loop: bool = True
-    pii_engine: Literal["presidio", "regex"] = "presidio"  # regex covers the same entity types; presidio adds a second opinion
+    pii_engine: Literal["presidio", "regex"] = "regex"  # regex covers the same entity types; presidio adds a second opinion
     # monitoring
     memory_budget_mb: int = Field(1500, ge=256, le=262144, description="Warn when the app's total RAM exceeds this.")
     embedder_idle_min: int = Field(30, ge=1, le=1440, description="Free the memory/embedding models (1-2 GB) after this many idle minutes; they reload on next use.")
@@ -63,12 +63,12 @@ def preset_values(name: str) -> dict:
         return dict(preset="balanced", max_active_agents=max(16, cores * 2), max_concurrent_tasks=3, max_background_jobs=2, background_jobs_enabled=True,
                     poll_scale=1.5, ui_update_ms=400, animations="reduced", max_fps=30, show_inactive_agents=False,
                     log_level="INFO", log_retention_entries=500, mcp_autoconnect=True, file_watcher=True,
-                    auto_repair_loop=True, pii_engine="presidio", memory_budget_mb=max(1024, int(ram_mb * 0.20)), embedder_idle_min=10)
+                    auto_repair_loop=True, pii_engine="regex", memory_budget_mb=max(1024, int(ram_mb * 0.20)), embedder_idle_min=10)
     if name == "performance":
         return dict(preset="performance", max_active_agents=0, max_concurrent_tasks=max(2, min(12, cores // 2)),
                     max_background_jobs=max(2, min(8, cores // 3)), background_jobs_enabled=True, poll_scale=1.0, ui_update_ms=100,
                     animations="full", max_fps=60, show_inactive_agents=False, log_level="INFO", log_retention_entries=2000,
-                    mcp_autoconnect=True, file_watcher=True, auto_repair_loop=True, pii_engine="presidio",
+                    mcp_autoconnect=True, file_watcher=True, auto_repair_loop=True, pii_engine="regex",
                     memory_budget_mb=max(2048, int(ram_mb * 0.50)), embedder_idle_min=60)
     raise KeyError(name)
 

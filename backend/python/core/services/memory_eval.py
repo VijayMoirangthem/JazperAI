@@ -102,7 +102,7 @@ def recommend(report: dict, speed: dict | None = None, min_overlap: float = 0.6,
     if report["self_hit_new"] < min_self_hit:
         ok = False
         reasons.append(f"finds a memory from its own first words only {report['self_hit_new']:.0%} of the time (wanted {min_self_hit:.0%}+)")
-    if report["self_hit_new"] + 0.05 < report["self_hit_old"]:
+    if report.get("self_hit_old") is not None and report["self_hit_new"] + 0.05 < report["self_hit_old"]:
         reasons.append(f"noticeably worse than the current model at finding a memory from its own words ({report['self_hit_new']:.0%} vs {report['self_hit_old']:.0%})")
         ok = False
     if speed and speed.get("baseline"):
@@ -112,3 +112,23 @@ def recommend(report: dict, speed: dict | None = None, min_overlap: float = 0.6,
         if speed.get("load_s") is not None and b.get("load_s"):
             reasons.append(f"loads in {speed['load_s']:.0f} s instead of {b['load_s']:.0f} s")
     return {"switch": ok, "reasons": reasons}
+
+
+def compare_stored(stored: np.ndarray, cloud: np.ndarray, cloud_prefix_q: np.ndarray, query_idx: list[int], k: int = 5) -> dict:
+    """Judge a CLOUD model against the memories' STORED vectors (made by the previous model) without loading that model.
+
+    stored / cloud: (n, dim) vectors of the same n chunks in the old and the new space. Each test chunk is used as a query in both spaces
+    (itself excluded) and the neighbour lists are compared: overlap@k. `cloud_prefix_q[i]` is the cloud embedding of the first words of
+    chunk query_idx[i]: self-hit is how often it finds its own chunk (a realistic 'remember something from its start' query)."""
+    so, cn, qp = normalize(stored), normalize(cloud), normalize(cloud_prefix_q)
+    overlaps, hits = [], 0
+    for i, src in enumerate(query_idx):
+        io, _ = topk(so, so[src], k + 1)
+        inn, _ = topk(cn, cn[src], k + 1)
+        io, inn = io[io != src][:k], inn[inn != src][:k]
+        overlaps.append(overlap_at_k(io, inn) if len(io) else 0.0)
+        top, _ = topk(cn, qp[i], 1)
+        hits += int(top[0] == src)
+    base = compare(stored, cloud, stored[query_idx], cn[query_idx], query_idx, k)   # reuse the score-scale statistics of the cloud space
+    n = max(1, len(query_idx))
+    return {**base, "overlap_at_k": round(float(np.mean(overlaps)) if overlaps else 0.0, 3), "self_hit_new": round(hits / n, 3), "self_hit_old": None}

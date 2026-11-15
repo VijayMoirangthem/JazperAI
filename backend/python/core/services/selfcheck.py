@@ -21,7 +21,7 @@ Probe = Callable[[], Awaitable[tuple[bool, str]]]
 THRESHOLD = 2            # consecutive failures before announcing
 REMIND_S = 6 * 3600      # re-announce a still-open problem this often
 LABELS = {"database": "Database", "redis": "Redis cache", "google": "Google login", "llm": "AI model provider",
-          "speech": "Speech (voice) service", "disk": "Disk space"}
+          "speech": "Speech (voice) service", "embeddings": "Memory (embeddings)", "disk": "Disk space"}
 
 
 @dataclass
@@ -121,6 +121,18 @@ async def probe_speech() -> tuple[bool, str]:
     return (not bad), (f"the last 3 voice requests failed: {detail}" if bad else "")
 
 
+async def probe_embeddings() -> tuple[bool, str]:
+    """Cloud embeddings. Not configured / not yet re-embedded are NOT failures (memory recall is simply off, and the note says why)."""
+    from core import health_stats
+    from core.services import embedding_service as es
+    if not es.configured():
+        return True, "not configured: memory recall is off"
+    if not es.memory_space_ok():
+        return True, "provider set, but memories are not re-embedded with it yet: recall is off"
+    bad, detail = health_stats.failing("embed")
+    return (not bad), (f"the last 3 embedding requests failed: {detail}" if bad else "")
+
+
 async def probe_disk() -> tuple[bool, str]:
     from core.logfile import ROOT
     free_gb = shutil.disk_usage(ROOT).free / 1e9
@@ -128,7 +140,7 @@ async def probe_disk() -> tuple[bool, str]:
 
 
 PROBES: dict[str, Probe] = {"database": probe_database, "redis": probe_redis, "google": probe_google, "llm": probe_llm,
-                            "speech": probe_speech, "disk": probe_disk}
+                            "speech": probe_speech, "embeddings": probe_embeddings, "disk": probe_disk}
 
 
 _pending: list[tuple[str, str, str]] = []   # announcements that could not be stored yet (the database itself may be what is down)

@@ -78,3 +78,27 @@ def test_score_scale_is_reported_from_the_real_corpus():
     r = me.compare(c, c, c[idx], c[idx], idx)
     assert -1 < r["new_unrelated_score_median"] < 1 and r["new_unrelated_score_p95"] >= r["new_unrelated_score_median"]
     assert r["new_top1_score_median"] == pytest.approx(1.0, abs=1e-3)
+
+
+def test_a_cloud_model_that_preserves_neighbourhoods_is_recognised_without_the_old_model():
+    rng = np.random.default_rng(11)
+    stored = rng.normal(size=(80, 24))
+    cloud = stored @ rng.normal(size=(24, 16))                       # a different space that keeps the same geometry (a linear map)
+    idx = list(range(0, 80, 4))
+    prefix = cloud[idx] + 0.01 * rng.normal(size=(len(idx), 16))
+    r = me.compare_stored(stored, cloud, prefix, idx)
+    assert r["overlap_at_k"] > 0.4 and r["self_hit_new"] >= 0.9 and r["self_hit_old"] is None
+    assert me.recommend({**r, "self_hit_old": r["self_hit_new"]})["switch"] in (True, False)       # recommend() accepts it
+
+
+def test_an_unrelated_cloud_space_has_no_neighbour_overlap():
+    rng = np.random.default_rng(12)
+    stored, cloud = rng.normal(size=(80, 24)), rng.normal(size=(80, 16))
+    idx = list(range(0, 80, 4))
+    r = me.compare_stored(stored, cloud, rng.normal(size=(len(idx), 16)), idx)
+    assert r["overlap_at_k"] < 0.2 and r["self_hit_new"] < 0.3
+
+
+def test_recommend_works_when_there_is_no_old_model_score():
+    v = me.recommend({"overlap_at_k": 0.7, "self_hit_old": None, "self_hit_new": 0.95})
+    assert v["switch"] is True

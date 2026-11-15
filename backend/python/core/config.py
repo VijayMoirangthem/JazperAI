@@ -36,9 +36,12 @@ class Settings(BaseSettings):
     WS_TOKEN: str = ""  # when set, /ws/rpc requires ?token=
     OFFICE_AUTH_REQUIRED: bool = False  # enables signed founder/admin checks for Office people management
 
-    # Embeddings (unified memory, D-5)
-    EMBEDDING_PROVIDER: str = "local"
-    EMBEDDING_MODEL: str = "BAAI/bge-m3"
+    # Embeddings (unified memory, D-5): CLOUD ONLY (founder decision 2026-11-15: no model runs on this PC). Any OpenAI-compatible
+    # /embeddings endpoint works (OpenAI, Gemini's OpenAI-compatible endpoint, Jina, Voyage...). Unset = memory recall is simply off.
+    EMBEDDING_PROVIDER: str = "cloud"        # "cloud" or "none"
+    EMBEDDING_BASE_URL: str = ""             # e.g. https://api.jina.ai/v1  (the key goes in the vault as EMBEDDING_API_KEY, or this env var)
+    EMBEDDING_MODEL: str = ""                # the provider's model name
+    EMBEDDING_API_KEY: str = ""
 
     # Server
     FASTAPI_PORT: int = 8000
@@ -49,10 +52,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/google/oauth/callback"
 
-    # Local model fallback (LM Studio) — used when all Groq keys are rate-limited
-    LOCAL_FALLBACK_URL:     str  = "http://localhost:1234/v1"
-    LOCAL_FALLBACK_MODEL:   str  = "lmstudio-community/qwen2.5-3b-instruct"
-    LOCAL_FALLBACK_ENABLED: bool = True
+    # Local model fallback (LM Studio): OFF. Cloud models only (founder decision 2026-11-15); a rate-limited provider falls back to another CLOUD model.
+    LOCAL_FALLBACK_URL:     str  = ""
+    LOCAL_FALLBACK_MODEL:   str  = ""
+    LOCAL_FALLBACK_ENABLED: bool = False
 
     # Claude / Anthropic (used by Oracle + IT Dept for reasoning/code tasks)
     CLAUDE_API_KEY: str = ""

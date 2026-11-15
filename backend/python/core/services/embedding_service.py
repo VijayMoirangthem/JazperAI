@@ -1,176 +1,180 @@
+"""Embeddings from a CLOUD API (founder decision 2026-11-15: no AI model runs on this PC).
+
+Any OpenAI-compatible `POST {base}/embeddings` works (OpenAI, Gemini's OpenAI-compatible endpoint, Jina, Voyage, ...): configure
+EMBEDDING_BASE_URL + EMBEDDING_MODEL and put the key in the vault as EMBEDDING_API_KEY. Two sizes are used:
+  * embed()         384-dim, for the code index
+  * embed_memory()  1024-dim, for shared.memory_chunks
+
+SAFETY: stored memories were embedded by an earlier model (bge-m3), and vectors from different models cannot be compared. Memory recall and
+storage therefore stay OFF until `scripts/memory_reembed.py` has re-embedded everything with the CURRENT provider/model and recorded that in
+storage/state/memory_embedding.json. A configured key alone never switches memory on.
+
+Nothing is loaded locally, so the old "unload / warm-up" functions remain only as harmless no-ops for the callers that still use them.
 """
-Local sentence-transformers embeddings.
-Uses all-MiniLM-L6-v2 (384-dim) — fast, private, no API dependency.
-Model is downloaded once and cached in ~/.cache/huggingface.
-"""
+from __future__ import annotations
+
+import json
+import threading as _threading
+import time as _time
+from collections import OrderedDict
+from pathlib import Path
+
 import structlog
 
 log = structlog.get_logger()
 
-EMBEDDING_DIM = 384
-_MODEL_NAME = "all-MiniLM-L6-v2"
-_model = None
-_model_failed = False
+EMBEDDING_DIM = 384            # code index
+MEMORY_EMBEDDING_DIM = 1024    # shared.memory_chunks.embedding is vector(1024)
+TIMEOUT_S = 8.0
+STATE_FILE = Path(__file__).resolve().parents[3] / "storage" / "state" / "memory_embedding.json"
+
+_transport = None              # tests inject an httpx.MockTransport here
+_cache: "OrderedDict[tuple, list[float]]" = OrderedDict()
+_cache_lock = _threading.Lock()
+CACHE_MAX = 256
 
 
-import threading as _threading
-import time as _time
+# ── configuration ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-_last_used = 0.0
-_unload_lock = _threading.Lock()
-
-
-def loaded_models() -> int:
-    return int(_model is not None) + int(_mem_model is not None)
+def _settings():
+    from core.config import settings
+    return settings
 
 
-def trim_working_set() -> bool:
-    """Python/torch keep freed memory inside the process, so deleting a model barely lowers RSS. On Windows, ask the OS to take back the
-    pages this process is not using (EmptyWorkingSet): the freed model memory then becomes available to other programs. Pages still in
-    use are simply faulted back in on demand. No-op elsewhere."""
-    import sys
-    if sys.platform != "win32":
-        return False
+def _api_key() -> str:
     try:
-        import ctypes
-        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        k32.GetCurrentProcess.restype = ctypes.c_void_p      # a 64-bit pseudo-handle: the default int type would truncate it
-        k32.K32EmptyWorkingSet.argtypes = [ctypes.c_void_p]
-        k32.K32EmptyWorkingSet.restype = ctypes.c_int
-        return bool(k32.K32EmptyWorkingSet(k32.GetCurrentProcess()))
-    except Exception:
-        return False
-
-
-def unload(force: bool = False, idle_minutes: float = 10.0) -> dict:
-    """Free the embedding models (about 1-2 GB of RAM) when idle for `idle_minutes` (or now with force=True). They reload on next use
-    (one slow call). Returns what was freed. Never raises."""
-    global _model, _mem_model
-    import gc
-    with _unload_lock:
-        if not force and _time.monotonic() - _last_used < idle_minutes * 60:
-            return {"unloaded": 0, "reason": "recently used"}
-        n = loaded_models()
-        _model = _mem_model = None
-    gc.collect()
-    try:
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except Exception:
+        from core import vault
+        k = vault.get("EMBEDDING_API_KEY")
+        if k:
+            return k
+    except Exception:  # noqa: BLE001 - vault unavailable: fall back to the environment
         pass
-    trimmed = trim_working_set()
-    if n:
-        log.info("embedding models unloaded to free RAM", count=n, trimmed=trimmed)
-    return {"unloaded": n, "reason": "forced" if force else "idle", "working_set_trimmed": trimmed}
+    return _settings().EMBEDDING_API_KEY or ""
 
 
-def _load():
-    global _model, _model_failed, _last_used
-    _last_used = _time.monotonic()
-    if _model is not None:
-        return _model
-    if _model_failed:
-        return None
+def configured() -> bool:
+    s = _settings()
+    return s.EMBEDDING_PROVIDER == "cloud" and bool(s.EMBEDDING_BASE_URL and s.EMBEDDING_MODEL and _api_key())
+
+
+def space_id() -> str:
+    """Names the embedding space of the CURRENT configuration (provider endpoint + model + size)."""
+    s = _settings()
+    return f"{s.EMBEDDING_BASE_URL.rstrip('/')}|{s.EMBEDDING_MODEL}|{MEMORY_EMBEDDING_DIM}"
+
+
+def memory_space_ok() -> bool:
+    """True only when stored memories have been re-embedded with the current provider/model (see scripts/memory_reembed.py)."""
     try:
-        from sentence_transformers import SentenceTransformer
-        _model = SentenceTransformer(_MODEL_NAME)
-        log.info("Embedding model loaded", model=_MODEL_NAME, dim=EMBEDDING_DIM)
-        return _model
-    except Exception as e:
-        _model_failed = True
-        log.warning("Embedding model failed to load — semantic memory disabled", error=str(e))
+        return configured() and json.loads(STATE_FILE.read_text(encoding="utf-8")).get("space") == space_id()
+    except (OSError, ValueError):
+        return False
+
+
+def record_memory_space() -> None:
+    """Written by scripts/memory_reembed.py after a COMPLETE re-embedding."""
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps({"space": space_id(), "at": _time.strftime("%Y-%m-%d %H:%M:%S")}), encoding="utf-8")
+
+
+# ── the API call ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+def _call(inputs: list[str], dim: int) -> list[list[float]] | None:
+    """One embeddings request (one retry on rate limit / server error). None on any failure; the caller degrades gracefully."""
+    import httpx
+    from core import health_stats
+    s = _settings()
+    body = {"model": s.EMBEDDING_MODEL, "input": inputs, "dimensions": dim, "encoding_format": "float"}
+    headers = {"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"}
+    url = s.EMBEDDING_BASE_URL.rstrip("/") + "/embeddings"
+    last = ""
+    for attempt in range(2):
+        try:
+            with httpx.Client(timeout=TIMEOUT_S, transport=_transport) as c:
+                r = c.post(url, json=body, headers=headers)
+            if r.status_code == 200:
+                data = sorted(r.json()["data"], key=lambda d: d.get("index", 0))
+                vecs = [d["embedding"] for d in data]
+                if len(vecs) != len(inputs) or any(len(v) != dim for v in vecs):
+                    last = f"provider returned {len(vecs[0]) if vecs else 0}-dim vectors, expected {dim} (does the model support `dimensions`?)"
+                    break
+                health_stats.record("embed", True)
+                return vecs
+            last = f"HTTP {r.status_code}: {r.text[:120]}"
+            if r.status_code not in (429, 500, 502, 503, 504):
+                break
+        except Exception as e:  # noqa: BLE001 - network problem, timeout, bad JSON
+            last = f"{type(e).__name__}: {str(e)[:100]}"
+        _time.sleep(0.4 * (attempt + 1))
+    health_stats.record("embed", False, last)
+    log.warning("cloud embedding failed", error=last)
+    return None
+
+
+def _embed(text: str, dim: int) -> list[float] | None:
+    text = (text or "").strip()
+    if not text or not configured():
         return None
+    key = (space_id(), dim, text)
+    with _cache_lock:
+        if key in _cache:
+            _cache.move_to_end(key)
+            return _cache[key]
+    out = _call([text[:8000]], dim)
+    if not out:
+        return None
+    with _cache_lock:
+        _cache[key] = out[0]
+        while len(_cache) > CACHE_MAX:
+            _cache.popitem(last=False)
+    return out[0]
 
 
 def embed(text: str) -> list[float] | None:
-    """Embed text. Returns None if model not available."""
-    m = _load()
-    if m is None:
-        return None
-    try:
-        vec = m.encode(text, normalize_embeddings=True)
-        return vec.tolist()
-    except Exception as e:
-        log.warning("Embed failed", error=str(e))
-        return None
+    """384-dim embedding (code index). None when no cloud provider is configured or it failed."""
+    return _embed(text, EMBEDDING_DIM)
 
 
 def is_available() -> bool:
-    return _load() is not None
+    return configured()
 
 
-# ── Unified-memory embeddings (D-5): pluggable provider, 1024-dim bge-m3-class ──────────────
-MEMORY_EMBEDDING_DIM = 1024
-_mem_model = None
-_mem_failed = False
+def embed_memory(text: str, force: bool = False) -> list[float] | None:
+    """1024-dim embedding for shared.memory_chunks. Caller must sanitize `text` first. None unless the memory space is verified
+    (`force=True` is for the re-embedding script only)."""
+    if not force and not memory_space_ok():
+        return None
+    return _embed(text, MEMORY_EMBEDDING_DIM)
 
 
-_mem_load_lock = _threading.Lock()
-_warming = False
-MIN_FREE_MB_TO_WARM = 2500  # the memory model needs about 2 GB; do not load it on a PC that is already short of RAM
+def embed_memory_many(texts: list[str], batch: int = 32) -> list[list[float] | None]:
+    """Re-embedding helper (force): one request per `batch` texts. A failed batch yields None for its items."""
+    out: list[list[float] | None] = []
+    for i in range(0, len(texts), batch):
+        chunk = [t[:8000] for t in texts[i:i + batch]]
+        vecs = _call(chunk, MEMORY_EMBEDDING_DIM) if configured() else None
+        out.extend(vecs if vecs else [None] * len(chunk))
+    return out
 
 
-def _load_memory_model():
-    """Local provider (default). A cloud provider would be selected here via settings.EMBEDDING_PROVIDER (needs C-3)."""
-    global _mem_model, _mem_failed, _last_used
-    _last_used = _time.monotonic()
-    if _mem_model is not None or _mem_failed:
-        return _mem_model
-    with _mem_load_lock:  # one loader at a time: a second caller waits instead of loading a second 2 GB copy
-        if _mem_model is not None or _mem_failed:
-            return _mem_model
-        try:
-            from sentence_transformers import SentenceTransformer
-            from core.config import settings
-            _mem_model = SentenceTransformer(settings.EMBEDDING_MODEL)
-            log.info("Memory embedding model loaded", model=settings.EMBEDDING_MODEL)
-        except Exception as e:
-            _mem_failed = True
-            log.warning("Memory embedding model unavailable", error=str(e))
-    return _mem_model
-
+# ── compatibility for callers written for the old local models (nothing is loaded locally any more) ────────────────────────────
 
 def memory_model_ready() -> bool:
-    return _mem_model is not None
-
-
-def _free_mb() -> int:
-    try:
-        import psutil
-        return int(psutil.virtual_memory().available / 1048576)
-    except Exception:
-        return 1 << 30  # cannot tell: assume there is room
+    """Recall may run: a cloud provider is configured AND memories are in its embedding space."""
+    return memory_space_ok()
 
 
 def warm_memory_model_async(force: bool = False) -> bool:
-    """Load the memory model in a background thread (about 25 s cold) so a chat never waits for it. Returns True if a load was started.
-    Skipped when the PC is short of RAM (unless force): chat then simply answers without memory instead of slowing everything down."""
-    global _warming
-    if _mem_model is not None or _mem_failed or _warming:
-        return False
-    if not force and _free_mb() < MIN_FREE_MB_TO_WARM:
-        return False
-    _warming = True
-
-    def run():
-        global _warming
-        try:
-            _load_memory_model()
-        finally:
-            _warming = False
-
-    _threading.Thread(target=run, daemon=True, name="memory-embedder-warmup").start()
-    return True
+    return False
 
 
-def embed_memory(text: str) -> list[float] | None:
-    """1024-dim embedding for shared.memory_chunks. Caller must sanitize `text` first. None if unavailable."""
-    m = _load_memory_model()
-    if m is None:
-        return None
-    try:
-        return m.encode(text, normalize_embeddings=True).tolist()
-    except Exception as e:
-        log.warning("Memory embed failed", error=str(e))
-        return None
+def loaded_models() -> int:
+    return 0
+
+
+def trim_working_set() -> bool:
+    return False
+
+
+def unload(force: bool = False, idle_minutes: float = 10.0) -> dict:
+    return {"unloaded": 0, "reason": "cloud embeddings: no model is loaded on this PC"}

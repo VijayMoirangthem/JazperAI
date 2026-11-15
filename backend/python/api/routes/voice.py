@@ -18,8 +18,6 @@ log = structlog.get_logger()
 # Primary:  Groq whisper-large-v3-turbo (~150 ms, no local GPU/thread issues)
 # Fallback: faster-whisper tiny.en on CPU (used if Groq call fails)
 
-_whisper_model = None
-_whisper_lock  = asyncio.Lock()  # prevent concurrent model downloads
 
 
 # Whisper auto-detects the language (English, Hindi, Hinglish). The prompt is only the product name: longer example sentences made Whisper
@@ -46,51 +44,26 @@ def sniff_audio(data: bytes, content_type: str = "") -> tuple[str, str]:
 
 
 async def _transcribe_groq(audio_bytes: bytes, filename: str, mime: str, language: str | None = None) -> str | None:
-    """Call Groq's Whisper API. Returns text or None on failure."""
-    try:
-        from core.providers.ai_provider import get_ai_provider
-        provider = get_ai_provider()
-        kw = {"language": language} if language else {}
-        result = await provider.client.audio.transcriptions.create(
-            model="whisper-large-v3-turbo",
-            file=(filename, audio_bytes, mime),
-            response_format="json",
-            prompt=_STT_PROMPT,
-            **kw,
-        )
-        return (result.text or "").strip()
-    except Exception as exc:
-        log.warning("Groq transcription failed, falling back to local Whisper", error=str(exc))
-        return None
-
-
-async def _transcribe_local(audio_bytes: bytes, suffix: str, language: str | None = None) -> str:
-    """Fallback: faster-whisper (multilingual "base") on CPU, so Hindi still works when Groq is unreachable."""
-    global _whisper_model
-    async with _whisper_lock:
-        if _whisper_model is None:
-            from faster_whisper import WhisperModel
-            log.info("Loading Whisper base model (fallback)...")
-            _whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
-            log.info("Whisper ready")
-
-    loop = asyncio.get_event_loop()
-
-    def _run():
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
-            f.write(audio_bytes)
-            tmp = f.name
+    """Cloud speech-to-text (Groq Whisper). One retry on a hiccup. Returns text, or None when the service is unavailable.
+    There is deliberately NO local fallback: cloud models only (founder decision 2026-11-15)."""
+    for attempt in range(2):
         try:
-            segs, _ = _whisper_model.transcribe(
-                tmp, language=language, initial_prompt=_STT_PROMPT, beam_size=1,
-                vad_filter=True,
-                vad_parameters={"min_silence_duration_ms": 300},
+            from core.providers.ai_provider import get_ai_provider
+            provider = get_ai_provider()
+            kw = {"language": language} if language else {}
+            result = await provider.client.audio.transcriptions.create(
+                model="whisper-large-v3-turbo",
+                file=(filename, audio_bytes, mime),
+                response_format="json",
+                prompt=_STT_PROMPT,
+                **kw,
             )
-            return " ".join(s.text.strip() for s in segs).strip()
-        finally:
-            os.unlink(tmp)
-
-    return await loop.run_in_executor(None, _run)
+            return (result.text or "").strip()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("cloud transcription failed", attempt=attempt + 1, error=str(exc)[:160])
+            if attempt == 0:
+                await asyncio.sleep(0.5)
+    return None
 
 
 class SpeakRequest(BaseModel):
@@ -100,10 +73,8 @@ class SpeakRequest(BaseModel):
 
 @router.post("/transcribe")
 async def transcribe(audio: UploadFile = File(...), language: str | None = None):
-    """
-    Transcribe audio using Groq whisper-large-v3-turbo (~150 ms).
-    Falls back to local faster-whisper tiny.en if Groq is unavailable.
-    """
+    """Transcribe audio with Groq whisper-large-v3-turbo (~150 ms); English, Hindi and Hinglish are detected automatically.
+    If the cloud service is unavailable the answer is a clear 503 (nothing is ever transcribed on this PC)."""
     try:
         audio_bytes = await audio.read()
         if not audio_bytes:
@@ -113,10 +84,9 @@ async def transcribe(audio: UploadFile = File(...), language: str | None = None)
         filename = "audio" + suffix
         language = language if language in ("en", "hi") else None
 
-        # Try Groq first (fast), then local fallback
         text = await _transcribe_groq(audio_bytes, filename, mime, language)
         if text is None:
-            text = await _transcribe_local(audio_bytes, suffix, language)
+            raise HTTPException(status_code=503, detail="Speech-to-text is unavailable right now (cloud service). Try again in a moment.")
 
         log.info("Transcribed", text=text[:60])
 
@@ -136,6 +106,8 @@ async def transcribe(audio: UploadFile = File(...), language: str | None = None)
 
         return {"text": text, "empty": False, "workflow": workflow}
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.error("Transcription failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -143,46 +115,19 @@ async def transcribe(audio: UploadFile = File(...), language: str | None = None)
 
 @router.post("/transcribe-stream")
 async def transcribe_stream(audio: UploadFile = File(...)):
-    """Transcribe audio and stream each Whisper segment via SSE as it's processed."""
+    """Same SSE shape as before ({"word", "full"} events, then [DONE]) but the whole clip is transcribed by the cloud service at once,
+    so it arrives as one event. (Segment-by-segment streaming needed a local model.)"""
     audio_bytes = await audio.read()
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio")
-
-    suffix = ".wav" if (audio.content_type or "").endswith("wav") else ".webm"
-    tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
-    tmp.write(audio_bytes)
-    tmp.close()
+    suffix, mime = sniff_audio(audio_bytes, audio.content_type or "")
 
     async def generate():
-        loop = asyncio.get_event_loop()
-        full_text = ""
-
-        def _iter_segments():
-            global _whisper_model
-            if _whisper_model is None:
-                from faster_whisper import WhisperModel
-                _whisper_model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
-            segments, _ = _whisper_model.transcribe(
-                tmp.name,
-                language="en",
-                beam_size=3,           # faster beam for streaming feel
-                vad_filter=True,
-                vad_parameters={"min_silence_duration_ms": 300},
-            )
-            return list(segments)     # materialise generator in thread
-
-        try:
-            segments = await loop.run_in_executor(None, _iter_segments)
-            for seg in segments:
-                word = seg.text.strip()
-                if word:
-                    full_text = (full_text + " " + word).strip()
-                    payload = json.dumps({"word": word, "full": full_text})
-                    yield f"data: {payload}\n\n"
-                    await asyncio.sleep(0)  # let event loop breathe between segments
-        finally:
-            os.unlink(tmp.name)
-
+        text = await _transcribe_groq(audio_bytes, "audio" + suffix, mime)
+        if text is None:
+            yield "data: " + json.dumps({"error": "Speech-to-text is unavailable right now (cloud service)."}) + "\n\n"
+        elif text:
+            yield "data: " + json.dumps({"word": text, "full": text}) + "\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

@@ -15,10 +15,8 @@ minio==7.2.7
 python-multipart==0.0.9
 ddgs>=0.1.0
 requests==2.32.3
-faster-whisper==1.2.1
 edge-tts>=7.3.1
 apscheduler==3.10.4
-sentence-transformers==3.0.1
 playwright
 watchdog==4.0.1
 cryptography

@@ -16,7 +16,7 @@ def test_every_preset_is_valid_and_ordered_eco_to_performance():
     assert eco.ui_update_ms >= bal.ui_update_ms >= perf.ui_update_ms
     assert eco.log_retention_entries <= bal.log_retention_entries <= perf.log_retention_entries
     assert eco.max_active_agents < bal.max_active_agents and perf.max_active_agents == 0   # 0 = unlimited
-    assert eco.pii_engine == "regex" and bal.pii_engine == "presidio"
+    assert eco.pii_engine == "regex" and bal.pii_engine == "regex"
     assert eco.mcp_autoconnect is False and eco.file_watcher is False
 
 
@@ -114,7 +114,7 @@ async def test_monitor_reports_real_measurements():
 def test_first_run_default_keeps_todays_behaviour():
     d = ps.default()
     assert d.preset == "default" and d.max_active_agents == 0 and d.poll_scale == 1.0 and d.animations == "full"
-    assert d.pii_engine == "presidio" and d.mcp_autoconnect and d.file_watcher
+    assert d.pii_engine == "regex" and d.mcp_autoconnect and d.file_watcher
 
 
 async def test_memory_warning_fires_when_over_budget(monkeypatch):
@@ -162,17 +162,10 @@ async def test_independent_tasks_still_queue_behind_the_limit():
     assert peak == 1 and L.completed == 5
 
 
-def test_embedder_unloads_only_when_idle_or_forced(monkeypatch):
+def test_nothing_is_loaded_locally_so_unloading_is_a_harmless_no_op():
     from core.services import embedding_service as es
-    monkeypatch.setattr(es, "_model", object())
-    monkeypatch.setattr(es, "_mem_model", object())
-    monkeypatch.setattr(es, "_last_used", es._time.monotonic())            # just used
-    assert es.unload(False, 10) == {"unloaded": 0, "reason": "recently used"} and es.loaded_models() == 2
-    monkeypatch.setattr(es, "_last_used", es._time.monotonic() - 11 * 60)  # idle 11 min
-    assert es.unload(False, 10)["unloaded"] == 2 and es.loaded_models() == 0
-    monkeypatch.setattr(es, "_mem_model", object())
-    assert es.unload(True)["unloaded"] == 1                                # forced ignores recent use
-    assert es.unload(True)["unloaded"] == 0                                # nothing loaded: harmless
+    assert es.loaded_models() == 0                                         # cloud embeddings: no model lives in this process
+    assert es.unload(True)["unloaded"] == 0 and es.unload(False, 10)["unloaded"] == 0
 
 
 def test_presets_free_models_sooner_in_eco():
