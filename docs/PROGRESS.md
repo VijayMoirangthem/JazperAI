@@ -9,9 +9,9 @@ Branch: `claude/resource-aware-agents`. Nothing here is merged or deployed.
 ## Phase 1: Speed
 | # | Item | Status | Commit | Tests | Live check still needed |
 |---|---|---|---|---|---|
-| 1.1 | Fast path for plain chat: short prompt, no tool docs, low reasoning effort, guard + fallback to the tool loop | built | (this commit) | test_chatmode, test_plain_chat (48 tests) | reply quality, latency vs 0.7-1.2 s baseline |
+| 1.1 | Fast path for plain chat: short prompt, no tool docs, low reasoning effort, guard + fallback to the tool loop | built | 6ddc20b | test_chatmode, test_plain_chat (48 tests) | reply quality, latency vs 0.7-1.2 s baseline |
 | 1.2 | Speak while the reply streams (phone) | todo | | | how it sounds |
-| 1.3 | Smaller system prompt: tool loop prompt measured at ~2,260 tokens (40 tool descriptions = 1,370); now only the relevant area is described | built | (this commit) | test_chatmode, test_plain_chat | latency before/after on a tool turn |
+| 1.3 | Smaller system prompt: tool loop prompt measured at ~2,260 tokens (40 tool descriptions = 1,370); now only the relevant area is described | built | 6ddc20b | test_chatmode, test_plain_chat | latency before/after on a tool turn |
 | 1.4 | Lighter memory model (dry-run migration first) | todo | | | recall quality |
 | 1.5 | Parallel tool calls + Gmail queries | todo | | | email latency |
 | 1.6 | Faster backend start-up (lazy imports) | todo | | | start-up time |
