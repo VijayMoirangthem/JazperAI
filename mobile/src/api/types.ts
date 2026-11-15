@@ -161,6 +161,25 @@ export interface EventsResponse {
   cursor: string;
 }
 
+export interface FeatureCard {
+  id: string;
+  task: string;
+  group?: string;
+  status?: string;
+  merge?: string | null;
+  branch?: string;
+  files: number;
+  added: number;
+  removed: number;
+}
+
+export interface FeatureDetail extends FeatureCard {
+  report: string;
+  files_changed: { path: string; added: number; removed: number }[];
+  diff: string;
+  diff_cut: boolean;
+}
+
 export interface PairedDevice {
   id: string;
   name: string;

@@ -200,6 +200,12 @@ export default function SettingsScreen() {
         </Group>
 
         <Group title="System">
+          <Pressable onPress={() => router.push('/features' as Href)} style={styles.row} accessibilityRole="button" accessibilityLabel="Feature runs">
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Feature runs</Text>
+              <Text style={styles.rowDesc}>Code Jasper's team wrote: see the changes, approve a merge</Text>
+            </View>
+          </Pressable>
           <Pressable onPress={() => router.push('/health' as Href)} style={styles.row} accessibilityRole="button" accessibilityLabel="System health">
             <View style={{ flex: 1 }}>
               <Text style={styles.rowLabel}>System health</Text>

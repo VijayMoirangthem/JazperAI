@@ -18,6 +18,8 @@ import {
   EventsResponse,
   DiagnosticsResponse,
   PairedDevice,
+  FeatureCard,
+  FeatureDetail,
   ChatStreamRequest,
   VoiceTranscribeResponse,
   PushRegisterRequest,
@@ -261,6 +263,24 @@ export class JasperClient {
 
   async getNotifications(deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<NotificationsResponse> {
     return this.request<NotificationsResponse>('/remote/v1/notifications', {}, true, deviceCredentials);
+  }
+
+  /** Autonomous coding runs on the PC (safe branches), with the size of each change. */
+  async getFeatures(deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<{ runs: FeatureCard[] }> {
+    return this.request<{ runs: FeatureCard[] }>('/remote/v1/features', {}, true, deviceCredentials);
+  }
+
+  async getFeature(id: string, deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<FeatureDetail> {
+    return this.request<FeatureDetail>(`/remote/v1/features/${encodeURIComponent(id)}`, {}, true, deviceCredentials);
+  }
+
+  /** Only asks for the merge: it becomes a Tier-3 approval you confirm with your fingerprint in Approvals. */
+  async requestFeatureMerge(id: string, deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<{ id: string; merge: string }> {
+    return this.request<{ id: string; merge: string }>(`/remote/v1/features/${encodeURIComponent(id)}/merge`, { method: 'POST' }, true, deviceCredentials);
+  }
+
+  async discardFeature(id: string, deviceCredentials: { deviceId: string; deviceSecret: string }): Promise<{ discarded: string }> {
+    return this.request<{ discarded: string }>(`/remote/v1/features/${encodeURIComponent(id)}`, { method: 'DELETE' }, true, deviceCredentials);
   }
 
   /** Every device paired with the PC (this phone is marked current). */

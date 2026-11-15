@@ -254,7 +254,9 @@ async def merge(rid: str) -> None:
     run = RUNS[rid]
     run["merge"] = "awaiting-approval"
     try:
-        ok = await hitl.gate("git.merge_main", f"Merge {run['branch']} into {run['repo']}: {run['task'][:200]}. Tests passed in the sandbox. Report: {run.get('report', '')[:300]}", run["lead"], ttl_s=900)
+        from core import diffstats
+        changes = diffstats.stats_line(diffstats.diff_stats(run.get("diff", "")))
+        ok = await hitl.gate("git.merge_main", f"Merge {run['branch']} into {run['repo']}: {run['task'][:200]}. Tests passed in the sandbox. Changes: {changes}. Report: {run.get('report', '')[:300]}", run["lead"], ttl_s=900)
         rid_h = hitl.last_request_id()
         if not ok:
             run["merge"] = "denied"

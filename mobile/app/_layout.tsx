@@ -173,6 +173,8 @@ export default function RootLayout() {
         <Stack.Screen name="search" options={{ animation: 'fade' }} />
         <Stack.Screen name="health" />
         <Stack.Screen name="devices" />
+        <Stack.Screen name="features" />
+        <Stack.Screen name="feature/[id]" />
         <Stack.Screen name="create-bot" options={{ presentation: 'transparentModal', animation: 'none' }} />
         <Stack.Screen name="plugins" options={{ presentation: 'transparentModal', animation: 'none' }} />
         <Stack.Screen name="profile" options={{ presentation: 'transparentModal', animation: 'none' }} />

@@ -263,6 +263,65 @@ async def events(since: str | None = None, wait: int = 25, d: dict = Depends(dev
     return {"events": found, "cursor": cursor}
 
 
+def _feature_card(run: dict) -> dict:
+    from agents import feature_flow as ff
+    from core import diffstats
+    pub = ff.public(run)
+    st = diffstats.diff_stats(run.get("diff", ""))
+    return {"id": pub.get("id"), "task": (pub.get("task") or "")[:300], "group": pub.get("group"), "status": pub.get("status"), "merge": pub.get("merge"),
+            "branch": pub.get("branch"), "files": len(st["files"]), "added": st["added"], "removed": st["removed"]}
+
+
+@router.get("/features")
+async def phone_features(d: dict = Depends(device)):
+    """Feature runs (autonomous coding on a safe branch): status, and how big the change is."""
+    from agents import feature_flow as ff
+    return {"runs": [_feature_card(r) for r in ff.RUNS.values()]}
+
+
+@router.get("/features/{rid}")
+async def phone_feature(rid: str, d: dict = Depends(device)):
+    """One run: the card, the per-file change list, a redacted diff (cut at 12,000 characters) and the report."""
+    from agents import feature_flow as ff
+    from core import diffstats
+    run = ff.RUNS.get(rid)
+    if not run:
+        raise HTTPException(404, "unknown run")
+    text, cut = diffstats.safe_diff(run.get("diff", ""))
+    return {**_feature_card(run), "report": diffstats.redact(str(run.get("report", ""))[:2000]), "files_changed": diffstats.diff_stats(run.get("diff", ""))["files"],
+            "diff": text, "diff_cut": cut}
+
+
+@router.post("/features/{rid}/merge")
+async def phone_feature_merge(rid: str, d: dict = Depends(device)):
+    """Ask to merge a verified run. This only creates the Tier-3 approval (it shows the change summary); nothing is merged until you approve
+    it with your fingerprint in Approvals."""
+    import asyncio
+    from agents import feature_flow as ff
+    run = ff.RUNS.get(rid)
+    if not run:
+        raise HTTPException(404, "unknown run")
+    if run.get("status") != "verified" or run.get("merge") in ("awaiting-approval", "merged"):
+        raise HTTPException(409, "only a verified, not-yet-merged run can be merged")
+    run["merge_handle"] = asyncio.create_task(ff.merge(rid))
+    await audit.write("create_origins", "remote-feature-merge-requested", {"device": d["id"], "run": rid})
+    return {"id": rid, "merge": "awaiting-approval"}
+
+
+@router.delete("/features/{rid}")
+async def phone_feature_discard(rid: str, d: dict = Depends(device)):
+    """Throw away a run and its branch (nothing was merged, so nothing is lost)."""
+    from agents import feature_flow as ff
+    run = ff.RUNS.get(rid)
+    if not run:
+        raise HTTPException(404, "unknown run")
+    if run.get("merge") == "merged":
+        raise HTTPException(409, "already merged; it cannot be discarded")
+    await ff.discard(rid)
+    await audit.write("create_origins", "remote-feature-discarded", {"device": d["id"], "run": rid})
+    return {"discarded": rid}
+
+
 @router.get("/devices")
 async def my_devices(d: dict = Depends(device)):
     """Every phone/computer paired with this PC (not removed), newest activity first. `current` marks the device asking."""

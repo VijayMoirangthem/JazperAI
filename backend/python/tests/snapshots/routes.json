@@ -596,6 +596,10 @@
   "/remote/v1/devices/{device_id}"
  ],
  [
+  "DELETE",
+  "/remote/v1/features/{rid}"
+ ],
+ [
   "GET",
   "/api/activity"
  ],
@@ -2781,6 +2785,14 @@
  ],
  [
   "GET",
+  "/remote/v1/features"
+ ],
+ [
+  "GET",
+  "/remote/v1/features/{rid}"
+ ],
+ [
+  "GET",
   "/remote/v1/me"
  ],
  [
@@ -4918,6 +4930,10 @@
  [
   "POST",
   "/remote/v1/connectors/{cid}/request"
+ ],
+ [
+  "POST",
+  "/remote/v1/features/{rid}/merge"
  ],
  [
   "POST",

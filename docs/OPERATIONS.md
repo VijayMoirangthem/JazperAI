@@ -61,3 +61,19 @@ I cannot hear audio from here, so how it sounds is for you to judge.
 ## Logs
 The backend writes `storage/logs/jasper.log` itself (5 MB x 6 files, timestamps, key-like strings redacted), even when started hidden by the sign-in task.
 Recent problems with repeats merged: `GET /api/logs/problems?level=warning|error`. Raw tail: `GET /api/system/logs?name=jasper&lines=200`.
+
+## Phone screens added 2026-11-15 (Settings)
+* **System health** (Settings > System): the once-a-minute self-check (database, Redis, Google login, AI provider, speech service, disk) and the newest
+  problems from the log. You also get a phone alert when something breaks (after 2 failed checks in a row, reminded every 6 h) and when it recovers.
+* **Feature runs** (Settings > System): code Jasper's team wrote on a safe branch. See the status, the size of the change and the diff (added lines
+  green, removed red, secrets hidden). *Ask to merge* only creates the approval; the approval card lists the files changed, and it is approved in
+  **Approvals with your fingerprint** (Tier 3). *Discard* deletes the branch (never available after a merge).
+* **Paired devices** (Settings > Connection): every phone/computer that can reach Jasper, last seen, a "looks unused" hint, and **Remove**.
+* **Alerts when the app is closed** (Settings > Chat): on = a small "Jasper is listening" notification and alerts within seconds; off = checked about
+  every 15 minutes. The 15-minute check also survives a phone reboot (needs the app version built after 2026-11-15).
+* **Approval notifications** have buttons: Tier 2 = Reject / Approve, Tier 3 = Reject / Review (the fingerprint stays in the app).
+* **Voice conversation** (Settings > Chat): talk, hear the reply while it is still being written, and Jasper listens again after each answer; it stops
+  listening after 8 s of silence (tap the mic to continue). **I speak** = Auto / English / Hindi.
+
+## Quality + speed measurement
+See `docs/EVALUATION.md` (60 tasks, nightly run at 03:30, regression alert). Progress of all work: `docs/PROGRESS.md`.
