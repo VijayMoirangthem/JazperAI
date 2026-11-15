@@ -109,8 +109,9 @@ def has_tools(slug: str) -> bool:
     return bool(tools_for(slug))
 
 
-async def system_for(slug: str, system: str) -> str:
-    lines = "\n".join("- " + HELP[t] for t in tools_for(slug))
+async def system_for(slug: str, system: str, only: list[str] | None = None) -> str:
+    shown = [t for t in tools_for(slug) if only is None or t in only]  # `only` shrinks the DESCRIPTIONS; every allowed tool can still be called
+    lines = "\n".join("- " + HELP[t] for t in shown)
     cat = await skills.catalogue()
     return f"{system}\n\n{INTRO}{lines}{RULES}\n{untrusted.STANDING_RULE}" + (f"\n\nSkills you can load with view_skill:\n{cat}" if cat else "")
 
@@ -639,9 +640,9 @@ async def _stream_retry(r, req):
             await asyncio.sleep(3 * attempt)  # 3 s, then 6 s: lets a per-minute limit on the free tier recover
 
 
-async def _rounds(r, slug: str, system: str, msgs: list[dict], tier: str, trace: list[str]) -> AsyncIterator[dict]:
+async def _rounds(r, slug: str, system: str, msgs: list[dict], tier: str, trace: list[str], only: list[str] | None = None) -> AsyncIterator[dict]:
     """Core loop shared by streaming (Jasper) and headless (run_bot) use."""
-    system = await system_for(slug, system)
+    system = await system_for(slug, system, only)
     msgs = list(msgs)
     tier = "standard" if tier == "light" else tier  # the light model returns empty text for tool-call prompts
     for rnd in range(MAX_ROUNDS + 1):
@@ -723,7 +724,7 @@ def _spawn_review(r, slug: str, user_text: str, trace: list[str], answer: str) -
                                                                 extra_ns=(f"group.{grp}",) if grp and grp not in ("legacy", "chief") else ())))
 
 
-async def stream_with_tools(r, system: str, msgs: list[dict], tier: str, agent: str = "jasper") -> AsyncIterator[dict]:
+async def stream_with_tools(r, system: str, msgs: list[dict], tier: str, agent: str = "jasper", only: list[str] | None = None) -> AsyncIterator[dict]:
     """Yields {"delta"} | {"tool"} | {"ui"} | {"usage"}. Tool-call rounds are buffered, plain answers are streamed."""
     token = _ui.set([])
     scope = untrusted.begin()  # one taint scope per request; delegated bots share it
@@ -738,7 +739,7 @@ async def stream_with_tools(r, system: str, msgs: list[dict], tier: str, agent: 
             for fl in re.findall(r'<untrusted source="attachment" flags="([^"]*)"', last):
                 tn.flags += [x for x in fl.split(",") if x and x not in tn.flags]
             tn.suspicious = bool(tn.flags)
-        async for ev in _rounds(r, agent, system, msgs, tier, trace):
+        async for ev in _rounds(r, agent, system, msgs, tier, trace, only):
             if "delta" in ev:
                 answer.append(ev["delta"])
             if "tool" in ev and untrusted.is_tainted() and ev["tool"].get("status") != "running":

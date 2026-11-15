@@ -13,7 +13,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from agents import fastpaths, discussion, jasper_tools, orgchart, workspaces
+from agents import chatmode, fastpaths, discussion, jasper_tools, orgchart, workspaces
 from agents.decision import decide
 from agents.registry import registry
 from core import directory, finops
@@ -90,6 +90,46 @@ def _line(o: dict) -> str:
     return json.dumps(o) + "\n"
 
 
+async def _plain_stream(r, slug: str, system: str, msgs: list[dict]) -> AsyncIterator[dict]:
+    """Plain conversation: short prompt, no tool descriptions, low reasoning effort. Yields {"delta"} / {"usage"}, or a single
+    {"fallback": True} (before any text) when the model is not able to answer without tools: the caller then runs the full tool loop."""
+    kw = orgchart.llm_kwargs(slug)
+    kw.pop("tier", None)
+    kw.setdefault("max_tokens", 500)
+    req = LLMRequest(**{"system": chatmode.plain_system(system), "messages": msgs[-8:], "tier": "light", "reasoning": "low", **kw})
+    buf, started, usage = "", False, None
+    async for item in r.stream(req):
+        if isinstance(item, Usage):
+            usage = item
+            continue
+        if started:
+            yield {"delta": item}
+            continue
+        buf += item
+        head = buf.lstrip()
+        if len(head) < 5:            # too little to judge yet
+            continue
+        if chatmode.is_escalation(head):
+            yield {"fallback": True}
+            return
+        started = True
+        yield {"delta": buf}
+    if not started:
+        if buf.strip() and not chatmode.is_escalation(buf):
+            yield {"delta": buf}
+            started = True
+        else:
+            yield {"fallback": True}
+            return
+    if usage:
+        yield {"usage": usage}
+
+
+async def _empty_events() -> AsyncIterator[dict]:
+    return
+    yield  # makes this an (empty) async generator
+
+
 async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attachment], tier: str | None = None) -> AsyncIterator[str]:
     system, default_tier = _persona(slug)
     fast = fastpaths.match(slug, text, history, atts)  # known intents (Drive files, clear chat, usage, health, email) run deterministically: instant and model-independent
@@ -143,7 +183,30 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
         b = registry.routable(slug)
         with finops.attribute(slug, b.crew if b else None):
             if jasper_tools.has_tools(slug):  # bots with a tool allowlist (Jasper, Connector, ...) use the tool loop
-                events = fast() if fast else jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier, agent=slug)
+                plain_done = False
+                if fast is None and slug == "jasper" and not atts and not chatmode.needs_tools(text):
+                    # plain conversation: answered at once with a short prompt; falls back to the tool loop if the model needs a tool
+                    try:
+                        async for ev in _plain_stream(r, slug, system, msgs):
+                            if ev.get("fallback"):
+                                break
+                            plain_done = True
+                            if "delta" in ev:
+                                reply_parts.append(ev["delta"])
+                                yield _line({"t": "delta", "slug": slug, "text": ev["delta"]})
+                            elif "usage" in ev:
+                                yield _line({"t": "done", "slug": slug, "usage": ev["usage"].model_dump()})
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception:
+                        if plain_done:      # already spoke: report the error as usual
+                            raise
+                        # failed before any text (provider hiccup): the full tool loop gets its own provider fallbacks
+                if plain_done:
+                    events = _empty_events()
+                else:
+                    only = None if fast else chatmode.tool_subset(text, jasper_tools.tools_for(slug))  # fewer tool descriptions = a shorter prompt
+                    events = fast() if fast else jasper_tools.stream_with_tools(r, system, msgs, tier or default_tier, agent=slug, only=only)
                 async for ev in events:
                     if "delta" in ev:
                         reply_parts.append(ev["delta"])

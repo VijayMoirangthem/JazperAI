@@ -25,6 +25,7 @@ class LLMRequest(BaseModel):
     max_tokens: int = 1024
     temperature: float = 0.7
     pin: str | None = None  # 'provider:model' chosen for this bot; the tier chain stays as fallback
+    reasoning: Literal["low", "medium", "high"] | None = None  # thinking effort for reasoning models (gpt-oss): 'low' answers plain chat much sooner
     cache_system: bool = True  # prompt-cache marker on the static system prompt
 
 

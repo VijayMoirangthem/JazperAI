@@ -109,6 +109,13 @@ def _describe(e: Exception) -> tuple[str, int | None, bool]:
     return f"{name} {status or ''} {msg}".strip(), status, retryable
 
 
+def _reasoning_kwargs(model: str, req: LLMRequest) -> dict:
+    """`reasoning_effort` only for models that accept it (gpt-oss on Groq); other models would reject the unknown field."""
+    if req.reasoning and "gpt-oss" in model:
+        return {"extra_body": {"reasoning_effort": req.reasoning}}
+    return {}
+
+
 class OpenAICompatProvider(Provider):
     """Groq / any OpenAI-compatible endpoint. `local=True` marks LM Studio-style edge endpoints (EDGE_MODE only)."""
 
@@ -123,7 +130,7 @@ class OpenAICompatProvider(Provider):
         t0, model = time.perf_counter(), self.models[req.tier]
         try:
             r = await self.client.chat.completions.create(model=model, messages=self._msgs(req), max_tokens=req.max_tokens,
-                                                          temperature=req.temperature)
+                                                          temperature=req.temperature, **_reasoning_kwargs(model, req))
         except Exception as e:
             status = getattr(e, "status_code", None)
             ra = None
@@ -144,7 +151,7 @@ class OpenAICompatProvider(Provider):
         try:
             s = await self.client.chat.completions.create(model=model, messages=self._msgs(req), max_tokens=req.max_tokens,
                                                           temperature=req.temperature, stream=True,
-                                                          stream_options={"include_usage": True})
+                                                          stream_options={"include_usage": True}, **_reasoning_kwargs(model, req))
             async for chunk in s:
                 if getattr(chunk, "usage", None):
                     u = chunk.usage

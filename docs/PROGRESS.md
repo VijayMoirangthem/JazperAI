@@ -1,0 +1,42 @@
+# Jazper progress tracker
+
+Single source of truth for the plan agreed on 2026-11-15. Updated with every commit (the commit hash is the proof).
+**Status:** `todo` -> `doing` -> `built` (code + unit tests done) -> `verified` (checked live on the PC/phone).
+We are in an *implementation-only* phase (the PC has little free RAM), so items stop at `built` and carry a **Live check** to run later.
+
+Branch: `claude/resource-aware-agents`. Nothing here is merged or deployed.
+
+## Phase 1: Speed
+| # | Item | Status | Commit | Tests | Live check still needed |
+|---|---|---|---|---|---|
+| 1.1 | Fast path for plain chat: short prompt, no tool docs, low reasoning effort, guard + fallback to the tool loop | built | (this commit) | test_chatmode, test_plain_chat (48 tests) | reply quality, latency vs 0.7-1.2 s baseline |
+| 1.2 | Speak while the reply streams (phone) | todo | | | how it sounds |
+| 1.3 | Smaller system prompt: tool loop prompt measured at ~2,260 tokens (40 tool descriptions = 1,370); now only the relevant area is described | built | (this commit) | test_chatmode, test_plain_chat | latency before/after on a tool turn |
+| 1.4 | Lighter memory model (dry-run migration first) | todo | | | recall quality |
+| 1.5 | Parallel tool calls + Gmail queries | todo | | | email latency |
+| 1.6 | Faster backend start-up (lazy imports) | todo | | | start-up time |
+
+## Phase 2: Reliability and visibility
+| # | Item | Status | Commit | Tests | Live check still needed |
+|---|---|---|---|---|---|
+| 2.1 | Backend log files with rotation + recent-errors endpoint/screen | todo | | | |
+| 2.2 | Self-check every minute + phone alert on break/recover | todo | | | alert arrives |
+| 2.3 | Alert service after phone reboot + Settings switch | todo | | | reboot test |
+| 2.4 | Approve/reject from the notification | todo | | | tap on phone |
+| 2.5 | Device list on the phone (see / remove paired devices) | todo | | | |
+
+## Phase 3: Product features
+| # | Item | Status | Commit | Tests | Live check still needed |
+|---|---|---|---|---|---|
+| 3.1 | One shared brain for chat/phone/voice; Hindi/Hinglish for Drive, calendar, files | todo | | | |
+| 3.2 | Hands-free voice (auto-stop, interrupt, language choice) | todo | | | speech on phone |
+| 3.3 | Quality + latency test set, nightly run | todo | | | |
+| 3.4 | Dev-loop end to end (autonomous coding with approval) | todo | | | real task |
+| 3.5 | Web search keys + remaining connectors | blocked | | | needs your keys/accounts |
+
+## Out of scope (decided)
+Telegram, WhatsApp (own ecosystem only); Vision/Lens (no model that fits this PC).
+
+## Baselines (measured 2026-11-13, phone path, warm backend)
+"hi jasper" 0.7-1.2 s; status 0.2-0.3 s; "what time is it" 1.0-2.6 s; Kunal's email today 2.3-2.8 s (first after restart 15 s).
+Model first-token about 0.5 s (Groq gpt-oss-20b). Details: `docs/PERFORMANCE.md`.
