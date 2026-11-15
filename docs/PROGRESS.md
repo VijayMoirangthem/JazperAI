@@ -13,13 +13,13 @@ Branch: `claude/resource-aware-agents`. Nothing here is merged or deployed.
 | 1.2 | Speak while the reply streams (phone) | todo | | | how it sounds |
 | 1.3 | Smaller system prompt: tool loop prompt measured at ~2,260 tokens (40 tool descriptions = 1,370); now only the relevant area is described | built | 6ddc20b | test_chatmode, test_plain_chat | latency before/after on a tool turn |
 | 1.4 | Lighter memory model (dry-run migration first) | todo | | | recall quality |
-| 1.5 | Gmail: one batched request for all message metadata (was one per message) + sync marker at most every 5 min. Parallel *tool* calls deliberately not done: the tool protocol is one call per round by design; fast paths cover the common cases | built | PENDING | test_gmail_batch (5) | email latency vs 2.3-2.8 s |
+| 1.5 | Gmail: one batched request for all message metadata (was one per message) + sync marker at most every 5 min. Parallel *tool* calls deliberately not done: the tool protocol is one call per round by design; fast paths cover the common cases | built | e7764de | test_gmail_batch (5) | email latency vs 2.3-2.8 s |
 | 1.6 | Faster backend start-up (lazy imports) | todo | | | start-up time |
 
 ## Phase 2: Reliability and visibility
 | # | Item | Status | Commit | Tests | Live check still needed |
 |---|---|---|---|---|---|
-| 2.1 | Rotating backend log file storage/logs/jasper.log (timestamps, secrets redacted, stdlib warnings too) + GET /api/logs/problems (merged repeats). Screen for it comes with 2.2 | built | PENDING | test_logfile (9) | file appears after a restart |
+| 2.1 | Rotating backend log file storage/logs/jasper.log (timestamps, secrets redacted, stdlib warnings too) + GET /api/logs/problems (merged repeats). Screen for it comes with 2.2 | built | e7764de | test_logfile (9) | file appears after a restart |
 | 2.2 | Self-check every minute + phone alert on break/recover | todo | | | alert arrives |
 | 2.3 | Alert service after phone reboot + Settings switch | todo | | | reboot test |
 | 2.4 | Approve/reject from the notification | todo | | | tap on phone |
