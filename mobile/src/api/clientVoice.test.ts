@@ -59,3 +59,17 @@ describe('voice calls on the phone client', () => {
     expect(out.text).toBe('mera email dikhao');
   });
 });
+
+describe('speech language for voice notes', () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it.each([['hi', '?language=hi'], ['en', '?language=en'], ['auto', ''], [undefined, '']])('language %s -> query "%s"', async (lang, query) => {
+    globalThis.fetch = jest.fn().mockResolvedValue(res(200, { text: 'x', empty: false })) as unknown as typeof fetch;
+    const client = new JasperClient('https://pc.example.ts.net', 'tok');
+    await client.transcribeVoice(new Blob(['x']), creds, lang as 'hi' | 'en' | 'auto' | undefined);
+    expect((globalThis.fetch as jest.Mock).mock.calls[0][0]).toBe(`https://pc.example.ts.net/remote/v1/voice/transcribe${query}`);
+  });
+});

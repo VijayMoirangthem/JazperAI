@@ -57,6 +57,12 @@ const MODES: { id: ThemeMode; label: string }[] = [
   { id: 'dark', label: 'Dark' },
 ];
 
+const SPEECH_LANGS: { id: 'auto' | 'en' | 'hi'; label: string }[] = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'en', label: 'English' },
+  { id: 'hi', label: 'Hindi' },
+];
+
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -137,7 +143,25 @@ export default function SettingsScreen() {
         </Group>
 
         <Group title="Chat">
-          <ToggleRow label="Voice conversation" description="Talk to Jasper and hear the answer, in English, Hindi or Hinglish" value={s.readAloud && s.voiceAutoSend} onChange={(on: boolean) => { s.setReadAloud(on); s.setVoiceAutoSend(on); }} />
+          <ToggleRow label="Voice conversation" description="Talk to Jasper and hear the answer, hands-free: it listens again after each reply" value={s.readAloud && s.voiceAutoSend && s.handsFree} onChange={s.setVoiceConversation} />
+          <View style={[styles.row, { flexDirection: 'column', alignItems: 'stretch', gap: 10 }]}>
+            <Text style={styles.rowLabel}>I speak</Text>
+            <View style={styles.segment} accessibilityRole="radiogroup">
+              {SPEECH_LANGS.map((l) => (
+                <Pressable
+                  key={l.id}
+                  onPress={() => s.setSpeechLanguage(l.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: s.speechLanguage === l.id }}
+                  accessibilityLabel={l.label}
+                  style={[styles.segmentItem, s.speechLanguage === l.id && { backgroundColor: theme.colors.pill }]}
+                >
+                  <Text style={[styles.segmentText, s.speechLanguage === l.id && { color: theme.colors.pillText }]}>{l.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.rowDesc}>Auto understands English, Hindi and Hinglish. Choose one if Jasper mishears you.</Text>
+          </View>
           <ToggleRow label="Read replies aloud" description="Speak each new reply in the bot's voice" value={s.readAloud} onChange={s.setReadAloud} />
           <ToggleRow label="Send voice notes as text" description="Send the transcript right away" value={s.voiceAutoSend} onChange={s.setVoiceAutoSend} />
           <ToggleRow label="Show tool details" description="Keep the list of steps open" value={s.showToolDetails} onChange={s.setShowToolDetails} />

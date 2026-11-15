@@ -17,7 +17,8 @@ import {
   View,
 } from 'react-native';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
-import { Href, useLocalSearchParams, useRouter } from 'expo-router';
+import { Href, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { LISTEN_DELAY_MS, shouldListen } from '@/voice/handsFree';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -124,6 +125,9 @@ export default function ChatScreen() {
   const speakingId = useSpeech((s) => s.messageId);
   const speak = useSpeech((s) => s.speak);
   const stopSpeaking = useSpeech((s) => s.stop);
+  const liveStart = useSpeech((s) => s.liveStart);
+  const liveFeed = useSpeech((s) => s.liveFeed);
+  const liveEnd = useSpeech((s) => s.liveEnd);
   const speechError = useSpeech((s) => s.error);
   const clearSpeechError = useSpeech((s) => s.clearError);
 
@@ -149,15 +153,34 @@ export default function ChatScreen() {
     }
   }, [speechError, clearSpeechError, toast]);
 
-  // Read replies aloud automatically when a reply finishes.
-  const wasStreaming = useRef(false);
+  // Read replies aloud WHILE they are written: each sentence is spoken as soon as it is complete, so the voice starts about a second after the
+  // model starts instead of after it finishes. `baselineId` is the last assistant message from before this turn, so an old reply is never re-spoken.
+  const liveIdRef = useRef<number | null>(null);
+  const baselineId = useRef<number | null>(null);
   useEffect(() => {
-    if (wasStreaming.current && !streaming && readAloud) {
-      const last = [...(useChat.getState().messagesByBot[botSlug] ?? [])].reverse().find((x) => x.role === 'assistant');
-      if (last && last.text.trim()) void speak(last);
+    const lastAssistant = [...messages].reverse().find((x) => x.role === 'assistant');
+    if (!streaming) {
+      if (liveIdRef.current !== null) {
+        liveEnd(lastAssistant && lastAssistant.id === liveIdRef.current ? lastAssistant.text : '');
+        liveIdRef.current = null;
+      }
+      baselineId.current = lastAssistant?.id ?? null;
+      return;
     }
-    wasStreaming.current = streaming;
-  }, [streaming, readAloud, botSlug, speak]);
+    if (!readAloud) {
+      if (liveIdRef.current !== null) {
+        void stopSpeaking();
+        liveIdRef.current = null;
+      }
+      return;
+    }
+    if (!lastAssistant || lastAssistant.id === baselineId.current) return; // this turn's reply has not appeared yet
+    if (liveIdRef.current !== lastAssistant.id) {
+      liveIdRef.current = lastAssistant.id;
+      void liveStart(lastAssistant);
+    }
+    liveFeed(lastAssistant.text);
+  }, [streaming, messages, readAloud, liveStart, liveFeed, liveEnd, stopSpeaking]);
 
   const onDraft = useCallback(
     (text: string) => {
@@ -177,6 +200,7 @@ export default function ChatScreen() {
 
   const sendNow = useCallback(
     (text: string, outgoing: Attachment[]) => {
+      void stopSpeaking(); // a new message cuts off the previous spoken reply
       const withQuote = quote
         ? `${quote
             .split('\n')
@@ -186,7 +210,19 @@ export default function ChatScreen() {
       setQuote(null);
       void send(botSlug, withQuote, outgoing);
     },
-    [botSlug, quote, send]
+    [botSlug, quote, send, stopSpeaking]
+  );
+
+  // Hands-free voice conversation: the microphone opens by itself when Jasper has finished speaking and closes when you stop talking.
+  const handsFree = useSettings((s) => s.handsFree);
+  const speechLanguage = useSettings((s) => s.speechLanguage);
+  const [paused, setPaused] = useState(false); // nobody spoke for a while: wait for a tap on the mic
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
   );
 
   const recorder = useVoiceRecorder(
@@ -199,9 +235,35 @@ export default function ChatScreen() {
         }
       },
       [sendNow]
-    )
+    ),
+    {
+      autoStop: handsFree,
+      language: speechLanguage,
+      onNoSpeech: () => {
+        setPaused(true);
+        toast('Tap the microphone when you want to talk');
+      },
+    }
   );
   void voiceAutoSend;
+
+  const listenNow = shouldListen({
+    handsFree,
+    streaming,
+    speaking: speakingId !== null,
+    recording: recorder.recording,
+    transcribing: recorder.transcribing,
+    paused,
+    focused,
+  });
+  useEffect(() => {
+    if (!listenNow) return;
+    const t = setTimeout(() => void recorder.start(), LISTEN_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [listenNow, recorder.start]);
+  useEffect(() => {
+    if (!handsFree) setPaused(false);
+  }, [handsFree]);
 
   const handleSend = useCallback(() => {
     const text = draft.trim();
@@ -556,7 +618,7 @@ export default function ChatScreen() {
         recordingSeconds={recorder.seconds}
         recordingLevel={recorder.level}
         transcribing={recorder.transcribing}
-        onStartRecording={() => { void stopSpeaking(); void recorder.start(); }}
+        onStartRecording={() => { setPaused(false); void stopSpeaking(); void recorder.start(); }}
         onStopRecording={() => void recorder.stop()}
         onCancelRecording={() => void recorder.cancel()}
         voiceError={recorder.error}
@@ -598,7 +660,7 @@ export default function ChatScreen() {
           <View style={[styles.menuCard, theme.shadows.composer, { minWidth: 230, marginRight: 14 }]}>
             <SheetRow label="Search in chat" icon={<Search size={19} color={theme.colors.text} />} onPress={() => { setChatMenu(false); setSearchOpen(true); }} />
             <SheetRow label={muted ? 'Unmute' : 'Mute'} onPress={() => { setChatMenu(false); useHome.getState().toggleMute(botSlug); }} />
-            <SheetRow label={readAloud && voiceAutoSend ? 'Stop voice conversation' : 'Start voice conversation'} onPress={() => { setChatMenu(false); const on = !(readAloud && voiceAutoSend); useSettings.getState().setReadAloud(on); useSettings.getState().setVoiceAutoSend(on); if (!on) void stopSpeaking(); }} />
+            <SheetRow label={readAloud && voiceAutoSend && handsFree ? 'Stop voice conversation' : 'Start voice conversation'} onPress={() => { setChatMenu(false); const on = !(readAloud && voiceAutoSend && handsFree); useSettings.getState().setVoiceConversation(on); setPaused(false); if (!on) { void stopSpeaking(); void recorder.cancel(); } }} />
             <SheetRow label={readAloud ? 'Stop reading replies aloud' : 'Read replies aloud'} onPress={() => { setChatMenu(false); useSettings.getState().setReadAloud(!readAloud); }} />
             <SheetRow label="View profile" onPress={() => { setChatMenu(false); router.push(`/bot/${botSlug}` as Href); }} />
             <SheetRow label="Clear chat" danger onPress={() => { setChatMenu(false); clearMessages(botSlug); loadMessages(botSlug, 80); useHome.getState().refresh(); }} />

@@ -67,3 +67,26 @@ async def test_a_stalled_speech_connection_is_cut_off_and_retried(monkeypatch):
     t0 = time.monotonic()
     assert await voice2.synth_complete("hello", "en-GB-RyanNeural", per_attempt_s=0.3) == b"ok"
     assert time.monotonic() - t0 < 3 and calls["n"] == 2
+
+
+async def test_phone_transcribe_passes_the_chosen_language_through(monkeypatch):
+    """?language=hi|en forces the speech-to-text language; anything else (or nothing) means auto-detect."""
+    from api.routes import remote, voice
+
+    seen = []
+
+    async def fake_transcribe(audio, language=None):
+        seen.append(language)
+        return {"text": "ok", "empty": False}
+
+    class FakeForm(dict):
+        pass
+
+    class FakeRequest:
+        async def form(self):
+            return FakeForm(audio=type("A", (), {"read": lambda self: b""})())
+
+    monkeypatch.setattr(voice, "transcribe", fake_transcribe)
+    for lang in ("hi", "en", "fr", None):
+        await remote.voice_transcribe(FakeRequest(), language=lang, d={"id": "x"})
+    assert seen == ["hi", "en", None, None]

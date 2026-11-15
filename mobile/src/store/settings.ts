@@ -10,6 +10,8 @@ interface SettingsState {
   themeMode: ThemeMode;
   readAloud: boolean;
   backgroundAlerts: boolean;
+  handsFree: boolean;
+  speechLanguage: 'auto' | 'en' | 'hi';
   voiceAutoSend: boolean;
   showToolDetails: boolean;
   profileName: string;
@@ -19,6 +21,10 @@ interface SettingsState {
   setThemeMode: (mode: ThemeMode) => void;
   setReadAloud: (enabled: boolean) => void;
   setBackgroundAlerts: (enabled: boolean) => void;
+  setHandsFree: (enabled: boolean) => void;
+  setSpeechLanguage: (language: 'auto' | 'en' | 'hi') => void;
+  /** One switch for the whole voice conversation: speak replies, send what you say, and listen again after each reply. */
+  setVoiceConversation: (enabled: boolean) => void;
   setVoiceAutoSend: (enabled: boolean) => void;
   setShowToolDetails: (enabled: boolean) => void;
 }
@@ -31,6 +37,8 @@ export const useSettings = create<SettingsState>()(
       themeMode: THEME_MODE,
       readAloud: false,
       backgroundAlerts: true,
+      handsFree: false,
+      speechLanguage: 'auto',
       voiceAutoSend: false,
       showToolDetails: false,
       profileName: '',
@@ -46,6 +54,9 @@ export const useSettings = create<SettingsState>()(
       },
       setReadAloud: (enabled: boolean) => set({ readAloud: enabled }),
       setBackgroundAlerts: (enabled: boolean) => set({ backgroundAlerts: enabled }),
+      setHandsFree: (enabled: boolean) => set({ handsFree: enabled }),
+      setSpeechLanguage: (language: 'auto' | 'en' | 'hi') => set({ speechLanguage: language }),
+      setVoiceConversation: (enabled: boolean) => set({ readAloud: enabled, voiceAutoSend: enabled, handsFree: enabled }),
       setVoiceAutoSend: (enabled: boolean) => set({ voiceAutoSend: enabled }),
       setShowToolDetails: (enabled: boolean) => set({ showToolDetails: enabled }),
     }),

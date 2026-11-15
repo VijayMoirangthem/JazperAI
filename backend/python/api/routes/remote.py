@@ -322,15 +322,16 @@ async def bot_card(slug: str, d: dict = Depends(device)):
 
 
 @router.post("/voice/transcribe")
-async def voice_transcribe(request: Request, d: dict = Depends(device)):
-    """Multipart field `audio` (wav/webm/m4a). Same engine as the desktop voice note."""
+async def voice_transcribe(request: Request, language: str | None = None, d: dict = Depends(device)):
+    """Multipart field `audio` (wav/webm/m4a). Same engine as the desktop voice note. `?language=en|hi` forces one language
+    (default: auto-detect English, Hindi and Hinglish); anything else means auto."""
     from fastapi import UploadFile
     from api.routes.voice import transcribe
     form = await request.form()
     audio = form.get("audio")
     if not isinstance(audio, UploadFile) and not hasattr(audio, "read"):
         raise HTTPException(422, "multipart field 'audio' is required")
-    return await transcribe(audio)
+    return await transcribe(audio, language if language in ("en", "hi") else None)
 
 
 @router.get("/voice/speak")

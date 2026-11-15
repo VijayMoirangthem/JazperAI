@@ -320,13 +320,15 @@ export class JasperClient {
 
   async transcribeVoice(
     audio: Blob,
-    deviceCredentials: { deviceId: string; deviceSecret: string }
+    deviceCredentials: { deviceId: string; deviceSecret: string },
+    language?: 'auto' | 'en' | 'hi'
   ): Promise<VoiceTranscribeResponse> {
     const formData = new FormData();
     formData.append('audio', audio);
 
+    const query = language === 'en' || language === 'hi' ? `?language=${language}` : ''; // auto = detect English, Hindi and Hinglish
     const response = await this.fetchWithRenewal(
-      `${this.baseUrl}/remote/v1/voice/transcribe`,
+      `${this.baseUrl}/remote/v1/voice/transcribe${query}`,
       () => ({ method: 'POST', body: formData }),
       deviceCredentials
     );

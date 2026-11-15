@@ -10,6 +10,7 @@ import {
 import { JasperClient } from '@/api/client';
 import { useAuth } from '@/auth/useAuth';
 import { transcribeUri } from './transcribe';
+import { SilenceDetector } from './silence';
 
 export interface VoiceRecorder {
   recording: boolean;
@@ -24,7 +25,22 @@ export interface VoiceRecorder {
   clearError: () => void;
 }
 
-export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder {
+export type SpeechLanguage = 'auto' | 'en' | 'hi';
+
+export interface VoiceRecorderOptions {
+  /** Stop by itself when you stop speaking (hands-free conversation). */
+  autoStop?: boolean;
+  /** 'auto' detects English, Hindi and Hinglish; 'en' / 'hi' force one. */
+  language?: SpeechLanguage;
+  /** Auto-stop gave up because nobody spoke. */
+  onNoSpeech?: () => void;
+}
+
+export function useVoiceRecorder(onText: (text: string) => void, options: VoiceRecorderOptions = {}): VoiceRecorder {
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const stopRef = useRef<() => Promise<void>>(async () => undefined);
+  const cancelRef = useRef<() => Promise<void>>(async () => undefined);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [level, setLevel] = useState(0);
@@ -69,6 +85,8 @@ export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder 
       clearTimer();
       timerRef.current = setInterval(() => setSeconds((value) => value + 1), 1000);
       let smooth = 0.15;
+      const detector = optionsRef.current.autoStop ? new SilenceDetector() : null;
+      let ended = false;
       meterRef.current = setInterval(() => {
         const reader = active as unknown as { getStatus?: () => { metering?: number } };
         const db = reader.getStatus?.().metering;
@@ -76,6 +94,17 @@ export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder 
         const target = typeof db === 'number' ? Math.min(1, Math.max(0, (db + 55) / 55)) : 0.25 + Math.random() * 0.4;
         smooth = smooth * 0.55 + target * 0.45;
         setLevel(smooth);
+        // Hands-free: end the recording when you stop speaking. Only a real measurement counts (the fake pulse must never end a recording).
+        if (detector && !ended && typeof db === 'number') {
+          const verdict = detector.update(smooth, Date.now());
+          if (verdict === 'stop-silence' || verdict === 'stop-max') {
+            ended = true;
+            void stopRef.current();
+          } else if (verdict === 'stop-no-speech') {
+            ended = true;
+            void cancelRef.current().then(() => optionsRef.current.onNoSpeech?.());
+          }
+        }
       }, 90);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start recording');
@@ -117,10 +146,14 @@ export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder 
       }
       const client = new JasperClient(credentials.baseUrl, accessToken ?? undefined);
       const text = await transcribeUri(uri, (audio) =>
-        client.transcribeVoice(audio, {
-          deviceId: credentials.deviceId,
-          deviceSecret: credentials.deviceSecret,
-        })
+        client.transcribeVoice(
+          audio,
+          {
+            deviceId: credentials.deviceId,
+            deviceSecret: credentials.deviceSecret,
+          },
+          optionsRef.current.language
+        )
       );
       if (text.trim()) onText(text.trim());
     } catch (err) {
@@ -133,6 +166,8 @@ export function useVoiceRecorder(onText: (text: string) => void): VoiceRecorder 
   const cancel = useCallback(async () => {
     await cleanup();
   }, [cleanup]);
+  stopRef.current = stop;
+  cancelRef.current = cancel;
 
   useEffect(
     () => () => {
