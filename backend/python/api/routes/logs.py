@@ -13,6 +13,13 @@ def get_logs(limit: int = 200):
     return {"logs": entries}
 
 
+@router.get("/problems")
+def problems(limit: int = 100, level: str = "warning"):
+    """Recent warnings/errors from storage/logs/jasper.log, repeats merged, newest first (no keys: they are redacted)."""
+    from core import logfile
+    return {"problems": logfile.recent_problems(limit=limit, min_level=level if level in ("warning", "error", "critical") else "warning")}
+
+
 @router.get("/stream")
 async def stream_logs():
     """SSE endpoint — streams new log entries as they arrive."""

@@ -57,3 +57,7 @@ The PC delivered the audio fine; the phone threw an error right after downloadin
 * the first sentence is fetched and played on its own, and the next chunk downloads while it plays.
 Verified on the phone: Android reports an active media player for the app and the PC saw the chunked requests (first sentence, then the rest).
 I cannot hear audio from here, so how it sounds is for you to judge.
+
+## Logs
+The backend writes `storage/logs/jasper.log` itself (5 MB x 6 files, timestamps, key-like strings redacted), even when started hidden by the sign-in task.
+Recent problems with repeats merged: `GET /api/logs/problems?level=warning|error`. Raw tail: `GET /api/system/logs?name=jasper&lines=200`.

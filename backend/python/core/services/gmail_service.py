@@ -409,6 +409,33 @@ def get_profile() -> dict:
     return result
 
 
+_META_HEADERS = ["Subject", "From", "To", "Date"]
+
+
+def _fetch_metadata(svc, ids: list[str]) -> dict[str, dict]:
+    """Message metadata for many ids with one HTTP request per 50 (Gmail batch). Anything the batch could not deliver is fetched one by one."""
+    out: dict[str, dict] = {}
+
+    def on_result(request_id, response, exception):
+        if exception is None and response:
+            out[request_id] = _msg_to_summary(response)
+
+    for i in range(0, len(ids), 50):
+        chunk = ids[i:i + 50]
+        try:
+            batch = svc.new_batch_http_request(callback=on_result)
+            for mid in chunk:
+                batch.add(svc.users().messages().get(userId="me", id=mid, format="metadata", metadataHeaders=_META_HEADERS), request_id=mid)
+            batch.execute()
+        except Exception:
+            pass  # fall through to the one-by-one path below for whatever is still missing
+    for mid in ids:
+        if mid not in out:
+            m = svc.users().messages().get(userId="me", id=mid, format="metadata", metadataHeaders=_META_HEADERS).execute()
+            out[mid] = _msg_to_summary(m)
+    return out
+
+
 def list_emails(
     max_results: int = 30,
     label: str = "INBOX",
@@ -472,28 +499,27 @@ def list_emails(
     messages_meta = result.get("messages", [])
     next_page_token = result.get("nextPageToken", "")
 
-    # Fetch metadata for each message (batch-friendly — metadata format is cheap)
-    emails = []
+    # Metadata for each message: known ones come from the cache, the rest in ONE batched request (was one round trip per message)
+    by_id: dict[str, dict] = {}
+    missing: list[str] = []
     for msg in messages_meta:
-        # Check body cache first — avoid refetching known messages
-        body_cache_key = f"gmail:meta:{msg['id']}"
-        cached_meta = _cache_get(body_cache_key)
+        cached_meta = _cache_get(f"gmail:meta:{msg['id']}")
         if cached_meta:
-            emails.append(cached_meta)
-            continue
+            by_id[msg["id"]] = cached_meta
+        else:
+            missing.append(msg["id"])
+    if missing:
+        for mid, summary in _fetch_metadata(svc, missing).items():
+            _cache_set(f"gmail:meta:{mid}", summary, _TTL_BODY)
+            by_id[mid] = summary
+    emails = [by_id[m["id"]] for m in messages_meta if m["id"] in by_id]
 
-        m = svc.users().messages().get(
-            userId="me", id=msg["id"], format="metadata",
-            metadataHeaders=["Subject", "From", "To", "Date"],
-        ).execute()
-        summary = _msg_to_summary(m)
-        _cache_set(body_cache_key, summary, _TTL_BODY)
-        emails.append(summary)
-
-    # Save history ID from latest message for future incremental syncs
-    profile = svc.users().getProfile(userId="me").execute()
-    if profile.get("historyId"):
-        _save_history_id(email_key, str(profile["historyId"]))
+    # Save the history ID for incremental syncs: at most every 5 minutes (it was an extra round trip on EVERY list)
+    if not _cache_get(f"gmail:histflag:{email_key}"):
+        profile = svc.users().getProfile(userId="me").execute()
+        if profile.get("historyId"):
+            _save_history_id(email_key, str(profile["historyId"]))
+        _cache_set(f"gmail:histflag:{email_key}", {"ok": True}, 300)
 
     payload = {
         "emails": emails,

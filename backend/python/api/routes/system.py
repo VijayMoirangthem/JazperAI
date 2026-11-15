@@ -121,7 +121,7 @@ async def backup():
     return {"ok": True, "output": p.stdout.strip()[-200:]}
 
 
-LOG_FILES = {"backend": "backend.err.log", "backend-out": "backend.out.log", "renderer": "renderer.err.log", "launcher": "launcher.log", "watchdog": "watchdog.log"}
+LOG_FILES = {"jasper": "jasper.log", "backend": "backend.err.log", "backend-out": "backend.out.log", "renderer": "renderer.err.log", "launcher": "launcher.log", "watchdog": "watchdog.log"}
 
 
 @router.get("/logs")

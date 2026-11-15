@@ -1225,6 +1225,10 @@
  ],
  [
   "GET",
+  "/api/logs/problems"
+ ],
+ [
+  "GET",
   "/api/logs/stream"
  ],
  [
@@ -2190,6 +2194,10 @@
  [
   "GET",
   "/api/v1/logs/"
+ ],
+ [
+  "GET",
+  "/api/v1/logs/problems"
  ],
  [
   "GET",

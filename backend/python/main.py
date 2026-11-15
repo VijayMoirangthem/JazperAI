@@ -113,6 +113,8 @@ class _BufferProcessor:
         return event_dict
 
 
+from core import logfile as _logfile
+
 structlog.configure(
     processors=[
         _BufferProcessor(),
@@ -121,8 +123,9 @@ structlog.configure(
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
+    logger_factory=structlog.PrintLoggerFactory(file=_logfile.Tee()),  # console + storage/logs/jasper.log (rotating)
 )
+_logfile.attach_stdlib()
 
 log = structlog.get_logger()
 
