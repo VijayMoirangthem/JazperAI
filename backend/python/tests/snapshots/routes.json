@@ -1513,6 +1513,10 @@
  ],
  [
   "GET",
+  "/api/system/eval/latest"
+ ],
+ [
+  "GET",
   "/api/system/health"
  ],
  [
@@ -2558,6 +2562,10 @@
  [
   "GET",
   "/api/v1/suggestions"
+ ],
+ [
+  "GET",
+  "/api/v1/system/eval/latest"
  ],
  [
   "GET",

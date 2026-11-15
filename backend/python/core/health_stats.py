@@ -31,3 +31,17 @@ def failing(kind: str, consecutive: int = 3, within_s: float = 900) -> tuple[boo
 def reset() -> None:
     for d in _outcomes.values():
         d.clear()
+
+
+# ── activity: when did the founder last use a feature (so background jobs can stay out of the way) ──────────────────────────────
+_activity: dict[str, float] = {}
+
+
+def touch(kind: str) -> None:
+    _activity[kind] = time.time()
+
+
+def idle_seconds(kind: str) -> float | None:
+    """Seconds since `touch(kind)`, or None if it never happened in this process."""
+    t = _activity.get(kind)
+    return None if t is None else time.time() - t

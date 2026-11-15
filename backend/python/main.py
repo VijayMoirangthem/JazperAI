@@ -254,6 +254,10 @@ async def lifespan(app: FastAPI):
         from core.services import selfcheck as _selfcheck
         _sched.add_job(_selfcheck.run, IntervalTrigger(seconds=60), id="__selfcheck__", name="Self-check", replace_existing=True,
                        misfire_grace_time=120, max_instances=1, next_run_time=_dt.now().astimezone() + _td(seconds=90))
+        from apscheduler.triggers.cron import CronTrigger as _Cron
+        from evalset import nightly as _nightly
+        _sched.add_job(_nightly.run_nightly, _Cron(hour=3, minute=30), id="__eval_nightly__", name="Nightly quality + speed run", replace_existing=True,
+                       misfire_grace_time=3600, max_instances=1)
         from core.services import warmup as _warmup
         _sched.add_job(_warmup.warm_all, "date", run_date=_dt.now().astimezone() + _td(seconds=8), id="__warmup__", name="Start-up warm-up", replace_existing=True)
         from core.durable import get_checkpointer

@@ -121,6 +121,14 @@ async def backup():
     return {"ok": True, "output": p.stdout.strip()[-200:]}
 
 
+@router.get("/eval/latest")
+async def eval_latest():
+    """The newest quality + speed run (pass rate, reply-time percentiles, failing tasks) and how it compares with the run before it."""
+    import asyncio
+    from evalset import nightly
+    return await asyncio.to_thread(nightly.latest_report)
+
+
 @router.get("/selfcheck")
 async def selfcheck_state():
     """What the once-a-minute self-check currently knows (database, cache, Google login, model provider, speech, disk)."""

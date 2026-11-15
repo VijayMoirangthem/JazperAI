@@ -244,6 +244,8 @@ async def _speak(r, slug: str, history: list[Turn], text: str, atts: list[Attach
 
 @router.post("/stream")
 async def stream(body: ChatIn):
+    from core import health_stats
+    health_stats.touch("chat")  # background jobs (the nightly quality run) stay out of the way while you chat
     async def gen():
         r = await get_router()
         async for line in _speak(r, body.slug, body.history, body.text, body.attachments, body.tier):
