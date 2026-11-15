@@ -14,7 +14,7 @@ Branch: `claude/resource-aware-agents`. Nothing here is merged or deployed.
 | 1.3 | Smaller system prompt: tool loop prompt measured at ~2,260 tokens (40 tool descriptions = 1,370); now only the relevant area is described | built | 6ddc20b | test_chatmode, test_plain_chat | latency before/after on a tool turn |
 | 1.4 | Lighter memory model (dry-run migration first) | todo | | | recall quality |
 | 1.5 | Gmail: one batched request for all message metadata (was one per message) + sync marker at most every 5 min. Parallel *tool* calls deliberately not done: the tool protocol is one call per round by design; fast paths cover the common cases | built | e7764de | test_gmail_batch (5) | email latency vs 2.3-2.8 s |
-| 1.6 | Faster backend start-up: measured import time 18-22 s -> 15-17 s (langgraph imported lazily) -> about 10 s with the DB down (triage ran ALTER TABLE at import; now on first use with retry). More is mostly third-party libraries; details in docs/PERFORMANCE.md | built | PENDING | test_startup_cost (3); full non-db suite 572 passed | restart time on a normal day; with the DB up the gain is smaller |
+| 1.6 | Faster backend start-up: measured import time 18-22 s -> 15-17 s (langgraph imported lazily) -> about 10 s with the DB down (triage ran ALTER TABLE at import; now on first use with retry). More is mostly third-party libraries; details in docs/PERFORMANCE.md | built | 96c5b8e | test_startup_cost (3); full non-db suite 572 passed | restart time on a normal day; with the DB up the gain is smaller |
 
 ## Phase 2: Reliability and visibility
 | # | Item | Status | Commit | Tests | Live check still needed |
