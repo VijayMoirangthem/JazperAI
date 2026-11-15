@@ -10,7 +10,7 @@ Branch: `claude/resource-aware-agents`. Nothing here is merged or deployed.
 | # | Item | Status | Commit | Tests | Live check still needed |
 |---|---|---|---|---|---|
 | 1.1 | Fast path for plain chat: short prompt, no tool docs, low reasoning effort, guard + fallback to the tool loop | built | 6ddc20b | test_chatmode, test_plain_chat (48 tests) | reply quality, latency vs 0.7-1.2 s baseline |
-| 1.2 | Speak while the reply streams: LiveSplitter hands out sentences as they complete (first one after >= 40 chars), SpeechPipeline downloads the next 2 chunks while one plays, markdown/links/emoji stripped before speaking, new message cuts off the old one | built | PENDING | liveSplitter (9), pipeline (8), clientVoice | first words about 1 s after the model starts; how it sounds |
+| 1.2 | Speak while the reply streams: LiveSplitter hands out sentences as they complete (first one after >= 40 chars), SpeechPipeline downloads the next 2 chunks while one plays, markdown/links/emoji stripped before speaking, new message cuts off the old one | built | 77817db | liveSplitter (9), pipeline (8), clientVoice | first words about 1 s after the model starts; how it sounds |
 | 1.3 | Smaller system prompt: tool loop prompt measured at ~2,260 tokens (40 tool descriptions = 1,370); now only the relevant area is described | built | 6ddc20b | test_chatmode, test_plain_chat | latency before/after on a tool turn |
 | 1.4 | Lighter memory model (dry-run migration first) | todo | | | recall quality |
 | 1.5 | Gmail: one batched request for all message metadata (was one per message) + sync marker at most every 5 min. Parallel *tool* calls deliberately not done: the tool protocol is one call per round by design; fast paths cover the common cases | built | e7764de | test_gmail_batch (5) | email latency vs 2.3-2.8 s |
@@ -29,7 +29,7 @@ Branch: `claude/resource-aware-agents`. Nothing here is merged or deployed.
 | # | Item | Status | Commit | Tests | Live check still needed |
 |---|---|---|---|---|---|
 | 3.1 | One shared brain for chat/phone/voice; Hindi/Hinglish for Drive, calendar, files | todo | | | |
-| 3.2 | Hands-free voice: auto-stop when you stop speaking (SilenceDetector), mic reopens after each spoken reply, gives up after 8 s of silence (tap mic to resume), speech-language choice Auto/English/Hindi (backend ?language=), one "Voice conversation" switch. Interrupt = tap mic or send (voice barge-in skipped: the speaker would hear itself) | built | PENDING | silence (7), handsFree (8), clientVoice (+4), test_voice_stt (+1) | speak to it in Hindi/Hinglish; threshold 0.3 may need tuning to your room |
+| 3.2 | Hands-free voice: auto-stop when you stop speaking (SilenceDetector), mic reopens after each spoken reply, gives up after 8 s of silence (tap mic to resume), speech-language choice Auto/English/Hindi (backend ?language=), one "Voice conversation" switch. Interrupt = tap mic or send (voice barge-in skipped: the speaker would hear itself) | built | 77817db | silence (7), handsFree (8), clientVoice (+4), test_voice_stt (+1) | speak to it in Hindi/Hinglish; threshold 0.3 may need tuning to your room |
 | 3.3 | Quality + latency test set, nightly run | todo | | | |
 | 3.4 | Dev-loop end to end (autonomous coding with approval) | todo | | | real task |
 | 3.5 | Web search keys + remaining connectors | blocked | | | needs your keys/accounts |
